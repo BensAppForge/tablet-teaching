@@ -36,7 +36,7 @@ const DashboardTile: React.FC<DashboardTileProps> = ({ title, description, icon,
   return (
     <Link href={href}>
       <Card className={cn(
-        "w-full h-64 flex flex-col items-center justify-center p-4 hover:shadow-md transition-shadow rounded-xl",
+        "w-full aspect-square flex flex-col items-center justify-center p-4 hover:shadow-md transition-shadow rounded-xl",
         tileColor,
         "border-none" // Resets any borders
       )}>
@@ -57,7 +57,7 @@ const TeacherDashboard: React.FC = () => {
   return (
     <TooltipProvider>
       <div className="container mx-auto p-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {/* Meine Tests */}
           <DashboardTile
             title="Meine Tests"
