@@ -61,7 +61,7 @@ const TeacherDashboard: React.FC = () => {
           {/* Meine Tests */}
           <DashboardTile
             title="Meine Tests"
-            description="Verwalten Sie Ihre vorhandenen Tests."
+            description="Tests verwalten"
             icon={<ClipboardList className="h-8 w-8" />}
             href="/tests"
             colorIndex={0}
@@ -70,7 +70,7 @@ const TeacherDashboard: React.FC = () => {
           {/* Neuen Test */}
           <DashboardTile
             title="Neuen Test"
-            description="Erstellen Sie einen neuen Test manuell oder mit KI-Unterstützung."
+            description="Test erstellen"
             icon={<Plus className="h-8 w-8" />}
             href="/create-test"
             colorIndex={1}
@@ -79,7 +79,7 @@ const TeacherDashboard: React.FC = () => {
           {/* Hilfe */}
           <DashboardTile
             title="Hilfe"
-            description="In-App Hilfe und Anleitungen."
+            description="Hilfe & Anleitungen"
             icon={<HelpCircle className="h-8 w-8" />}
             href="/help"
             colorIndex={2}
@@ -88,7 +88,7 @@ const TeacherDashboard: React.FC = () => {
           {/* Einstellungen */}
           <DashboardTile
             title="Einstellungen"
-            description="Profil, Oberfläche, Premium-Funktionen verwalten."
+            description="Einstellungen"
             icon={<Settings className="h-8 w-8" />}
             href="/settings"
             colorIndex={3}
@@ -97,7 +97,7 @@ const TeacherDashboard: React.FC = () => {
           {/* Impressum */}
           <DashboardTile
             title="Impressum"
-            description="Rechtliche Informationen."
+            description="Impressum"
             icon={<Eye className="h-8 w-8" />}
             href="/impressum"
             colorIndex={4}
@@ -106,7 +106,7 @@ const TeacherDashboard: React.FC = () => {
           {/* Datenschutz */}
           <DashboardTile
             title="Datenschutz"
-            description="Datenschutzinformationen."
+            description="Datenschutz"
             icon={<ShieldCheck className="h-8 w-8" />}
             href="/datenschutz"
             colorIndex={5}
