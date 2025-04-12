@@ -1,6 +1,8 @@
 import type {Metadata} from 'next';
 import {Geist, Geist_Mono} from 'next/font/google';
 import './globals.css';
+import {ModeToggle} from '@/components/ModeToggle';
+import {Button} from '@/components/ui/button';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -25,8 +27,25 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        {children}
+        <div className="flex flex-col min-h-screen">
+          {/* Header */}
+          <header className="sticky top-0 z-50 bg-primary text-primary-foreground p-4 flex items-center justify-between">
+            <div>Firebase Studio App</div>
+            <ModeToggle />
+          </header>
+
+          {/* Main Content */}
+          <main className="flex-1">{children}</main>
+
+          {/* Footer */}
+          <footer className="sticky bottom-0 z-50 bg-primary text-primary-foreground p-4 flex items-center justify-between">
+            <div>&copy; {new Date().getFullYear()} Firebase Studio App</div>
+            <div>Important Info</div>
+            <Button variant="secondary">Login/Logout</Button>
+          </footer>
+        </div>
       </body>
     </html>
   );
 }
+
