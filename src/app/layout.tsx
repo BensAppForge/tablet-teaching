@@ -25,12 +25,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="de">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <div className="flex flex-col min-h-screen">
           {/* Header */}
           <header className="sticky top-0 z-50 bg-primary text-primary-foreground p-4 flex items-center justify-between">
-            <div>Firebase Studio App</div>
+            <div>Tablet Lehre</div>
             <ModeToggle />
           </header>
 
@@ -39,9 +39,9 @@ export default function RootLayout({
 
           {/* Footer */}
           <footer className="sticky bottom-0 z-50 bg-primary text-primary-foreground p-4 flex items-center justify-between">
-            <div>&copy; {new Date().getFullYear()} Firebase Studio App</div>
-            <div>Important Info</div>
-            <Button variant="secondary">Login/Logout</Button>
+            <div>&copy; {new Date().getFullYear()} Tablet Lehre</div>
+            <div>Wichtige Infos</div>
+            <Button variant="secondary">Anmelden/Abmelden</Button>
           </footer>
         </div>
       </body>
