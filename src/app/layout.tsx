@@ -57,9 +57,11 @@ export default function RootLayout({
 
           {/* Footer */}
           <footer className="sticky bottom-0 z-50 bg-primary text-primary-foreground p-4 flex items-center justify-between">
-            <div>&copy; {new Date().getFullYear()} Tablet Lehre</div>
+            <div>&copy; 2025 Bensappforge</div>
             <div>Wichtige Infos</div>
             <Button variant="secondary">
+              {/* Conditional rendering based on login status would go here */}
+              {/* For now, just a single button for demonstration */}
               <LogIn className="mr-2 h-4 w-4" />
               Anmelden
             </Button>
@@ -69,7 +71,6 @@ export default function RootLayout({
     </html>
   );
 }
-
 
 
 
