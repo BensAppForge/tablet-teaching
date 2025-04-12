@@ -31,7 +31,7 @@ export default function RootLayout({
         <div className="flex flex-col min-h-screen">
           {/* Header */}
           <header className="sticky top-0 z-50 bg-primary text-primary-foreground p-4 flex items-center justify-between">
-            <div>Tablet Lehre</div>
+            <div>TABLET-TEACHING</div>
             <ModeToggle />
           </header>
 
@@ -62,5 +62,6 @@ export default function RootLayout({
     </html>
   );
 }
+
 
 

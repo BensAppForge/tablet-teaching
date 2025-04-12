@@ -88,7 +88,7 @@ const TeacherDashboard: React.FC = () => {
           {/* Einstellungen */}
           <DashboardTile
             title="Einstellungen"
-            description="Profil, Sound/Konfetti, Premium-Funktionen verwalten."
+            description="Profil, Oberfläche, Premium-Funktionen verwalten."
             icon={<Settings className="h-8 w-8" />}
             href="/settings"
             colorIndex={3}
