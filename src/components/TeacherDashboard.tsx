@@ -36,14 +36,14 @@ const DashboardTile: React.FC<DashboardTileProps> = ({ title, description, icon,
   return (
     <Link href={href}>
       <Card className={cn(
-        "w-full aspect-square flex flex-col items-center justify-center p-4 hover:shadow-md transition-shadow rounded-xl",
+        "w-full  flex flex-col items-center justify-center p-2 hover:shadow-md transition-shadow rounded-xl",
         tileColor,
         "border-none" // Resets any borders
       )}>
         <CardContent className="flex-1 flex items-center justify-center">
           {icon}
         </CardContent>
-        <CardFooter className="text-center p-2">
+        <CardFooter className="text-center p-1">
           <p className="text-sm text-muted-foreground">{description}</p>
         </CardFooter>
       </Card>
@@ -57,12 +57,12 @@ const TeacherDashboard: React.FC = () => {
   return (
     <TooltipProvider>
       <div className="container mx-auto p-4">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
           {/* Meine Tests */}
           <DashboardTile
             title="Meine Tests"
             description="Verwalten Sie Ihre vorhandenen Tests."
-            icon={<ClipboardList className="h-12 w-12" />}
+            icon={<ClipboardList className="h-8 w-8" />}
             href="/tests"
             colorIndex={0}
           />
@@ -71,7 +71,7 @@ const TeacherDashboard: React.FC = () => {
           <DashboardTile
             title="Neuen Test"
             description="Erstellen Sie einen neuen Test manuell oder mit KI-Unterstützung."
-            icon={<Plus className="h-12 w-12" />}
+            icon={<Plus className="h-8 w-8" />}
             href="/create-test"
             colorIndex={1}
           />
@@ -80,7 +80,7 @@ const TeacherDashboard: React.FC = () => {
           <DashboardTile
             title="Hilfe"
             description="In-App Hilfe und Anleitungen."
-            icon={<HelpCircle className="h-12 w-12" />}
+            icon={<HelpCircle className="h-8 w-8" />}
             href="/help"
             colorIndex={2}
           />
@@ -89,7 +89,7 @@ const TeacherDashboard: React.FC = () => {
           <DashboardTile
             title="Einstellungen"
             description="Profil, Sound/Konfetti, Premium-Funktionen verwalten."
-            icon={<Settings className="h-12 w-12" />}
+            icon={<Settings className="h-8 w-8" />}
             href="/settings"
             colorIndex={3}
           />
@@ -98,7 +98,7 @@ const TeacherDashboard: React.FC = () => {
           <DashboardTile
             title="Impressum"
             description="Rechtliche Informationen."
-            icon={<Eye className="h-12 w-12" />}
+            icon={<Eye className="h-8 w-8" />}
             href="/impressum"
             colorIndex={4}
           />
@@ -107,7 +107,7 @@ const TeacherDashboard: React.FC = () => {
           <DashboardTile
             title="Datenschutz"
             description="Datenschutzinformationen."
-            icon={<ShieldCheck className="h-12 w-12" />}
+            icon={<ShieldCheck className="h-8 w-8" />}
             href="/datenschutz"
             colorIndex={5}
           />
