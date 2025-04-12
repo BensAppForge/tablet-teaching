@@ -31,7 +31,24 @@ export default function RootLayout({
         <div className="flex flex-col min-h-screen">
           {/* Header */}
           <header className="sticky top-0 z-50 bg-primary text-primary-foreground p-4 flex items-center justify-between">
-            <div>TABLET-TEACHING</div>
+            <div className="flex items-center">
+              {/* Dummy Logo - Replace with your actual logo */}
+              <svg
+                width="30"
+                height="30"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mr-2"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <line x1="9" y1="3" x2="9" y2="21" />
+              </svg>
+              TABLET-TEACHING
+            </div>
             <ModeToggle />
           </header>
 
@@ -43,18 +60,8 @@ export default function RootLayout({
             <div>&copy; {new Date().getFullYear()} Tablet Lehre</div>
             <div>Wichtige Infos</div>
             <Button variant="secondary">
-              {/* Assuming you want to toggle between login and logout */}
-              {true ? (
-                <>
-                  <LogIn className="mr-2 h-4 w-4" />
-                  Anmelden
-                </>
-              ) : (
-                <>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Abmelden
-                </>
-              )}
+              <LogIn className="mr-2 h-4 w-4" />
+              Anmelden
             </Button>
           </footer>
         </div>
@@ -62,6 +69,7 @@ export default function RootLayout({
     </html>
   );
 }
+
 
 
 
