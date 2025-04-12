@@ -1,27 +1,55 @@
 "use client";
 
 import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
-  Eye, Trash2, Wand2, Settings, HelpCircle, Share2, BarChart3, Plus, ClipboardList, Shield
+  Eye, Wand2, Settings, HelpCircle, Share2, Plus, ClipboardList, ShieldCheck
 } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
-const DashboardTile = ({ title, description, icon, href }: { title: string; description: string; icon: React.ReactNode; href: string }) => (
-  <Link href={href}>
-    <Card className="w-full h-64 flex flex-col items-center justify-center p-4 hover:shadow-md transition-shadow">
-      <CardContent className="flex-1 flex items-center justify-center">
-        {icon}
-      </CardContent>
-      <CardFooter className="text-center p-2">
-        <p className="text-sm text-muted-foreground">{description}</p>
-      </CardFooter>
-    </Card>
-  </Link>
-);
+// Define a color palette for the dashboard tiles
+const tileColors = [
+  "bg-orange-100 dark:bg-orange-900",
+  "bg-green-100 dark:bg-green-900",
+  "bg-blue-100 dark:bg-blue-900",
+  "bg-red-100 dark:bg-red-900",
+  "bg-purple-100 dark:bg-purple-900",
+  "bg-yellow-100 dark:bg-yellow-900",
+];
+
+// Interface for the DashboardTile component props
+interface DashboardTileProps {
+  title: string;
+  description: string;
+  icon: React.ReactNode;
+  href: string;
+  colorIndex: number; // Index to select a color from the tileColors array
+}
+
+// DashboardTile component with colorIndex prop
+const DashboardTile: React.FC<DashboardTileProps> = ({ title, description, icon, href, colorIndex }) => {
+  const tileColor = tileColors[colorIndex % tileColors.length]; // Cycle through colors
+
+  return (
+    <Link href={href}>
+      <Card className={cn(
+        "w-full h-64 flex flex-col items-center justify-center p-4 hover:shadow-md transition-shadow rounded-xl",
+        tileColor,
+        "border-none" // Resets any borders
+      )}>
+        <CardContent className="flex-1 flex items-center justify-center">
+          {icon}
+        </CardContent>
+        <CardFooter className="text-center p-2">
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </CardFooter>
+      </Card>
+    </Link>
+  );
+};
 
 const TeacherDashboard: React.FC = () => {
   const router = useRouter();
@@ -36,6 +64,7 @@ const TeacherDashboard: React.FC = () => {
             description="Verwalten Sie Ihre vorhandenen Tests."
             icon={<ClipboardList className="h-12 w-12" />}
             href="/tests"
+            colorIndex={0}
           />
 
           {/* Neuen Test */}
@@ -44,6 +73,7 @@ const TeacherDashboard: React.FC = () => {
             description="Erstellen Sie einen neuen Test manuell oder mit KI-Unterstützung."
             icon={<Plus className="h-12 w-12" />}
             href="/create-test"
+            colorIndex={1}
           />
 
           {/* Hilfe */}
@@ -52,6 +82,7 @@ const TeacherDashboard: React.FC = () => {
             description="In-App Hilfe und Anleitungen."
             icon={<HelpCircle className="h-12 w-12" />}
             href="/help"
+            colorIndex={2}
           />
 
           {/* Einstellungen */}
@@ -60,6 +91,7 @@ const TeacherDashboard: React.FC = () => {
             description="Profil, Sound/Konfetti, Premium-Funktionen verwalten."
             icon={<Settings className="h-12 w-12" />}
             href="/settings"
+            colorIndex={3}
           />
 
           {/* Impressum */}
@@ -68,14 +100,16 @@ const TeacherDashboard: React.FC = () => {
             description="Rechtliche Informationen."
             icon={<Eye className="h-12 w-12" />}
             href="/impressum"
+            colorIndex={4}
           />
 
           {/* Datenschutz */}
           <DashboardTile
             title="Datenschutz"
             description="Datenschutzinformationen."
-            icon={<Shield className="h-12 w-12" />}
+            icon={<ShieldCheck className="h-12 w-12" />}
             href="/datenschutz"
+            colorIndex={5}
           />
         </div>
       </div>
