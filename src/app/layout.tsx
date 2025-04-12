@@ -3,6 +3,7 @@ import {Geist, Geist_Mono} from 'next/font/google';
 import './globals.css';
 import {ModeToggle} from '@/components/ModeToggle';
 import {Button} from '@/components/ui/button';
+import {LogIn, LogOut} from "lucide-react";
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -41,11 +42,25 @@ export default function RootLayout({
           <footer className="sticky bottom-0 z-50 bg-primary text-primary-foreground p-4 flex items-center justify-between">
             <div>&copy; {new Date().getFullYear()} Tablet Lehre</div>
             <div>Wichtige Infos</div>
-            <Button variant="secondary">Anmelden/Abmelden</Button>
+            <Button variant="secondary">
+              {/* Assuming you want to toggle between login and logout */}
+              {true ? (
+                <>
+                  <LogIn className="mr-2 h-4 w-4" />
+                  Anmelden
+                </>
+              ) : (
+                <>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Abmelden
+                </>
+              )}
+            </Button>
           </footer>
         </div>
       </body>
     </html>
   );
 }
+
 
