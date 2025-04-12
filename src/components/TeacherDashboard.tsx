@@ -36,7 +36,7 @@ const DashboardTile: React.FC<DashboardTileProps> = ({ title, description, icon,
   return (
     <Link href={href}>
       <Card className={cn(
-        "w-full  flex flex-col items-center justify-center p-2 hover:shadow-md transition-shadow rounded-xl",
+        "aspect-square flex flex-col items-center justify-center p-2 hover:shadow-md transition-shadow rounded-xl",
         tileColor,
         "border-none" // Resets any borders
       )}>
