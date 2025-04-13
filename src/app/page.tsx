@@ -33,7 +33,7 @@ const LandingPage: React.FC = () => {
             <CardDescription className="text-center">
               Als Schüler*in an Tests teilnehmen.
             </CardDescription>
-          </Card>
+          </CardContent>
         </Card>
       </div>
     </div>
