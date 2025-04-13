@@ -1,0 +1,16 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Core Guidelines
+
+- Use **React** with **TypeScript** for all frontend development.
+- Utilize **radix** for UI components and **Tailwind CSS** for styling.
+- Incorporate **Lucide** icons for consistent iconography.
+- Implement **Firebase** services: Auth, Firestore, Storage, Functions, and Hosting.
+- Integrate **OpenAI API** for AI-assisted test generation.
+- Ensure all UI text is in **German** to match the UI language.
+- Adhere to CEFR standards for language proficiency levels.
+- Maintain a responsive design optimized for tablets and mobile devices.
+- Prioritize privacy by avoiding mandatory student sign-ups.

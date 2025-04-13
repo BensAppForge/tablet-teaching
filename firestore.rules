@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Teachers can read/write their own teacher profile
+    match /teachers/{teacherId} {
+      allow read, write: if request.auth != null && request.auth.uid == teacherId;
+    }
+
+    // Teachers can access only their own tests
+    match /tests/{testId} {
+      allow read, write: if request.auth != null && request.resource.data.teacherId == request.auth.uid;
+    }
+
+    // Questions are subcollections of tests
+    match /tests/{testId}/questions/{questionId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Attempts: read-only access for leaderboard, no auth required
+    match /attempts/{attemptId} {
+      allow read, write: if true;
+    }
+
+    // Distributions (quiz codes)
+    match /distributions/{code} {
+      allow read, write: if true;
+    }
+  }
+}
