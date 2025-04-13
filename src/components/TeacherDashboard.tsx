@@ -1,120 +1,180 @@
 "use client";
 
-import React from 'react';
+import React from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
-  Eye, Wand2, Settings, HelpCircle, Share2, Plus, ClipboardList, ShieldCheck
+	Eye,
+	Wand2,
+	Settings,
+	HelpCircle,
+	Share2,
+	Plus,
+	ClipboardList,
+	ShieldCheck,
 } from "lucide-react";
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { cn } from '@/lib/utils';
+import {
+	Tooltip,
+	TooltipTrigger,
+	TooltipContent,
+	TooltipProvider,
+} from "@/components/ui/tooltip";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 // Define a color palette for the dashboard tiles
 const tileColors = [
-  "bg-orange-100 dark:bg-orange-900",
-  "bg-green-100 dark:bg-green-900",
-  "bg-blue-100 dark:bg-blue-900",
-  "bg-red-100 dark:bg-red-900",
-  "bg-purple-100 dark:bg-purple-900",
-  "bg-yellow-100 dark:bg-yellow-900",
+	"bg-orange-100 dark:bg-orange-900/40 border-orange-200 dark:border-orange-800",
+	"bg-green-100 dark:bg-green-900/40 border-green-200 dark:border-green-800",
+	"bg-blue-100 dark:bg-blue-900/40 border-blue-200 dark:border-blue-800",
+	"bg-red-100 dark:bg-red-900/40 border-red-200 dark:border-red-800",
+	"bg-purple-100 dark:bg-purple-900/40 border-purple-200 dark:border-purple-800",
+	"bg-yellow-100 dark:bg-yellow-900/40 border-yellow-200 dark:border-yellow-800",
+];
+
+// Icon background colors based on the same palette but more subtle
+const iconBgColors = [
+	"bg-orange-200 dark:bg-orange-800",
+	"bg-green-200 dark:bg-green-800",
+	"bg-blue-200 dark:bg-blue-800",
+	"bg-red-200 dark:bg-red-800",
+	"bg-purple-200 dark:bg-purple-800",
+	"bg-yellow-200 dark:bg-yellow-800",
 ];
 
 // Interface for the DashboardTile component props
 interface DashboardTileProps {
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  href: string;
-  colorIndex: number; // Index to select a color from the tileColors array
+	title: string;
+	description: string;
+	icon: React.ReactNode;
+	href: string;
+	colorIndex: number; // Index to select a color from the tileColors array
 }
 
 // DashboardTile component with colorIndex prop
-const DashboardTile: React.FC<DashboardTileProps> = ({ title, description, icon, href, colorIndex }) => {
-  const tileColor = tileColors[colorIndex % tileColors.length]; // Cycle through colors
+const DashboardTile: React.FC<DashboardTileProps> = ({
+	title,
+	description,
+	icon,
+	href,
+	colorIndex,
+}) => {
+	const tileColor = tileColors[colorIndex % tileColors.length]; // Cycle through colors
+	const iconBgColor = iconBgColors[colorIndex % iconBgColors.length]; // Matching icon background
 
-  return (
-    <Link href={href}>
-      <Card className={cn(
-        "aspect-square flex flex-col items-center justify-center p-2 hover:shadow-md transition-shadow rounded-xl",
-        tileColor,
-        "border-none" // Resets any borders
-      )}>
-        <CardContent className="flex-1 flex items-center justify-center">
-          {icon}
-        </CardContent>
-        <CardFooter className="text-center p-1">
-          <p className="text-sm text-muted-foreground">{description}</p>
-        </CardFooter>
-      </Card>
-    </Link>
-  );
+	return (
+		<Link href={href} className="block transition-transform hover:scale-105">
+			<Card
+				className={cn(
+					"aspect-square flex flex-col items-center p-4 hover:shadow-lg transition-all duration-200 rounded-xl border",
+					tileColor
+				)}
+			>
+				<CardContent className="flex-1 flex flex-col items-center justify-center gap-4 w-full p-0 pt-4">
+					{/* Icon with a subtle background circle */}
+					<div
+						className={cn(
+							"p-4 rounded-full flex items-center justify-center",
+							iconBgColor
+						)}
+					>
+						{React.cloneElement(icon as React.ReactElement, {
+							className: "h-16 w-16 text-foreground/80",
+						})}
+					</div>
+
+					{/* Title - now displayed with softer color */}
+					<h3 className="text-xl font-medium text-center text-gray-700 dark:text-gray-200">
+						{title}
+					</h3>
+				</CardContent>
+
+				<CardFooter className="text-center p-1 pb-2 w-full">
+					<p className="text-sm text-gray-500 dark:text-gray-400 w-full">
+						{description}
+					</p>
+				</CardFooter>
+			</Card>
+		</Link>
+	);
 };
 
 const TeacherDashboard: React.FC = () => {
-  const router = useRouter();
+	const router = useRouter();
 
-  return (
-    <TooltipProvider>
-      <div className="container mx-auto p-4">
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-          {/* Meine Tests */}
-          <DashboardTile
-            title="Meine Tests"
-            description="Tests verwalten"
-            icon={<ClipboardList className="h-8 w-8" />}
-            href="/tests"
-            colorIndex={0}
-          />
+	return (
+		<div className="w-full">
+			{/* Title at the top of the page with no extra spacing */}
+			<div className="border-b">
+				<div className="container mx-auto px-4">
+					<h1 className="text-2xl font-semibold py-2 text-gray-700 dark:text-gray-200">
+						Dashboard
+					</h1>
+				</div>
+			</div>
 
-          {/* Neuen Test */}
-          <DashboardTile
-            title="Neuen Test"
-            description="Test erstellen"
-            icon={<Plus className="h-8 w-8" />}
-            href="/create-test"
-            colorIndex={1}
-          />
+			{/* Card grid with correct spacing */}
+			<div className="container mx-auto px-4 py-4">
+				<TooltipProvider>
+					<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
+						{/* Meine Tests */}
+						<DashboardTile
+							title="Tests verwalten"
+							description="Vorhandene Tests anzeigen und bearbeiten"
+							icon={<ClipboardList />}
+							href="/tests"
+							colorIndex={0}
+						/>
 
-          {/* Hilfe */}
-          <DashboardTile
-            title="Hilfe"
-            description="Hilfe & Anleitungen"
-            icon={<HelpCircle className="h-8 w-8" />}
-            href="/help"
-            colorIndex={2}
-          />
+						{/* Neuen Test */}
+						<DashboardTile
+							title="Test erstellen"
+							description="Neuen Test manuell oder mit KI erstellen"
+							icon={<Plus />}
+							href="/create-test"
+							colorIndex={1}
+						/>
 
-          {/* Einstellungen */}
-          <DashboardTile
-            title="Einstellungen"
-            description="Einstellungen"
-            icon={<Settings className="h-8 w-8" />}
-            href="/settings"
-            colorIndex={3}
-          />
+						{/* Hilfe */}
+						<DashboardTile
+							title="Hilfe & Anleitungen"
+							description="Tutorials und Hilfestellung"
+							icon={<HelpCircle />}
+							href="/help"
+							colorIndex={2}
+						/>
 
-          {/* Impressum */}
-          <DashboardTile
-            title="Impressum"
-            description="Impressum"
-            icon={<Eye className="h-8 w-8" />}
-            href="/impressum"
-            colorIndex={4}
-          />
+						{/* Einstellungen */}
+						<DashboardTile
+							title="Einstellungen"
+							description="Konto und App-Einstellungen anpassen"
+							icon={<Settings />}
+							href="/settings"
+							colorIndex={3}
+						/>
 
-          {/* Datenschutz */}
-          <DashboardTile
-            title="Datenschutz"
-            description="Datenschutz"
-            icon={<ShieldCheck className="h-8 w-8" />}
-            href="/datenschutz"
-            colorIndex={5}
-          />
-        </div>
-      </div>
-    </TooltipProvider>
-  );
+						{/* Impressum */}
+						<DashboardTile
+							title="Impressum"
+							description="Rechtliche Informationen"
+							icon={<Eye />}
+							href="/impressum"
+							colorIndex={4}
+						/>
+
+						{/* Datenschutz */}
+						<DashboardTile
+							title="Datenschutz"
+							description="Datenschutzrichtlinien"
+							icon={<ShieldCheck />}
+							href="/datenschutz"
+							colorIndex={5}
+						/>
+					</div>
+				</TooltipProvider>
+			</div>
+		</div>
+	);
 };
 
 export default TeacherDashboard;

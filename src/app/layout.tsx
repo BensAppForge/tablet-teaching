@@ -55,8 +55,8 @@ export default function RootLayout({
 							<ModeToggle />
 						</header>
 
-						{/* Main Content */}
-						<main className="flex-1 container mx-auto py-6">{children}</main>
+						{/* Main Content - Removed vertical centering */}
+						<main className="flex-1 flex flex-col pt-0">{children}</main>
 
 						{/* Footer - Changed to bg-primary and text-primary-foreground */}
 						<footer className="sticky bottom-0 z-50 bg-primary text-primary-foreground p-4 flex items-center justify-between">
