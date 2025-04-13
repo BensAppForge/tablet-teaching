@@ -4,6 +4,7 @@ import './globals.css';
 import {ModeToggle} from '@/components/ModeToggle';
 import {Button} from '@/components/ui/button';
 import {LogIn, LogOut} from "lucide-react";
+import { redirect } from 'next/navigation';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -25,6 +26,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+
+  // Temporary fix until proper routing is implemented
+  if (children && typeof children === 'object' && 'props' in children && children.props?.children && String(children.props.children).includes('TeacherDashboard') ) {
+      redirect('/');
+  }
+
   return (
     <html lang="de">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
@@ -59,7 +66,7 @@ export default function RootLayout({
           <footer className="sticky bottom-0 z-50 bg-primary text-primary-foreground p-4 flex items-center justify-between">
             <div>&copy; 2025 Bensappforge</div>
             <div>Wichtige Infos</div>
-            <Button variant="secondary">
+            <Button variant="secondary" >
               {/* Conditional rendering based on login status would go here */}
               {/* For now, just a single button for demonstration */}
               <LogIn className="mr-2 h-4 w-4" />
@@ -71,6 +78,5 @@ export default function RootLayout({
     </html>
   );
 }
-
 
 
