@@ -13,7 +13,7 @@ const LandingPage: React.FC = () => {
         Sprachenlernen testen. Einfach. Digital. Sicher.
       </h1>
       <div className="flex flex-col md:flex-row gap-4">
-        <Link href="/teacher">
+        <Link href="/auth/teacher-login">
           <Card className="w-80 h-48 flex flex-col items-center justify-center p-4 hover:shadow-md transition-shadow">
             <CardHeader>
               <CardTitle>Ich bin Lehrkraft</CardTitle>
@@ -33,7 +33,7 @@ const LandingPage: React.FC = () => {
             <CardDescription className="text-center">
               Als Schüler*in an Tests teilnehmen.
             </CardDescription>
-          </CardContent>
+          </Card>
         </Card>
       </div>
     </div>
