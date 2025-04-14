@@ -7,14 +7,17 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == teacherId;
     }
 
-    // Teachers can access only their own tests
+    // Tests collection - allow teachers to read all tests, but enforce filtering in the app code
+    // This is simpler and reduces the rule complexity
     match /tests/{testId} {
-      allow read, write: if request.auth != null && request.resource.data.teacherId == request.auth.uid;
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.resource.data.teacherId == request.auth.uid;
     }
 
     // Questions are subcollections of tests
     match /tests/{testId}/questions/{questionId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null && get(/databases/$(database)/documents/tests/$(testId)).data.teacherId == request.auth.uid;
+      allow write: if request.auth != null && get(/databases/$(database)/documents/tests/$(testId)).data.teacherId == request.auth.uid;
     }
 
     // Attempts: read-only access for leaderboard, no auth required

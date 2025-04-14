@@ -16,8 +16,9 @@ import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { auth } from "@/lib/firebase/config";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import Link from "next/link";
+import AuthRedirect from "@/components/AuthRedirect";
 
-const TeacherLoginPage: React.FC = () => {
+const TeacherLoginForm: React.FC = () => {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [error, setError] = useState<string | null>(null);
@@ -137,6 +138,14 @@ const TeacherLoginPage: React.FC = () => {
 				</CardContent>
 			</Card>
 		</div>
+	);
+};
+
+const TeacherLoginPage: React.FC = () => {
+	return (
+		<AuthRedirect>
+			<TeacherLoginForm />
+		</AuthRedirect>
 	);
 };
 

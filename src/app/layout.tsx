@@ -7,6 +7,7 @@ import { FooterInfoProvider } from "@/context/FooterInfoContext";
 import FooterAuthButton from "@/components/FooterAuthButton";
 import FooterInfo from "@/components/FooterInfo";
 import UserProfile from "@/components/UserProfile";
+import { Toaster } from "@/components/ui/toaster";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -72,6 +73,9 @@ export default function RootLayout({
 								<FooterAuthButton />
 							</footer>
 						</div>
+
+						{/* Toast notifications */}
+						<Toaster />
 					</FooterInfoProvider>
 				</AuthProvider>
 			</body>

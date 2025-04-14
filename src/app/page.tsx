@@ -11,18 +11,17 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import AuthRedirect from "@/components/AuthRedirect";
+import { useAuth } from "@/context/AuthContext";
 
-const LandingPage: React.FC = () => {
+const LandingPageContent: React.FC = () => {
 	return (
 		<div className="w-full flex flex-col items-center">
 			<h1 className="text-4xl font-bold tracking-tight text-center mb-8 max-w-3xl">
 				Quizzes und Tests für den Fremdsprachenunterricht.
 			</h1>
 			<div className="flex flex-col md:flex-row gap-6">
-				<Link
-					href="/auth/teacher-login"
-					className="transition-transform hover:scale-105"
-				>
+				<Link href="/teacher" className="transition-transform hover:scale-105">
 					<Card className="w-80 h-48 flex flex-col items-center justify-center p-4 hover:shadow-lg transition-shadow">
 						<CardHeader className="pb-2">
 							<CardTitle className="text-center">Ich bin Lehrkraft</CardTitle>
@@ -51,6 +50,15 @@ const LandingPage: React.FC = () => {
 				</Link>
 			</div>
 		</div>
+	);
+};
+
+const LandingPage: React.FC = () => {
+	// Redirect authenticated users to dashboard
+	return (
+		<AuthRedirect>
+			<LandingPageContent />
+		</AuthRedirect>
 	);
 };
 
