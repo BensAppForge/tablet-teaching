@@ -13,9 +13,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, Lock, Eye, EyeOff, CheckCircle2, XCircle } from "lucide-react";
-import { auth } from "@/lib/firebase/config";
-import { createUserWithEmailAndPassword } from "firebase/auth";
+import {
+	Mail,
+	Lock,
+	Eye,
+	EyeOff,
+	CheckCircle2,
+	XCircle,
+	User,
+} from "lucide-react";
+import { auth, firestore } from "@/lib/firebase/config";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import Link from "next/link";
 
 // Password validation requirements
@@ -39,6 +48,8 @@ const passwordRequirements = [
 ];
 
 const TeacherSignupPage: React.FC = () => {
+	const [firstName, setFirstName] = useState("");
+	const [lastName, setLastName] = useState("");
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -76,6 +87,12 @@ const TeacherSignupPage: React.FC = () => {
 		event.preventDefault();
 		setError(null);
 
+		// Validate name fields
+		if (!firstName.trim() || !lastName.trim()) {
+			setError("Bitte geben Sie Ihren Vor- und Nachnamen ein.");
+			return;
+		}
+
 		// Check if all password requirements are met
 		const isPasswordValid = Object.values(validations).every((valid) => valid);
 		if (!isPasswordValid) {
@@ -93,7 +110,29 @@ const TeacherSignupPage: React.FC = () => {
 
 		try {
 			// Create a new user with email and password
-			await createUserWithEmailAndPassword(auth, email, password);
+			const userCredential = await createUserWithEmailAndPassword(
+				auth,
+				email,
+				password
+			);
+
+			// Update the user's profile with display name
+			const displayName = `${firstName} ${lastName}`;
+			await updateProfile(userCredential.user, {
+				displayName: displayName,
+			});
+
+			// Add user data to Firestore
+			const userId = userCredential.user.uid;
+			await setDoc(doc(firestore, "teachers", userId), {
+				firstName: firstName,
+				lastName: lastName,
+				email: email,
+				createdAt: serverTimestamp(),
+				isPremium: false,
+				isBetaTester: false,
+				// premiumExpiresOn is not set initially
+			});
 
 			// Success - redirect to dashboard or login
 			router.push("/teacher/dashboard");
@@ -128,6 +167,42 @@ const TeacherSignupPage: React.FC = () => {
 				</CardHeader>
 				<CardContent>
 					<form onSubmit={handleSignup} className="grid gap-4">
+						{/* Name fields */}
+						<div className="grid grid-cols-2 gap-4">
+							<div className="grid gap-2">
+								<Label htmlFor="firstName">Vorname</Label>
+								<div className="relative">
+									<User className="absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground" />
+									<Input
+										type="text"
+										id="firstName"
+										placeholder="Vorname"
+										className="pl-10"
+										value={firstName}
+										onChange={(e) => setFirstName(e.target.value)}
+										required
+										disabled={isLoading}
+									/>
+								</div>
+							</div>
+							<div className="grid gap-2">
+								<Label htmlFor="lastName">Nachname</Label>
+								<div className="relative">
+									<User className="absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground" />
+									<Input
+										type="text"
+										id="lastName"
+										placeholder="Nachname"
+										className="pl-10"
+										value={lastName}
+										onChange={(e) => setLastName(e.target.value)}
+										required
+										disabled={isLoading}
+									/>
+								</div>
+							</div>
+						</div>
+
 						<div className="grid gap-2">
 							<Label htmlFor="email">Email</Label>
 							<div className="relative">

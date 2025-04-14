@@ -11,6 +11,7 @@ import {
 	Plus,
 	ClipboardList,
 	ShieldCheck,
+	BadgeCheck,
 } from "lucide-react";
 import {
 	Tooltip,
@@ -21,6 +22,7 @@ import {
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useFooterInfo } from "@/context/FooterInfoContext";
 
 // Define a color palette for the dashboard tiles
 const tileColors = [
@@ -61,9 +63,17 @@ const DashboardTile: React.FC<DashboardTileProps> = ({
 }) => {
 	const tileColor = tileColors[colorIndex % tileColors.length]; // Cycle through colors
 	const iconBgColor = iconBgColors[colorIndex % iconBgColors.length]; // Matching icon background
+	const { updateFooterInfo } = useFooterInfo();
 
 	return (
-		<Link href={href} className="block transition-transform hover:scale-105">
+		<Link
+			href={href}
+			className="block transition-transform hover:scale-105"
+			onMouseEnter={() => updateFooterInfo(description)}
+			onMouseLeave={() => updateFooterInfo(null)}
+			onFocus={() => updateFooterInfo(description)}
+			onBlur={() => updateFooterInfo(null)}
+		>
 			<Card
 				className={cn(
 					"aspect-square flex flex-col items-center p-4 hover:shadow-lg transition-all duration-200 rounded-xl border",
@@ -89,7 +99,8 @@ const DashboardTile: React.FC<DashboardTileProps> = ({
 					</h3>
 				</CardContent>
 
-				<CardFooter className="text-center p-1 pb-2 w-full">
+				{/* Description - only displayed on mobile */}
+				<CardFooter className="text-center p-1 pb-2 w-full md:hidden">
 					<p className="text-sm text-gray-500 dark:text-gray-400 w-full">
 						{description}
 					</p>
@@ -135,13 +146,22 @@ const TeacherDashboard: React.FC = () => {
 							colorIndex={1}
 						/>
 
+						{/* Premium Features */}
+						<DashboardTile
+							title="Premium-Funktionen"
+							description="Premium-Status und erweiterte Funktionen"
+							icon={<BadgeCheck />}
+							href="/premium-features"
+							colorIndex={2}
+						/>
+
 						{/* Hilfe */}
 						<DashboardTile
 							title="Hilfe & Anleitungen"
 							description="Tutorials und Hilfestellung"
 							icon={<HelpCircle />}
 							href="/help"
-							colorIndex={2}
+							colorIndex={3}
 						/>
 
 						{/* Einstellungen */}
@@ -150,7 +170,7 @@ const TeacherDashboard: React.FC = () => {
 							description="Konto und App-Einstellungen anpassen"
 							icon={<Settings />}
 							href="/settings"
-							colorIndex={3}
+							colorIndex={4}
 						/>
 
 						{/* Impressum */}
@@ -159,17 +179,10 @@ const TeacherDashboard: React.FC = () => {
 							description="Rechtliche Informationen"
 							icon={<Eye />}
 							href="/impressum"
-							colorIndex={4}
-						/>
-
-						{/* Datenschutz */}
-						<DashboardTile
-							title="Datenschutz"
-							description="Datenschutzrichtlinien"
-							icon={<ShieldCheck />}
-							href="/datenschutz"
 							colorIndex={5}
 						/>
+
+						{/* Datenschutz moved to footer only */}
 					</div>
 				</TooltipProvider>
 			</div>
