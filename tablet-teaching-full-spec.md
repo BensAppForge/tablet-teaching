@@ -110,6 +110,8 @@ Leaderboard is computed from attempts, not stored separately.
   - Fixed header and footer ✓
   - Responsive content area ✓
   - Dark/light mode ✓
+  - Back to dashboard button in the upper left corner as in the test management page
+  - User framer motion animations
 - German UI labels and flow ✓
 - Clean, card-based dashboard for teachers ✓
 - Streamlined quiz flow for students

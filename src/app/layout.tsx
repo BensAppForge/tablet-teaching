@@ -7,7 +7,7 @@ import { FooterInfoProvider } from "@/context/FooterInfoContext";
 import FooterAuthButton from "@/components/FooterAuthButton";
 import FooterInfo from "@/components/FooterInfo";
 import UserProfile from "@/components/UserProfile";
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -74,8 +74,8 @@ export default function RootLayout({
 							</footer>
 						</div>
 
-						{/* Toast notifications */}
-						<Toaster />
+						{/* Toast notifications - using only Sonner now */}
+						<Toaster richColors position="top-center" />
 					</FooterInfoProvider>
 				</AuthProvider>
 			</body>

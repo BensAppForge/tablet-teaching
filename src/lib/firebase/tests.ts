@@ -356,3 +356,34 @@ export const deleteQuestion = async (
 		throw error;
 	}
 };
+
+/**
+ * Deletes a test and all its questions
+ * @param testId - The ID of the test to delete
+ * @returns Promise that resolves when the deletion is complete
+ */
+export const deleteTest = async (testId: string): Promise<void> => {
+	try {
+		// Get all questions in the test
+		const questionsRef = collection(firestore, `tests/${testId}/questions`);
+		const querySnapshot = await getDocs(questionsRef);
+
+		// Use a batch to delete all questions and the test
+		const batch = writeBatch(firestore);
+
+		// Add all question documents to the batch for deletion
+		querySnapshot.docs.forEach((doc) => {
+			batch.delete(doc.ref);
+		});
+
+		// Add the test document to the batch for deletion
+		const testRef = doc(firestore, "tests", testId);
+		batch.delete(testRef);
+
+		// Commit the batch
+		await batch.commit();
+	} catch (error) {
+		console.error("Error deleting test:", error);
+		throw error;
+	}
+};

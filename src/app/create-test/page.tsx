@@ -47,7 +47,7 @@ import {
 } from "@/lib/firebase/tests";
 import { FEATURE_LIMITS } from "@/lib/firebase/teachers";
 import { Slider } from "@/components/ui/slider";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import AuthRequired from "@/components/AuthRequired";
 import Xarrow from "react-xarrows";
 
@@ -72,7 +72,6 @@ const CONNECTION_COLORS = [
 
 const CreateTestPage: React.FC = () => {
 	const router = useRouter();
-	const { toast } = useToast();
 	const { currentUser, featureRestrictions } = useAuth();
 	const [loading, setLoading] = useState(false);
 	const [existingTests, setExistingTests] = useState<Test[]>([]);
@@ -128,11 +127,9 @@ const CreateTestPage: React.FC = () => {
 					featureRestrictions.maxTests !== Infinity
 				) {
 					setHasReachedLimit(true);
-					toast({
-						title: "Test-Limit erreicht",
-						description: `Sie haben das Limit von ${featureRestrictions.maxTests} Tests für Ihr Konto erreicht. Upgrade auf Premium für unbegrenzte Tests.`,
-						variant: "destructive",
-					});
+					toast.error(
+						`Sie haben das Limit von ${featureRestrictions.maxTests} Tests für Ihr Konto erreicht. Upgrade auf Premium für unbegrenzte Tests.`
+					);
 				}
 			} catch (error) {
 				console.error("Error fetching existing tests:", error);
@@ -140,7 +137,7 @@ const CreateTestPage: React.FC = () => {
 		};
 
 		fetchExistingTests();
-	}, [currentUser, featureRestrictions.maxTests, toast]);
+	}, [currentUser, featureRestrictions.maxTests]);
 
 	// Effect to update question defaults when testData defaults change
 	useEffect(() => {
@@ -334,10 +331,7 @@ const CreateTestPage: React.FC = () => {
 		// Reset the current question to a new one of the same type
 		handleQuestionTypeChange(currentQuestionType);
 
-		toast({
-			title: "Frage hinzugefügt",
-			description: "Die Frage wurde zum Test hinzugefügt.",
-		});
+		toast.success("Die Frage wurde zum Test hinzugefügt.");
 	};
 
 	const handleBackToDashboard = () => {
@@ -346,41 +340,26 @@ const CreateTestPage: React.FC = () => {
 
 	const handleSubmit = async () => {
 		if (!currentUser) {
-			toast({
-				title: "Nicht angemeldet",
-				description: "Sie müssen angemeldet sein, um einen Test zu erstellen.",
-				variant: "destructive",
-			});
+			toast.error("Sie müssen angemeldet sein, um einen Test zu erstellen.");
 			return;
 		}
 
 		if (hasReachedLimit) {
-			toast({
-				title: "Test-Limit erreicht",
-				description:
-					"Sie haben Ihr Test-Limit erreicht. Upgrade auf Premium für mehr Tests.",
-				variant: "destructive",
-			});
+			toast.error(
+				"Sie haben Ihr Test-Limit erreicht. Upgrade auf Premium für mehr Tests."
+			);
 			return;
 		}
 
 		// Check if we have at least one question or if there's a current question with content
 		if (questions.length === 0) {
-			toast({
-				title: "Keine Fragen",
-				description: "Bitte fügen Sie mindestens eine Frage hinzu.",
-				variant: "destructive",
-			});
+			toast.error("Bitte fügen Sie mindestens eine Frage hinzu.");
 			return;
 		}
 
 		// If the current test has a title
 		if (!testData.title) {
-			toast({
-				title: "Kein Titel",
-				description: "Bitte geben Sie einen Titel für den Test ein.",
-				variant: "destructive",
-			});
+			toast.error("Bitte geben Sie einen Titel für den Test ein.");
 			return;
 		}
 
@@ -397,20 +376,13 @@ const CreateTestPage: React.FC = () => {
 			// Save test to Firestore
 			await createTest(fullTestData, questions);
 
-			toast({
-				title: "Test erstellt",
-				description: "Ihr Test wurde erfolgreich gespeichert.",
-			});
+			toast.success("Ihr Test wurde erfolgreich gespeichert.");
 
 			// Redirect to dashboard
 			router.push("/teacher");
 		} catch (error) {
 			console.error("Error creating test:", error);
-			toast({
-				title: "Fehler",
-				description: "Der Test konnte nicht gespeichert werden.",
-				variant: "destructive",
-			});
+			toast.error("Der Test konnte nicht gespeichert werden.");
 		} finally {
 			setLoading(false);
 		}
@@ -795,11 +767,7 @@ const CreateTestPage: React.FC = () => {
 					setSelectedText("");
 				} else {
 					// Show an error or warning for overlapping gaps
-					toast({
-						title: "Überlappende Lücke",
-						description: "Lücken dürfen sich nicht überlappen.",
-						variant: "destructive",
-					});
+					toast.error("Lücken dürfen sich nicht überlappen.");
 				}
 			}
 		}
