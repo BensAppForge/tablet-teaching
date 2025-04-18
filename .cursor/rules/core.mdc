@@ -4,7 +4,8 @@ globs:
 alwaysApply: true
 ---
 # Core Guidelines
-
+- Use the docs folder to get info on what this app actually is ang get guidelines. Keep the docs folder up to date
+- Create code to use firestore and firebase realtime db for duels suitable for hosting on firebase, i.e. static routing
 - Use **React** with **TypeScript** for all frontend development.
 - Utilize **radix** for UI components and **Tailwind CSS** for styling.
 - Incorporate **Lucide** icons for consistent iconography.

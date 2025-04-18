@@ -130,21 +130,16 @@ const TeacherDashboard: React.FC = () => {
 					<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
 						{/* Meine Tests */}
 						<DashboardTile
-							title="Tests verwalten"
-							description="Vorhandene Tests anzeigen und bearbeiten"
-							icon={<ClipboardList />}
-							href="/tests"
-							colorIndex={0}
-						/>
+  title="Tests"
+  description="Vorhandene Tests anzeigen, bearbeiten oder neuen Test anlegen"
+  icon={<ClipboardList />}
+  href="/tests"
+  colorIndex={0}
+/>
+
 
 						{/* Neuen Test */}
-						<DashboardTile
-							title="Test erstellen"
-							description="Neuen Test manuell oder mit KI erstellen"
-							icon={<Plus />}
-							href="/create-test"
-							colorIndex={1}
-						/>
+						
 
 						{/* Premium Features */}
 						<DashboardTile

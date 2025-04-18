@@ -159,30 +159,274 @@ export const getTest = async (
 	testId: string
 ): Promise<{ test: Test; questions: Question[] }> => {
 	try {
+		console.log("getTest() - Fetching test with ID:", testId);
+
+		// Validate test ID format
+		if (!testId) {
+			console.error("getTest() - Test ID is empty or null");
+			throw new Error("Invalid test ID");
+		}
+
+		// Check if test ID has unexpected characters that might indicate encoding issues
+		if (testId.includes("%") || testId.includes(" ")) {
+			console.warn(
+				"getTest() - Test ID contains URL encoding characters:",
+				testId
+			);
+			// Decode if it appears to be URL encoded
+			const decodedId = decodeURIComponent(testId);
+			console.log("getTest() - Decoded test ID:", decodedId);
+			if (decodedId !== testId) {
+				console.warn("getTest() - Using decoded test ID instead");
+				testId = decodedId;
+			}
+		}
+
 		// Get the test document
 		const testRef = doc(firestore, "tests", testId);
 		const testDoc = await getDoc(testRef);
 
 		if (!testDoc.exists()) {
+			console.error("getTest() - Test document does not exist");
 			throw new Error("Test not found");
 		}
 
 		const test = { id: testDoc.id, ...testDoc.data() } as Test;
-
-		// Get the questions
-		const questionsRef = collection(firestore, `tests/${testId}/questions`);
-		// First try to order by explicit order field, fall back to createdAt if needed
-		const querySnapshot = await getDocs(
-			query(questionsRef, orderBy("order"), orderBy("createdAt"))
+		console.log(
+			"getTest() - Test document retrieved successfully:",
+			test.title
 		);
 
-		const questions = querySnapshot.docs.map((doc) => {
-			return { id: doc.id, ...doc.data() } as Question;
+		// Get the questions
+		console.log("getTest() - Fetching questions for test:", testId);
+		const questionsPath = `tests/${testId}/questions`;
+		console.log("getTest() - Questions collection path:", questionsPath);
+		const questionsRef = collection(firestore, questionsPath);
+
+		// Log all available collection references
+		console.log("getTest() - Collection reference created:", questionsRef.path);
+
+		// Now try the ordered query
+		console.log("getTest() - Trying ordered query...");
+
+		// First try without any ordering to see if we get results
+		let querySnapshot;
+		try {
+			console.log("getTest() - Trying simple query without ordering...");
+			querySnapshot = await getDocs(questionsRef);
+			console.log("getTest() - Simple query result size:", querySnapshot.size);
+
+			if (querySnapshot.size === 0) {
+				// If we got no results, try with just one ordering field
+				console.log(
+					"getTest() - No results with simple query, trying with just 'order' field..."
+				);
+				querySnapshot = await getDocs(query(questionsRef, orderBy("order")));
+				console.log(
+					"getTest() - Query with 'order' only result size:",
+					querySnapshot.size
+				);
+
+				if (querySnapshot.size === 0) {
+					// Try with just createdAt
+					console.log(
+						"getTest() - No results with 'order', trying with just 'createdAt' field..."
+					);
+					querySnapshot = await getDocs(
+						query(questionsRef, orderBy("createdAt"))
+					);
+					console.log(
+						"getTest() - Query with 'createdAt' only result size:",
+						querySnapshot.size
+					);
+				}
+			}
+		} catch (error) {
+			console.error("getTest() - Error with alternative queries:", error);
+			// Fall back to the original double-ordered query as a last resort
+			console.log(
+				"getTest() - Falling back to original query with both order fields..."
+			);
+			querySnapshot = await getDocs(
+				query(questionsRef, orderBy("order"), orderBy("createdAt"))
+			);
+		}
+
+		console.log(
+			"getTest() - Raw questions query result size:",
+			querySnapshot.size
+		);
+		console.log("getTest() - Raw questions query empty:", querySnapshot.empty);
+
+		// Log each document
+		querySnapshot.docs.forEach((doc, index) => {
+			console.log(`getTest() - Ordered document ${index + 1}:`, doc.id);
+			console.log(`getTest() - Document ${index + 1} data:`, doc.data());
 		});
 
-		return { test, questions };
+		// Try a simple document-to-question conversion first
+		const simpleQuestions = querySnapshot.docs.map((doc) => {
+			return {
+				id: doc.id,
+				...doc.data(),
+			};
+		});
+		console.log(
+			"getTest() - Simple questions conversion count:",
+			simpleQuestions.length
+		);
+		if (simpleQuestions.length > 0) {
+			console.log(
+				"getTest() - First simple question structure:",
+				JSON.stringify(simpleQuestions[0])
+			);
+		}
+
+		// Map the documents to questions with more validation
+		const questions: Question[] = [];
+		for (const doc of querySnapshot.docs) {
+			try {
+				const data = doc.data();
+				console.log(`getTest() - Processing question ${doc.id}:`, data);
+
+				// Check for required fields
+				if (!data.type) {
+					console.warn(
+						`getTest() - Document ${doc.id} missing 'type' field:`,
+						data
+					);
+					continue; // Skip this document as we can't determine question type
+				}
+
+				// Log fields present
+				console.log(`getTest() - Question ${doc.id} field checks:`, {
+					type: data.type,
+					hasText: data.text !== undefined,
+					hasOrder: data.order !== undefined,
+					hasCreatedAt: data.createdAt !== undefined,
+					otherFields: Object.keys(data),
+				});
+
+				// Create question based on type
+				let question: Question;
+				switch (data.type) {
+					case "multiple-choice":
+						question = {
+							id: doc.id,
+							type: "multiple-choice",
+							text: data.text || "Missing question text",
+							options: Array.isArray(data.options)
+								? data.options
+								: ["Option 1", "Option 2"],
+							correctOption:
+								typeof data.correctOption === "number" ? data.correctOption : 0,
+							order: data.order !== undefined ? data.order : 999,
+							createdAt: data.createdAt || new Date(),
+							explanation: data.explanation || "",
+						} as MultipleChoiceQuestion;
+						break;
+
+					case "true-false":
+						question = {
+							id: doc.id,
+							type: "true-false",
+							text: data.text || "Missing question text",
+							isTrue: !!data.isTrue,
+							order: data.order !== undefined ? data.order : 999,
+							createdAt: data.createdAt || new Date(),
+							explanation: data.explanation || "",
+						} as TrueFalseQuestion;
+						break;
+
+					case "gap-fill":
+						question = {
+							id: doc.id,
+							type: "gap-fill",
+							text: data.text || "Missing question text",
+							gaps: Array.isArray(data.gaps) ? data.gaps : ["gap"],
+							distractors: Array.isArray(data.distractors)
+								? data.distractors
+								: [],
+							order: data.order !== undefined ? data.order : 999,
+							createdAt: data.createdAt || new Date(),
+							explanation: data.explanation || "",
+						} as GapFillQuestion;
+						break;
+
+					case "matching":
+						question = {
+							id: doc.id,
+							type: "matching",
+							text: data.text || "Missing question text",
+							leftItems: Array.isArray(data.leftItems)
+								? data.leftItems
+								: ["Item 1", "Item 2"],
+							rightItems: Array.isArray(data.rightItems)
+								? data.rightItems
+								: ["Item 1", "Item 2"],
+							correctMatches: Array.isArray(data.correctMatches)
+								? data.correctMatches
+								: [0, 1],
+							distractors: Array.isArray(data.distractors)
+								? data.distractors
+								: [],
+							order: data.order !== undefined ? data.order : 999,
+							createdAt: data.createdAt || new Date(),
+							explanation: data.explanation || "",
+						} as MatchingQuestion;
+						break;
+
+					case "reordering-horizontal":
+					case "reordering-vertical":
+						question = {
+							id: doc.id,
+							type: data.type,
+							text: data.text || "Missing question text",
+							items: Array.isArray(data.items)
+								? data.items
+								: ["Item 1", "Item 2"],
+							correctOrder: Array.isArray(data.correctOrder)
+								? data.correctOrder
+								: [0, 1],
+							isGap: Array.isArray(data.isGap) ? data.isGap : [false, false],
+							order: data.order !== undefined ? data.order : 999,
+							createdAt: data.createdAt || new Date(),
+							explanation: data.explanation || "",
+						} as ReorderingQuestion;
+						break;
+
+					default:
+						console.warn(
+							`getTest() - Unknown question type for document ${doc.id}:`,
+							data.type
+						);
+						continue; // Skip this document as the type is not recognized
+				}
+
+				questions.push(question);
+				console.log(`getTest() - Successfully processed question ${doc.id}`);
+			} catch (err) {
+				console.error(`getTest() - Error processing question ${doc.id}:`, err);
+			}
+		}
+
+		console.log(
+			"getTest() - Final processed questions count:",
+			questions.length
+		);
+		if (questions.length > 0) {
+			console.log("getTest() - First processed question:", questions[0]);
+		} else {
+			console.warn("getTest() - No questions were successfully processed!");
+		}
+
+		// Return the test data with questions
+		return {
+			test: test,
+			questions,
+		};
 	} catch (error) {
-		console.error("Error getting test:", error);
+		console.error("getTest() - Error getting test:", error);
 		throw error;
 	}
 };
@@ -296,26 +540,48 @@ export const addQuestionToTest = async (
 	question: Question
 ): Promise<string> => {
 	try {
+		console.log("addQuestionToTest() - Adding question to test:", testId);
+		console.log("addQuestionToTest() - Question type:", question.type);
+
 		// Get the current count of questions to determine the order
-		const questionsRef = collection(firestore, `tests/${testId}/questions`);
+		const questionsPath = `tests/${testId}/questions`;
+		console.log(
+			"addQuestionToTest() - Questions collection path:",
+			questionsPath
+		);
+
+		const questionsRef = collection(firestore, questionsPath);
 		const querySnapshot = await getDocs(questionsRef);
 		const currentCount = querySnapshot.size;
+		console.log("addQuestionToTest() - Current question count:", currentCount);
 
-		// Add the new question with the next order value
-		const docRef = await addDoc(questionsRef, {
+		// Prepare question data with order and timestamp
+		const questionData = {
 			...question,
 			order: currentCount,
 			createdAt: serverTimestamp(),
-		});
+		};
+		console.log(
+			"addQuestionToTest() - Prepared question data:",
+			JSON.stringify(questionData, null, 2)
+		);
+
+		// Add the new question with the next order value
+		const docRef = await addDoc(questionsRef, questionData);
+		console.log("addQuestionToTest() - Question added with ID:", docRef.id);
 
 		// Update the test's updatedAt timestamp
 		await updateDoc(doc(firestore, "tests", testId), {
 			updatedAt: serverTimestamp(),
 		});
+		console.log("addQuestionToTest() - Test updatedAt timestamp updated");
 
 		return docRef.id;
 	} catch (error) {
-		console.error("Error adding question to test:", error);
+		console.error(
+			"addQuestionToTest() - Error adding question to test:",
+			error
+		);
 		throw error;
 	}
 };

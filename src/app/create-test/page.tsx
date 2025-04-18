@@ -11,6 +11,7 @@ import {
 	CardContent,
 	CardFooter,
 } from "@/components/ui/card";
+import TestGeneralSettingsForm, { TestGeneralSettings } from "@/components/TestGeneralSettingsForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -50,6 +51,7 @@ import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 import AuthRequired from "@/components/AuthRequired";
 import Xarrow from "react-xarrows";
+import MultipleChoiceEditor from "@/components/MultipleChoiceEditor";
 
 const CEFR_LEVELS: CEFRLevel[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
 const LANGUAGES = [
@@ -78,7 +80,7 @@ const CreateTestPage: React.FC = () => {
 	const [hasReachedLimit, setHasReachedLimit] = useState(false);
 
 	// Test data state
-	const [testData, setTestData] = useState<Partial<Test>>({
+	const [testData, setTestData] = useState<TestGeneralSettings>({
 		title: "",
 		description: "",
 		targetLanguage: "Englisch",
@@ -86,7 +88,6 @@ const CreateTestPage: React.FC = () => {
 		defaultTimePerQuestion: 10,
 		defaultCreditPoints: 1,
 		defaultMultiplier: 1,
-		isAIGenerated: false,
 	});
 
 	// Replace the question state with a general one that can handle all question types
@@ -152,17 +153,6 @@ const CreateTestPage: React.FC = () => {
 		testData.defaultCreditPoints,
 		testData.defaultMultiplier,
 	]);
-
-	const handleTestDataChange = (
-		e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-	) => {
-		const { name, value } = e.target;
-		setTestData((prev) => ({ ...prev, [name]: value }));
-	};
-
-	const handleSelectChange = (name: string, value: string) => {
-		setTestData((prev) => ({ ...prev, [name]: value }));
-	};
 
 	const handleQuestionTypeChange = (type: QuestionType) => {
 		setCurrentQuestionType(type);
@@ -942,152 +932,11 @@ const CreateTestPage: React.FC = () => {
 			)}
 
 			{/* Test General Settings */}
-			<Card>
-				<CardHeader>
-					<CardTitle>Allgemeine Einstellungen</CardTitle>
-					<CardDescription>
-						Geben Sie die Grundeinstellungen für Ihren Test ein.
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="space-y-4">
-					<div className="space-y-2">
-						<Label htmlFor="title">Testtitel*</Label>
-						<Input
-							id="title"
-							name="title"
-							value={testData.title}
-							onChange={handleTestDataChange}
-							placeholder="z.B. Präsens und Präteritum"
-						/>
-					</div>
-
-					<div className="space-y-2">
-						<Label htmlFor="description">Beschreibung</Label>
-						<Textarea
-							id="description"
-							name="description"
-							value={testData.description || ""}
-							onChange={handleTestDataChange}
-							placeholder="Optionale Beschreibung"
-						/>
-					</div>
-
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<div className="space-y-2">
-							<Label htmlFor="targetLanguage">Zielsprache</Label>
-							<Select
-								value={testData.targetLanguage}
-								onValueChange={(value) =>
-									handleSelectChange("targetLanguage", value)
-								}
-							>
-								<SelectTrigger id="targetLanguage">
-									<SelectValue placeholder="Sprache wählen" />
-								</SelectTrigger>
-								<SelectContent>
-									{LANGUAGES.map((lang) => (
-										<SelectItem key={lang} value={lang}>
-											{lang}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-
-						<div className="space-y-2">
-							<Label htmlFor="cefrLevel">CEFR-Level</Label>
-							<Select
-								value={testData.cefrLevel}
-								onValueChange={(value) =>
-									handleSelectChange("cefrLevel", value as CEFRLevel)
-								}
-							>
-								<SelectTrigger id="cefrLevel">
-									<SelectValue placeholder="Level wählen" />
-								</SelectTrigger>
-								<SelectContent>
-									{CEFR_LEVELS.map((level) => (
-										<SelectItem key={level} value={level}>
-											{level}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-					</div>
-
-					<div className="space-y-2">
-						<Label htmlFor="defaultTimePerQuestion">
-							Zeit pro Frage (Sekunden)
-						</Label>
-						<div className="flex items-center gap-4">
-							<Slider
-								id="defaultTimePerQuestion"
-								min={5}
-								max={60}
-								step={5}
-								value={[testData.defaultTimePerQuestion || 10]}
-								onValueChange={(value) => {
-									setTestData((prev) => ({
-										...prev,
-										defaultTimePerQuestion: value[0],
-									}));
-								}}
-								className="flex-1"
-							/>
-							<span className="w-12 text-center">
-								{testData.defaultTimePerQuestion}s
-							</span>
-						</div>
-					</div>
-
-					<div className="space-y-2">
-						<Label htmlFor="defaultCreditPoints">Punkte pro Frage</Label>
-						<div className="flex items-center gap-4">
-							<Slider
-								id="defaultCreditPoints"
-								min={1}
-								max={10}
-								step={1}
-								value={[testData.defaultCreditPoints || 1]}
-								onValueChange={(value) => {
-									setTestData((prev) => ({
-										...prev,
-										defaultCreditPoints: value[0],
-									}));
-								}}
-								className="flex-1"
-							/>
-							<span className="w-12 text-center">
-								{testData.defaultCreditPoints}
-							</span>
-						</div>
-					</div>
-
-					<div className="space-y-2">
-						<Label htmlFor="defaultMultiplier">Multiplikator pro Frage</Label>
-						<div className="flex items-center gap-4">
-							<Slider
-								id="defaultMultiplier"
-								min={0.5}
-								max={4}
-								step={0.5}
-								value={[testData.defaultMultiplier || 1]}
-								onValueChange={(value) => {
-									setTestData((prev) => ({
-										...prev,
-										defaultMultiplier: value[0],
-									}));
-								}}
-								className="flex-1"
-							/>
-							<span className="w-12 text-center">
-								{testData.defaultMultiplier}x
-							</span>
-						</div>
-					</div>
-				</CardContent>
-			</Card>
+			<TestGeneralSettingsForm
+				initialValues={testData}
+				onChange={setTestData}
+				mode="create"
+			/>
 
 			{/* Question Type Selection */}
 			<Card>
@@ -1317,66 +1166,17 @@ const CreateTestPage: React.FC = () => {
 
 					{/* Multiple Choice Question Editor */}
 					{currentQuestionType === "multiple-choice" && (
-						<div className="space-y-2">
-							<Label>Antwortmöglichkeiten</Label>
-							<RadioGroup
-								value={(
-									currentQuestion as MultipleChoiceQuestion
-								).correctOption.toString()}
-								onValueChange={handleCorrectOptionChange}
-							>
-								{(currentQuestion as MultipleChoiceQuestion).options.map(
-									(option, index) => (
-										<div key={index} className="flex items-center gap-2">
-											<RadioGroupItem
-												value={index.toString()}
-												id={`option-${index}`}
-											/>
-											<div className="flex-1">
-												<Input
-													value={option}
-													onChange={(e) =>
-														handleOptionChange(index, e.target.value)
-													}
-													placeholder={`Option ${index + 1}`}
-												/>
-											</div>
-											{(currentQuestion as MultipleChoiceQuestion).options
-												.length > 2 && (
-												<Button
-													variant="ghost"
-													size="icon"
-													onClick={() => removeOption(index)}
-													disabled={
-														index ===
-														(currentQuestion as MultipleChoiceQuestion)
-															.correctOption
-													}
-													title={
-														index ===
-														(currentQuestion as MultipleChoiceQuestion)
-															.correctOption
-															? "Die korrekte Antwort kann nicht gelöscht werden"
-															: "Option entfernen"
-													}
-												>
-													<Trash className="h-4 w-4" />
-												</Button>
-											)}
-										</div>
-									)
-								)}
-							</RadioGroup>
-
-							{(currentQuestion as MultipleChoiceQuestion).options.length <
-								4 && (
-								<Button variant="outline" size="sm" onClick={addOption}>
-									<Plus className="mr-2 h-4 w-4" />
-									Option hinzufügen
-								</Button>
-							)}
-						</div>
-					)}
+  <MultipleChoiceEditor
+  question={currentQuestion as MultipleChoiceQuestion}
+  onChange={(q: MultipleChoiceQuestion) => setCurrentQuestion(q)}
+  onAddOption={addOption}
+  onRemoveOption={removeOption}
+  onOptionChange={handleOptionChange}
+  onCorrectOptionChange={(index: number) =>
+    setCurrentQuestion(prev => ({ ...prev, correctOption: index } as MultipleChoiceQuestion))
+  }
+/>
+)}
 
 					{/* True/False Question Editor */}
 					{currentQuestionType === "true-false" && (

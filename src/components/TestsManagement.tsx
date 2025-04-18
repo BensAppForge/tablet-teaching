@@ -74,7 +74,7 @@ const TestsManagement: React.FC = () => {
 	};
 
 	const handleEditTest = (testId: string) => {
-		router.push(`/edit-test/${testId}`);
+		router.push(`/edit-test?id=${testId}`);
 	};
 
 	const handleDeleteTest = async () => {
@@ -133,10 +133,21 @@ const TestsManagement: React.FC = () => {
 			</div>
 
 			<div className="border-b mb-6">
-				<h1 className="text-2xl font-semibold py-2 text-gray-700 dark:text-gray-200">
-					Tests verwalten
-				</h1>
-			</div>
+  <h1 className="text-2xl font-semibold py-2 text-gray-700 dark:text-gray-200">
+    Tests verwalten
+  </h1>
+</div>
+<div className="flex justify-end mb-8">
+  <Button
+    variant="default"
+    className="gap-2"
+    onClick={() => router.push("/create-test")}
+    aria-label="Neuen Test erstellen"
+  >
+    <Pencil className="h-4 w-4" />
+    Test erstellen
+  </Button>
+</div>
 
 			{loading ? (
 				<div className="flex justify-center items-center py-12">
