@@ -34,6 +34,8 @@ import {
 } from "@/lib/firebase/tests";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
+import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
 import TestGeneralSettingsForm, { TestGeneralSettings } from "@/components/TestGeneralSettingsForm";
 import {
   MultipleChoiceEditor,
@@ -125,8 +127,29 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
     setQuestions(newQuestions);
   };
   
+  // State for delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [questionToDelete, setQuestionToDelete] = useState<number | null>(null);
+  const { preferences, updatePreference } = useUserPreferences();
+
   const handleDeleteQuestion = (index: number) => {
+    // Check if we should show confirmation
+    if (preferences.confirmations.deleteQuestion) {
+      setQuestionToDelete(index);
+      setDeleteDialogOpen(true);
+    } else {
+      // If user disabled confirmations, delete immediately
+      deleteQuestion(index);
+    }
+  };
+
+  const deleteQuestion = (index: number) => {
     setQuestions(questions.filter((_, i) => i !== index));
+  };
+
+  const handleDontAskAgainChange = (checked: boolean) => {
+    // Update user preference for delete confirmation
+    updatePreference("confirmations", "deleteQuestion", !checked);
   };
   
   const handleAddQuestion = () => {
@@ -330,6 +353,23 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
   
   return (
     <div className="container mx-auto px-4 py-6">
+      {/* Confirmation Dialog for Question Deletion */}
+      <ConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Frage löschen"
+        description="Möchten Sie diese Frage wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden."
+        confirmLabel="Löschen"
+        cancelLabel="Abbrechen"
+        onConfirm={() => {
+          if (questionToDelete !== null) {
+            deleteQuestion(questionToDelete);
+            setQuestionToDelete(null);
+          }
+        }}
+        showDontAskAgain={true}
+        onDontAskAgainChange={handleDontAskAgainChange}
+      />
       <div className="flex items-center gap-2 mb-4">
         <Button
           variant="outline"
