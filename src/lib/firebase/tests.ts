@@ -457,22 +457,96 @@ export const getTeacherTests = async (teacherId: string): Promise<Test[]> => {
 };
 
 /**
- * Updates an existing test
+ * Updates an existing test and its questions
  * @param testId - The ID of the test to update
  * @param test - The updated test data
+ * @param questions - Array of questions for the test (optional)
  * @returns Promise that resolves when the update is complete
  */
 export const updateTest = async (
 	testId: string,
-	test: Partial<Test>
+	test: Partial<Test>,
+	questions?: Question[]
 ): Promise<void> => {
 	try {
-		const testRef = doc(firestore, "tests", testId);
+		console.log("updateTest() - Updating test with ID:", testId);
+		console.log("updateTest() - Questions provided:", questions?.length || 0);
 
+		// Update the test document
+		const testRef = doc(firestore, "tests", testId);
 		await updateDoc(testRef, {
 			...test,
 			updatedAt: serverTimestamp(),
 		});
+
+		// If questions are provided, update them
+		if (questions && questions.length > 0) {
+			console.log("updateTest() - Updating questions for test");
+
+			// Get existing questions to compare
+			const questionsRef = collection(firestore, `tests/${testId}/questions`);
+			const querySnapshot = await getDocs(questionsRef);
+			const existingQuestions = querySnapshot.docs.map(doc => ({
+				id: doc.id,
+				...doc.data()
+			}));
+
+			console.log("updateTest() - Existing questions:", existingQuestions.length);
+			console.log("updateTest() - New questions:", questions.length);
+
+			// Create a batch for efficient updates
+			const batch = writeBatch(firestore);
+
+			// Process each question
+			for (let i = 0; i < questions.length; i++) {
+				const question = questions[i];
+				
+				// Clean the question object to remove undefined values
+				const cleanQuestion: Record<string, any> = { ...question };
+				
+				// Remove undefined values to prevent Firestore errors
+				Object.keys(cleanQuestion).forEach(key => {
+					if (cleanQuestion[key] === undefined) {
+						delete cleanQuestion[key];
+					}
+				});
+				
+				// If the question has an ID, update it
+				if (cleanQuestion.id) {
+					const questionRef = doc(questionsRef, cleanQuestion.id);
+					batch.update(questionRef, {
+						...cleanQuestion,
+						order: i,
+						updatedAt: serverTimestamp()
+					});
+				} else {
+					// If it's a new question, add it
+					const newQuestionRef = doc(questionsRef);
+					batch.set(newQuestionRef, {
+						...cleanQuestion,
+						order: i,
+						createdAt: serverTimestamp()
+					});
+				}
+			}
+
+			// Find questions that need to be deleted (in existing but not in new questions)
+			const existingIds = new Set(existingQuestions.map(q => q.id));
+			const newIds = new Set(questions.filter(q => q.id).map(q => q.id));
+
+			// Delete questions that are in existing but not in new
+			existingIds.forEach(id => {
+				if (id && !newIds.has(id)) {
+					const questionRef = doc(questionsRef, id);
+					batch.delete(questionRef);
+					console.log("updateTest() - Deleting question:", id);
+				}
+			});
+
+			// Commit all the changes
+			await batch.commit();
+			console.log("updateTest() - Batch committed successfully");
+		}
 	} catch (error) {
 		console.error("Error updating test:", error);
 		throw error;
