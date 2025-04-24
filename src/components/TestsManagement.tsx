@@ -6,6 +6,7 @@ import { getTeacherTests, Test, deleteTest } from "@/lib/firebase/tests";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Pencil,
 	Trash2,
@@ -18,6 +19,7 @@ import {
 	Book,
 	Calendar,
 	ArrowLeft,
+	Settings,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
@@ -33,14 +35,19 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
+import { motion } from "framer-motion";
 
 const TestsManagement: React.FC = () => {
 	const { currentUser } = useAuth();
 	const router = useRouter();
+	const { preferences, updatePreference, resetCategory } = useUserPreferences();
 	const [tests, setTests] = useState<Test[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [testToDelete, setTestToDelete] = useState<string | null>(null);
+	const [dontShowAgain, setDontShowAgain] = useState(false);
+	const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
 
 	// CEFR Level Badge color mapping
 	const cefrColors: Record<string, string> = {
@@ -84,18 +91,31 @@ const TestsManagement: React.FC = () => {
 			await deleteTest(testToDelete);
 			setTests(tests.filter((test) => test.id !== testToDelete));
 			toast.success("Test wurde erfolgreich gelöscht");
+			
+			// Save the "don't show again" preference if checked
+			if (dontShowAgain) {
+				updatePreference("confirmations", "deleteTest", false);
+			}
 		} catch (error) {
 			console.error("Error deleting test:", error);
 			toast.error("Fehler beim Löschen des Tests");
 		} finally {
 			setDeleteDialogOpen(false);
 			setTestToDelete(null);
+			setDontShowAgain(false);
 		}
 	};
 
 	const confirmDelete = (testId: string) => {
 		setTestToDelete(testId);
-		setDeleteDialogOpen(true);
+		
+		// Check if we should show the confirmation dialog
+		if (preferences.confirmations.deleteTest) {
+			setDeleteDialogOpen(true);
+		} else {
+			// If confirmation is disabled, delete immediately
+			handleDeleteTest();
+		}
 	};
 
 	const handleShareTest = (testId: string) => {
@@ -133,21 +153,30 @@ const TestsManagement: React.FC = () => {
 			</div>
 
 			<div className="border-b mb-6">
-  <h1 className="text-2xl font-semibold py-2 text-gray-700 dark:text-gray-200">
-    Tests verwalten
-  </h1>
-</div>
-<div className="flex justify-end mb-8">
-  <Button
-    variant="default"
-    className="gap-2"
-    onClick={() => router.push("/create-test")}
-    aria-label="Neuen Test erstellen"
-  >
-    <Pencil className="h-4 w-4" />
-    Test erstellen
-  </Button>
-</div>
+				<h1 className="text-2xl font-semibold py-2 text-gray-700 dark:text-gray-200">
+					Tests verwalten
+				</h1>
+			</div>
+			<div className="flex justify-between items-center mb-8">
+				<Button
+					variant="outline"
+					size="icon"
+					onClick={() => setSettingsDialogOpen(true)}
+					aria-label="Einstellungen"
+				>
+					<Settings className="h-4 w-4" />
+				</Button>
+
+				<Button
+					variant="default"
+					className="gap-2"
+					onClick={() => router.push("/create-test")}
+					aria-label="Neuen Test erstellen"
+				>
+					<Pencil className="h-4 w-4" />
+					Test erstellen
+				</Button>
+			</div>
 
 			{loading ? (
 				<div className="flex justify-center items-center py-12">
@@ -279,6 +308,19 @@ const TestsManagement: React.FC = () => {
 							dauerhaft gelöscht.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
+					<div className="flex items-center space-x-2 py-4">
+						<Checkbox 
+							id="dont-show-again" 
+							checked={dontShowAgain}
+							onCheckedChange={(checked) => setDontShowAgain(checked === true)}
+						/>
+						<label
+							htmlFor="dont-show-again"
+							className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+						>
+							Nicht mehr nachfragen
+						</label>
+					</div>
 					<AlertDialogFooter>
 						<AlertDialogCancel>Abbrechen</AlertDialogCancel>
 						<AlertDialogAction
@@ -287,6 +329,34 @@ const TestsManagement: React.FC = () => {
 						>
 							Löschen
 						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+			
+			{/* Settings Dialog for Resetting Preferences */}
+			<AlertDialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Einstellungen</AlertDialogTitle>
+						<AlertDialogDescription>
+							Hier können Sie Ihre Benutzereinstellungen zurücksetzen.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<div className="py-4">
+						<Button 
+							variant="outline" 
+							onClick={() => {
+								resetCategory("confirmations");
+								toast.success("Bestätigungsdialoge wurden zurückgesetzt");
+								setSettingsDialogOpen(false);
+							}}
+							className="w-full"
+						>
+							Bestätigungsdialoge zurücksetzen
+						</Button>
+					</div>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Schließen</AlertDialogCancel>
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>

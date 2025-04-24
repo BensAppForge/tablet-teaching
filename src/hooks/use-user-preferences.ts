@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 export interface UserPreferences {
   confirmations: {
     deleteQuestion: boolean;
+    deleteTest: boolean;
     // Add more confirmation settings as needed
   };
   // Add other preference categories as needed
@@ -16,6 +17,7 @@ export interface UserPreferences {
 const defaultPreferences: UserPreferences = {
   confirmations: {
     deleteQuestion: true, // By default, show confirmation
+    deleteTest: true, // By default, show confirmation for test deletion
   },
 };
 
