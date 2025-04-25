@@ -48,6 +48,7 @@ interface ItemProps {
 	connectionRef: (el: HTMLDivElement | null) => void;
 }
 
+// Left item component with layout animation
 const LeftItem = React.memo(
 	({
 		index,
@@ -60,38 +61,41 @@ const LeftItem = React.memo(
 		onClick,
 		connectionRef,
 	}: ItemProps) => (
-		<div className="relative flex-1">
-			<Input
-				value={value}
-				onChange={(e) => onChange(e.target.value)}
-				placeholder={placeholder}
-				className="w-full pr-8"
-				autoComplete="off"
-			/>
-			<div
-				ref={connectionRef}
-				id={`left-connection-${index}`}
-				className="absolute right-[-12px] top-1/2 transform -translate-y-1/2 h-6 w-6"
-				style={{ zIndex: 10 }}
-			>
-				<motion.div
-					onClick={onClick}
-					className="h-6 w-6 rounded-full border-2 cursor-pointer"
-					style={{
-						borderColor:
-							isSelected || isConnected ? connectionColor : "#d1d5db",
-						backgroundColor:
-							isSelected || isConnected ? connectionColor : "white",
-					}}
-					whileHover={{ scale: 1.1 }}
-					whileTap={{ scale: 0.95 }}
-					transition={{ type: "spring", stiffness: 400, damping: 25 }}
+		<motion.div layout initial={false} className="relative flex-1 mb-3">
+			<div className="relative">
+				<Input
+					value={value}
+					onChange={(e) => onChange(e.target.value)}
+					placeholder={placeholder}
+					className="w-full pr-8"
+					autoComplete="off"
 				/>
+				<div
+					ref={connectionRef}
+					id={`left-connection-${index}`}
+					className="absolute right-[-12px] top-1/2 transform -translate-y-1/2 h-6 w-6 flex items-center justify-center"
+					style={{ zIndex: 10 }}
+				>
+					<motion.div
+						onClick={onClick}
+						className="h-6 w-6 rounded-full border-2 cursor-pointer"
+						style={{
+							borderColor:
+								isSelected || isConnected ? connectionColor : "#d1d5db",
+							backgroundColor:
+								isSelected || isConnected ? connectionColor : "white",
+						}}
+						whileHover={{ scale: 1.1 }}
+						whileTap={{ scale: 0.95 }}
+						transition={{ type: "spring", stiffness: 400, damping: 25 }}
+					/>
+				</div>
 			</div>
-		</div>
+		</motion.div>
 	)
 );
 
+// Right item component with layout animation
 const RightItem = React.memo(
 	({
 		index,
@@ -104,38 +108,41 @@ const RightItem = React.memo(
 		onClick,
 		connectionRef,
 	}: ItemProps) => (
-		<div className="relative flex-1">
-			<Input
-				value={value}
-				onChange={(e) => onChange(e.target.value)}
-				placeholder={placeholder}
-				className="w-full pl-8"
-				autoComplete="off"
-			/>
-			<div
-				ref={connectionRef}
-				id={`right-connection-${index}`}
-				className="absolute left-[-12px] top-1/2 transform -translate-y-1/2 h-6 w-6"
-				style={{ zIndex: 10 }}
-			>
-				<motion.div
-					onClick={onClick}
-					className="h-6 w-6 rounded-full border-2 cursor-pointer"
-					style={{
-						borderColor:
-							isSelected || isConnected ? connectionColor : "#d1d5db",
-						backgroundColor:
-							isSelected || isConnected ? connectionColor : "white",
-					}}
-					whileHover={{ scale: 1.1 }}
-					whileTap={{ scale: 0.95 }}
-					transition={{ type: "spring", stiffness: 400, damping: 25 }}
+		<motion.div layout initial={false} className="relative flex-1 mb-3">
+			<div className="relative">
+				<Input
+					value={value}
+					onChange={(e) => onChange(e.target.value)}
+					placeholder={placeholder}
+					className="w-full pl-8"
+					autoComplete="off"
 				/>
+				<div
+					ref={connectionRef}
+					id={`right-connection-${index}`}
+					className="absolute left-[-12px] top-1/2 transform -translate-y-1/2 h-6 w-6 flex items-center justify-center"
+					style={{ zIndex: 10 }}
+				>
+					<motion.div
+						onClick={onClick}
+						className="h-6 w-6 rounded-full border-2 cursor-pointer"
+						style={{
+							borderColor:
+								isSelected || isConnected ? connectionColor : "#d1d5db",
+							backgroundColor:
+								isSelected || isConnected ? connectionColor : "white",
+						}}
+						whileHover={{ scale: 1.1 }}
+						whileTap={{ scale: 0.95 }}
+						transition={{ type: "spring", stiffness: 400, damping: 25 }}
+					/>
+				</div>
 			</div>
-		</div>
+		</motion.div>
 	)
 );
 
+// Distractor item
 const DistractorItem = React.memo(
 	({
 		index,
@@ -148,23 +155,14 @@ const DistractorItem = React.memo(
 		onChange: (value: string) => void;
 		onRemove: () => void;
 	}) => (
-		<motion.div
-			initial={{ opacity: 0, y: 20 }}
-			animate={{ opacity: 1, y: 0 }}
-			exit={{ opacity: 0, y: -20 }}
-			transition={{ type: "spring", stiffness: 400, damping: 25 }}
-			className="flex items-center gap-2 mb-3"
-		>
-			<div className="relative flex-1">
-				<Input
-					value={value}
-					onChange={(e) => onChange(e.target.value)}
-					placeholder={`Distraktor ${index + 1}`}
-					className="w-full pl-8 bg-gray-100 dark:bg-gray-800 border-dashed"
-					autoComplete="off"
-				/>
-				<div className="absolute left-[-12px] top-1/2 transform -translate-y-1/2 h-6 w-6 rounded-full border-2 border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-800" />
-			</div>
+		<motion.div layout initial={false} className="flex items-center gap-2 mb-3">
+			<Input
+				value={value}
+				onChange={(e) => onChange(e.target.value)}
+				placeholder={`Distraktor ${index + 1}`}
+				className="w-full pl-8 bg-gray-100 dark:bg-gray-800 border-dashed"
+				autoComplete="off"
+			/>
 			<Button
 				type="button"
 				variant="ghost"
@@ -184,6 +182,7 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 	onDelete,
 	showDelete = false,
 }) => {
+	// State
 	const [questionText, setQuestionText] = useState(() => question.text || "");
 	const [leftItems, setLeftItems] = useState<string[]>(() =>
 		question.leftItems ? [...question.leftItems] : []
@@ -205,7 +204,9 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 		side: "left" | "right";
 		index: number;
 	} | null>(null);
+	const [shuffleKey, setShuffleKey] = useState(0);
 
+	// Refs
 	const leftRefs = useRef<(HTMLDivElement | null)[]>([]);
 	const rightRefs = useRef<(HTMLDivElement | null)[]>([]);
 	useEffect(() => {
@@ -213,6 +214,7 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 		rightRefs.current = Array(rightItems.length).fill(null);
 	}, [leftItems.length, rightItems.length]);
 
+	// Reset on load
 	useEffect(() => {
 		setQuestionText(question.text || "");
 		setLeftItems(question.leftItems ? [...question.leftItems] : []);
@@ -226,6 +228,7 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 		setSelectedItem(null);
 	}, [question.id]);
 
+	// Sync up
 	useEffect(() => {
 		const cm = Array(leftItems.length).fill(-1);
 		connections.forEach(({ leftIndex, rightIndex }) => {
@@ -241,11 +244,15 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 		});
 	}, [questionText, leftItems, rightItems, distractors, connections]);
 
+	// Helpers
+	const totalRight = rightItems.length + distractors.length;
+	const leftNeedsCenter = leftItems.length < totalRight;
 	const getNextColor = () =>
 		CONNECTION_COLORS[connections.length % CONNECTION_COLORS.length];
 	const allConnected =
 		connections.length === leftItems.length && leftItems.length > 0;
 
+	// Connection logic
 	const handleClick = useCallback(
 		(side: "left" | "right", idx: number) => {
 			if (selectedItem?.side === side && selectedItem.index === idx) {
@@ -278,6 +285,7 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 		[selectedItem]
 	);
 
+	// Handlers
 	const handleLeftChange = useCallback(
 		(i: number, v: string) =>
 			setLeftItems((li) => {
@@ -300,6 +308,8 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 		if (leftItems.length < MAX_PAIRS) {
 			setLeftItems((l) => [...l, ""]);
 			setRightItems((r) => [...r, ""]);
+			// Force re-render of connections
+			setShuffleKey(prev => prev + 1);
 		}
 	}, [leftItems.length]);
 	const removePair = useCallback(
@@ -315,6 +325,8 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 							rightIndex: c.rightIndex > i ? c.rightIndex - 1 : c.rightIndex,
 						}))
 				);
+				// Force re-render of connections
+				setShuffleKey(prev => prev + 1);
 			}
 		},
 		[leftItems.length]
@@ -337,8 +349,44 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 		[]
 	);
 
+	// Shuffle
+	const shuffleAll = useCallback(() => {
+		const combined: {
+			value: string;
+			type: "item" | "distractor";
+			oldIndex: number;
+		}[] = [];
+		rightItems.forEach((v, i) =>
+			combined.push({ value: v, type: "item", oldIndex: i })
+		);
+		distractors.forEach((v, i) =>
+			combined.push({ value: v, type: "distractor", oldIndex: i })
+		);
+		for (let i = combined.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[combined[i], combined[j]] = [combined[j], combined[i]];
+		}
+		const newRight = combined
+			.filter((c) => c.type === "item")
+			.map((c) => c.value);
+		const newDistr = combined
+			.filter((c) => c.type === "distractor")
+			.map((c) => c.value);
+		const newConn = connections.map(({ leftIndex, rightIndex }) => {
+			const newIdx = combined
+				.filter((c) => c.type === "item")
+				.findIndex((c) => c.oldIndex === rightIndex);
+			return { leftIndex, rightIndex: newIdx };
+		});
+		setRightItems(newRight);
+		setDistractors(newDistr);
+		setConnections(newConn);
+		setShuffleKey((k) => k + 1);
+	}, [rightItems, distractors, connections]);
+
 	return (
 		<motion.div
+			layout
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			exit={{ opacity: 0, y: -20 }}
@@ -346,122 +394,127 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 			className="w-full"
 		>
 			<Card className="mb-4 border-green-200 dark:border-green-800">
-				<CardHeader className="bg-green-50 dark:bg-green-950/20 flex justify-between pb-2">
+				<CardHeader className="bg-green-50 dark:bg-green-950/20 flex flex-row justify-between items-center pb-2">
 					<CardTitle className="text-md font-medium">Zuordnung</CardTitle>
 					{showDelete && onDelete && (
 						<Button
 							variant="ghost"
 							size="icon"
 							onClick={onDelete}
-							className="h-8 w-8 text-destructive hover:bg-destructive/10"
+							className="h-8 w-8 text-destructive hover:bg-destructive/10 ml-auto"
 						>
 							<Trash className="h-4 w-4" />
 						</Button>
 					)}
 				</CardHeader>
 				<CardContent className="pt-4 space-y-4">
-					<div>
-						<Label htmlFor="matching-question-text">Fragetext</Label>
-						<Input
-							id="matching-question-text"
-							value={questionText}
-							onChange={(e) => setQuestionText(e.target.value)}
-							placeholder="Ordnen Sie die Elemente korrekt zu..."
-							className="mt-1"
-							autoComplete="off"
-						/>
+					<Label htmlFor="matching-question-text">Fragetext</Label>
+					<Input
+						id="matching-question-text"
+						value={questionText}
+						onChange={(e) => setQuestionText(e.target.value)}
+						placeholder="Ordnen Sie die Elemente korrekt zu..."
+						className="mt-1"
+						autoComplete="off"
+					/>
+					<div className="flex justify-end">
+						<Button variant="outline" size="sm" onClick={shuffleAll}>
+							Mischen
+						</Button>
 					</div>
 					<div className="relative mt-6">
 						<div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_2fr] gap-x-8">
-							<div className="col-start-1 pr-4">
-								<AnimatePresence>
-									{leftItems.map((item, idx) => (
-										<LeftItem
-											key={idx}
+							<div
+								className={`${
+									leftNeedsCenter ? "flex flex-col justify-center" : ""
+								} col-start-1 pr-4`}
+							>
+								{leftItems.map((item, idx) => (
+									<LeftItem
+										key={idx}
+										index={idx}
+										value={item}
+										placeholder={`Linkes Element ${idx + 1}`}
+										isSelected={
+											selectedItem?.side === "left" &&
+											selectedItem.index === idx
+										}
+										isConnected={connections.some((c) => c.leftIndex === idx)}
+										connectionColor={
+											selectedItem?.side === "left" &&
+											selectedItem.index === idx
+												? getNextColor()
+												: CONNECTION_COLORS[
+														connections.findIndex((c) => c.leftIndex === idx) %
+															CONNECTION_COLORS.length
+												  ]
+										}
+										onChange={(v) => handleLeftChange(idx, v)}
+										onClick={() => handleClick("left", idx)}
+										connectionRef={(el) => (leftRefs.current[idx] = el)}
+									/>
+								))}
+							</div>
+							<div className="col-start-2" />
+							<div className="col-start-3">
+								{rightItems.map((item, idx) => (
+									<motion.div
+										layout
+										key={idx}
+										className="flex items-center gap-2 mb-3"
+									>
+										<RightItem
 											index={idx}
 											value={item}
-											placeholder={`Linkes Element ${idx + 1}`}
+											placeholder={`Rechtes Element ${idx + 1}`}
 											isSelected={
-												selectedItem?.side === "left" &&
+												selectedItem?.side === "right" &&
 												selectedItem.index === idx
 											}
-											isConnected={connections.some((c) => c.leftIndex === idx)}
+											isConnected={connections.some(
+												(c) => c.rightIndex === idx
+											)}
 											connectionColor={
-												selectedItem?.side === "left" &&
+												selectedItem?.side === "right" &&
 												selectedItem.index === idx
 													? getNextColor()
 													: CONNECTION_COLORS[
 															connections.findIndex(
-																(c) => c.leftIndex === idx
+																(c) => c.rightIndex === idx
 															) % CONNECTION_COLORS.length
 													  ]
 											}
-											onChange={(v) => handleLeftChange(idx, v)}
-											onClick={() => handleClick("left", idx)}
-											connectionRef={(el) => (leftRefs.current[idx] = el)}
+											onChange={(v) => handleRightChange(idx, v)}
+											onClick={() => handleClick("right", idx)}
+											connectionRef={(el) => (rightRefs.current[idx] = el)}
 										/>
-									))}
-								</AnimatePresence>
-							</div>
-							<div className="col-start-3">
-								<AnimatePresence>
-									{rightItems.map((item, idx) => (
-										<div key={idx} className="flex items-center gap-2 mb-3">
-											<RightItem
-												index={idx}
-												value={item}
-												placeholder={`Rechtes Element ${idx + 1}`}
-												isSelected={
-													selectedItem?.side === "right" &&
-													selectedItem.index === idx
-												}
-												isConnected={connections.some(
-													(c) => c.rightIndex === idx
-												)}
-												connectionColor={
-													selectedItem?.side === "right" &&
-													selectedItem.index === idx
-														? getNextColor()
-														: CONNECTION_COLORS[
-																connections.findIndex(
-																	(c) => c.rightIndex === idx
-																) % CONNECTION_COLORS.length
-														  ]
-												}
-												onChange={(v) => handleRightChange(idx, v)}
-												onClick={() => handleClick("right", idx)}
-												connectionRef={(el) => (rightRefs.current[idx] = el)}
-											/>
-											{idx >= 2 && (
-												<Button
-													type="button"
-													variant="ghost"
-													size="icon"
-													onClick={() => removePair(idx)}
-													className="text-destructive hover:bg-destructive/10"
-												>
-													<Trash className="h-4 w-4" />
-												</Button>
-											)}
-										</div>
-									))}
-								</AnimatePresence>
+										{idx >= 2 && (
+											<Button
+												variant="ghost"
+												size="icon"
+												onClick={() => removePair(idx)}
+												className="text-destructive hover:bg-destructive/10"
+											>
+												<Trash className="h-4 w-4" />
+											</Button>
+										)}
+									</motion.div>
+								))}
 								{distractors.length > 0 && (
 									<div className="mt-4">
 										<h4 className="text-sm font-medium text-muted-foreground mb-2">
 											Distraktoren
 										</h4>
-										<AnimatePresence>
-											{distractors.map((item, idx) => (
+										{distractors.map((item, idx) => (
+											<motion.div layout key={idx}>
 												<DistractorItem
-													key={idx}
 													index={idx}
 													value={item}
 													onChange={(v) => changeDistractor(idx, v)}
 													onRemove={() => removeDistractor(idx)}
 												/>
-											))}
-										</AnimatePresence>
+											</motion.div>
+										))}
 									</div>
 								)}
 							</div>
@@ -469,7 +522,7 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 						<div className="absolute inset-0 pointer-events-none">
 							{connections.map(({ leftIndex, rightIndex }) => (
 								<Xarrow
-									key={`${leftIndex}-${rightIndex}`}
+									key={`${leftIndex}-${rightIndex}-${shuffleKey}`}
 									start={`left-connection-${leftIndex}`}
 									end={`right-connection-${rightIndex}`}
 									color={
