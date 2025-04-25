@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -142,7 +142,7 @@ const RightItem = React.memo(
 	)
 );
 
-// Distractor item
+// Distractor item (integrated with right items)
 const DistractorItem = React.memo(
 	({
 		index,
@@ -156,13 +156,15 @@ const DistractorItem = React.memo(
 		onRemove: () => void;
 	}) => (
 		<motion.div layout initial={false} className="flex items-center gap-2 mb-3">
-			<Input
-				value={value}
-				onChange={(e) => onChange(e.target.value)}
-				placeholder={`Distraktor ${index + 1}`}
-				className="w-full pl-8 bg-gray-100 dark:bg-gray-800 border-dashed"
-				autoComplete="off"
-			/>
+			<div className="relative flex-1">
+				<Input
+					value={value}
+					onChange={(e) => onChange(e.target.value)}
+					placeholder={`Rechtes Element (Distraktor)`}
+					className="w-full pl-8 bg-gray-50 dark:bg-gray-800/30 border-dashed"
+					autoComplete="off"
+				/>
+			</div>
 			<Button
 				type="button"
 				variant="ghost"
@@ -349,40 +351,89 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 		[]
 	);
 
-	// Shuffle
-	const shuffleAll = useCallback(() => {
-		const combined: {
-			value: string;
-			type: "item" | "distractor";
-			oldIndex: number;
-		}[] = [];
-		rightItems.forEach((v, i) =>
-			combined.push({ value: v, type: "item", oldIndex: i })
-		);
-		distractors.forEach((v, i) =>
-			combined.push({ value: v, type: "distractor", oldIndex: i })
-		);
-		for (let i = combined.length - 1; i > 0; i--) {
-			const j = Math.floor(Math.random() * (i + 1));
-			[combined[i], combined[j]] = [combined[j], combined[i]];
-		}
-		const newRight = combined
-			.filter((c) => c.type === "item")
-			.map((c) => c.value);
-		const newDistr = combined
-			.filter((c) => c.type === "distractor")
-			.map((c) => c.value);
-		const newConn = connections.map(({ leftIndex, rightIndex }) => {
-			const newIdx = combined
-				.filter((c) => c.type === "item")
-				.findIndex((c) => c.oldIndex === rightIndex);
-			return { leftIndex, rightIndex: newIdx };
+	// Completely restructure the component to use a unified approach for right items and distractors
+	// This type represents any item on the right side (regular item or distractor)
+	type RightSideItem = {
+		value: string;
+		isDistractor: boolean;
+		id: string; // Unique identifier for each item
+	};
+
+	// Convert the separate arrays into a unified structure for internal use
+	const rightSideItems: RightSideItem[] = useMemo(() => {
+		const items: RightSideItem[] = [];
+		
+		// Add regular right items
+		rightItems.forEach((value, index) => {
+			items.push({
+				value,
+				isDistractor: false,
+				id: `regular-${index}`,
+			});
 		});
-		setRightItems(newRight);
-		setDistractors(newDistr);
-		setConnections(newConn);
-		setShuffleKey((k) => k + 1);
-	}, [rightItems, distractors, connections]);
+		
+		// Add distractors
+		distractors.forEach((value, index) => {
+			items.push({
+				value,
+				isDistractor: true,
+				id: `distractor-${index}`,
+			});
+		});
+		
+		return items;
+	}, [rightItems, distractors]);
+
+	// Shuffle all right items (including distractors)
+	const shuffleAll = useCallback(() => {
+		// Create a mapping of original indices to track connections
+		const rightItemsMap = new Map<number, string>();
+		rightItems.forEach((_, index) => {
+			rightItemsMap.set(index, `regular-${index}`);
+		});
+
+		// Create a copy of the unified items array for shuffling
+		const shuffledItems = [...rightSideItems];
+
+		// Fisher-Yates shuffle algorithm
+		for (let i = shuffledItems.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[shuffledItems[i], shuffledItems[j]] = [shuffledItems[j], shuffledItems[i]];
+		}
+
+		// Separate the shuffled items back into rightItems and distractors
+		const newRightItems: string[] = [];
+		const newDistractors: string[] = [];
+		const idToNewIndexMap = new Map<string, number>();
+
+		// First pass: separate items and build the ID to new index mapping
+		shuffledItems.forEach((item, newIndex) => {
+			if (!item.isDistractor) {
+				newRightItems.push(item.value);
+				idToNewIndexMap.set(item.id, newRightItems.length - 1);
+			} else {
+				newDistractors.push(item.value);
+			}
+		});
+
+		// Update connections to maintain the correct relationships
+		const newConnections = connections.map(({ leftIndex, rightIndex }) => {
+			const originalId = rightItemsMap.get(rightIndex);
+			if (originalId && idToNewIndexMap.has(originalId)) {
+				return {
+					leftIndex,
+					rightIndex: idToNewIndexMap.get(originalId)!,
+				};
+			}
+			return { leftIndex, rightIndex: 0 }; // Fallback to first item if not found
+		});
+
+		// Update the state with the new shuffled values
+		setRightItems(newRightItems);
+		setDistractors(newDistractors);
+		setConnections(newConnections);
+		setShuffleKey(k => k + 1);
+	}, [rightItems, distractors, connections, rightSideItems]);
 
 	return (
 		<motion.div
@@ -457,66 +508,66 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 							</div>
 							<div className="col-start-2" />
 							<div className="col-start-3">
-								{rightItems.map((item, idx) => (
+								{/* Render all right side items (both regular items and distractors) in a unified list */}
+								{rightSideItems.map((item, idx) => (
 									<motion.div
 										layout
-										key={idx}
+										key={`${item.id}-${shuffleKey}`}
 										className="flex items-center gap-2 mb-3"
+										initial={{ opacity: 0, y: 20 }}
+										animate={{ opacity: 1, y: 0 }}
+										transition={{ type: "spring", stiffness: 300, damping: 25 }}
 									>
-										<RightItem
-											index={idx}
-											value={item}
-											placeholder={`Rechtes Element ${idx + 1}`}
-											isSelected={
-												selectedItem?.side === "right" &&
-												selectedItem.index === idx
-											}
-											isConnected={connections.some(
-												(c) => c.rightIndex === idx
-											)}
-											connectionColor={
-												selectedItem?.side === "right" &&
-												selectedItem.index === idx
-													? getNextColor()
-													: CONNECTION_COLORS[
-															connections.findIndex(
-																(c) => c.rightIndex === idx
-															) % CONNECTION_COLORS.length
-													  ]
-											}
-											onChange={(v) => handleRightChange(idx, v)}
-											onClick={() => handleClick("right", idx)}
-											connectionRef={(el) => (rightRefs.current[idx] = el)}
-										/>
-										{idx >= 2 && (
-											<Button
-												variant="ghost"
-												size="icon"
-												onClick={() => removePair(idx)}
-												className="text-destructive hover:bg-destructive/10"
-											>
-												<Trash className="h-4 w-4" />
-											</Button>
+										{!item.isDistractor ? (
+											// Regular right item with connection
+											<>
+												<RightItem
+													index={rightItems.indexOf(item.value)}
+													value={item.value}
+													placeholder={`Rechtes Element ${rightItems.indexOf(item.value) + 1}`}
+													isSelected={
+														selectedItem?.side === "right" &&
+														selectedItem.index === rightItems.indexOf(item.value)
+													}
+													isConnected={connections.some(
+														(c) => c.rightIndex === rightItems.indexOf(item.value)
+													)}
+													connectionColor={
+														selectedItem?.side === "right" &&
+														selectedItem.index === rightItems.indexOf(item.value)
+															? getNextColor()
+															: CONNECTION_COLORS[
+																	connections.findIndex(
+																		(c) => c.rightIndex === rightItems.indexOf(item.value)
+																	) % CONNECTION_COLORS.length
+															  ]
+													}
+													onChange={(v) => handleRightChange(rightItems.indexOf(item.value), v)}
+													onClick={() => handleClick("right", rightItems.indexOf(item.value))}
+													connectionRef={(el) => (rightRefs.current[rightItems.indexOf(item.value)] = el)}
+												/>
+												{rightItems.indexOf(item.value) >= 2 && (
+													<Button
+														variant="ghost"
+														size="icon"
+														onClick={() => removePair(rightItems.indexOf(item.value))}
+														className="text-destructive hover:bg-destructive/10"
+													>
+														<Trash className="h-4 w-4" />
+													</Button>
+												)}
+											</>
+										) : (
+											// Distractor item
+											<DistractorItem
+												index={distractors.indexOf(item.value)}
+												value={item.value}
+												onChange={(v) => changeDistractor(distractors.indexOf(item.value), v)}
+												onRemove={() => removeDistractor(distractors.indexOf(item.value))}
+											/>
 										)}
 									</motion.div>
 								))}
-								{distractors.length > 0 && (
-									<div className="mt-4">
-										<h4 className="text-sm font-medium text-muted-foreground mb-2">
-											Distraktoren
-										</h4>
-										{distractors.map((item, idx) => (
-											<motion.div layout key={idx}>
-												<DistractorItem
-													index={idx}
-													value={item}
-													onChange={(v) => changeDistractor(idx, v)}
-													onRemove={() => removeDistractor(idx)}
-												/>
-											</motion.div>
-										))}
-									</div>
-								)}
 							</div>
 						</div>
 						<div className="absolute inset-0 pointer-events-none">
