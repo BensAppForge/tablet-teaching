@@ -12,6 +12,7 @@ import {
 	ClipboardList,
 	ShieldCheck,
 	BadgeCheck,
+	Users,
 } from "lucide-react";
 import {
 	Tooltip,
@@ -130,16 +131,21 @@ const TeacherDashboard: React.FC = () => {
 					<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
 						{/* Meine Tests */}
 						<DashboardTile
-  title="Tests"
-  description="Vorhandene Tests anzeigen, bearbeiten oder neuen Test anlegen"
-  icon={<ClipboardList />}
-  href="/tests"
-  colorIndex={0}
-/>
+							title="Tests"
+							description="Vorhandene Tests anzeigen, bearbeiten oder neuen Test anlegen"
+							icon={<ClipboardList />}
+							href="/tests"
+							colorIndex={0}
+						/>
 
-
-						{/* Neuen Test */}
-						
+						{/* Klassen */}
+						<DashboardTile
+							title="Klassen"
+							description="Klassen anlegen und Schüler:innen verwalten"
+							icon={<Users />}
+							href="/classes"
+							colorIndex={1}
+						/>
 
 						{/* Premium Features */}
 						<DashboardTile
