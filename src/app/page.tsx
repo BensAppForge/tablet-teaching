@@ -33,21 +33,6 @@ const LandingPageContent: React.FC = () => {
 						</CardContent>
 					</Card>
 				</Link>
-				<Link
-					href="/student/code-entry"
-					className="transition-transform hover:scale-105"
-				>
-					<Card className="w-80 h-48 flex flex-col items-center justify-center p-4 hover:shadow-lg transition-shadow">
-						<CardHeader className="pb-2">
-							<CardTitle className="text-center">Ich bin Schüler*in</CardTitle>
-						</CardHeader>
-						<CardContent>
-							<CardDescription className="text-center">
-								Als Schüler*in an Tests teilnehmen.
-							</CardDescription>
-						</CardContent>
-					</Card>
-				</Link>
 			</div>
 		</div>
 	);
