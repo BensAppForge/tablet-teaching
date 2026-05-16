@@ -21,14 +21,15 @@ service cloud.firestore {
       allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/tests/$(testId)).data.teacherId == request.auth.uid;
     }
 
-    // Attempts: read-only access for leaderboard, no auth required
+    // Attempts and distributions are intentionally locked down until the
+    // student flow is designed. The previous `if true` rules allowed anyone
+    // to read/write/delete arbitrary documents.
     match /attempts/{attemptId} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
 
-    // Distributions (quiz codes)
     match /distributions/{code} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

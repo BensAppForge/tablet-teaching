@@ -40,4 +40,6 @@ next-env.d.ts
 .genkit/*
 
 # environment variables
-.env*.local
+.env
+.env.*
+!.env.example
