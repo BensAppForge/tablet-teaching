@@ -32,6 +32,6 @@ if (typeof window !== "undefined" && !getApps().length) {
 const firestore = getFirestore(app);
 const auth = getAuth(app);
 const storage = getStorage(app);
-const functions = getFunctions(app); // Optional: specify region if needed e.g., getFunctions(app, 'europe-west1')
+const functions = getFunctions(app, "europe-west1");
 
 export { app, firestore, auth, storage, functions };
