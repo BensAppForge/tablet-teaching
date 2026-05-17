@@ -95,9 +95,12 @@ export interface Test {
 	description?: string;
 	targetLanguage: string;
 	cefrLevel: CEFRLevel;
-	defaultTimePerQuestion: number; // in seconds
+	// Legacy from the timed/competitive quiz model; still optional on the
+	// type for backwards-compat with old documents but no longer written
+	// or edited by the UI.
+	defaultTimePerQuestion?: number;
+	defaultMultiplier?: number;
 	defaultCreditPoints: number;
-	defaultMultiplier: number;
 	isAIGenerated: boolean;
 	createdAt?: Timestamp;
 	updatedAt?: Timestamp;

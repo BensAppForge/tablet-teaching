@@ -4,12 +4,10 @@ import React, { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Trash, Highlighter, Undo, Clock, Award, Percent } from "lucide-react";
+import { Trash, Highlighter } from "lucide-react";
 import { GapFillQuestion } from "@/lib/firebase/tests";
 import { motion, AnimatePresence } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 
@@ -47,22 +45,12 @@ const GapFillEditor: React.FC<GapFillEditorProps> = ({
   // State for the raw text and gaps
   const [rawText, setRawText] = useState(question.text || "");
   const [gaps, setGaps] = useState<Gap[]>([]);
-  
-  // State for custom settings toggles
-  const [customTimeEnabled, setCustomTimeEnabled] = useState(!!question.timeLimit);
-  const [customPointsEnabled, setCustomPointsEnabled] = useState(!!question.points);
-  const [customMultiplierEnabled, setCustomMultiplierEnabled] = useState(!!question.multiplier);
 
   // Initialize gaps from question on mount
   useEffect(() => {
     // Initialize the raw text
     setRawText(question.text || "");
-    
-    // Initialize custom settings
-    setCustomTimeEnabled(!!question.timeLimit);
-    setCustomPointsEnabled(!!question.points);
-    setCustomMultiplierEnabled(!!question.multiplier);
-    
+
     // Initialize gaps
     const enhancedQuestion = question as EnhancedGapFillQuestion;
     
@@ -325,55 +313,6 @@ const GapFillEditor: React.FC<GapFillEditorProps> = ({
       .replace(/'/g, "&#039;");
   };
 
-  // Handle time limit change
-  const handleTimeLimitChange = (value: number[]) => {
-    onChange({ ...question, timeLimit: value[0] });
-  };
-
-  // Handle points change
-  const handlePointsChange = (value: number[]) => {
-    onChange({ ...question, points: value[0] });
-  };
-
-  // Handle multiplier change
-  const handleMultiplierChange = (value: number[]) => {
-    onChange({ ...question, multiplier: value[0] });
-  };
-
-  // Toggle custom time setting
-  const toggleCustomTime = (checked: boolean) => {
-    setCustomTimeEnabled(checked);
-    if (!checked) {
-      // Reset to default when disabling custom time
-      onChange({ ...question, timeLimit: undefined });
-    }
-  };
-
-  // Toggle custom points setting
-  const toggleCustomPoints = (checked: boolean) => {
-    setCustomPointsEnabled(checked);
-    if (!checked) {
-      // Reset to default when disabling custom points
-      onChange({ ...question, points: undefined });
-    }
-  };
-
-  // Toggle custom multiplier setting
-  const toggleCustomMultiplier = (checked: boolean) => {
-    setCustomMultiplierEnabled(checked);
-    if (!checked) {
-      // Reset to default when disabling custom multiplier
-      onChange({ ...question, multiplier: undefined });
-    }
-  };
-
-  // Initialize toggle states based on whether custom values are set
-  useEffect(() => {
-    setCustomTimeEnabled(question.timeLimit !== undefined);
-    setCustomPointsEnabled(question.points !== undefined);
-    setCustomMultiplierEnabled(question.multiplier !== undefined);
-  }, [question.timeLimit, question.points, question.multiplier]);
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -492,127 +431,6 @@ const GapFillEditor: React.FC<GapFillEditorProps> = ({
             </div>
           </div>
         </CardContent>
-        
-        {/* Question-specific settings */}
-        <CardFooter className="flex flex-col space-y-4 pt-0 pb-4">
-          <div className="w-full border-t pt-4 mt-2">
-            <h4 className="text-sm font-medium mb-3">Frage-spezifische Einstellungen</h4>
-            
-            {/* Time limit setting */}
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center space-x-2">
-                <Clock className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor={`${uid}-custom-time-toggle`} className="text-sm font-normal cursor-pointer">
-                  Eigene Zeitbegrenzung
-                </Label>
-              </div>
-              <Switch
-                id={`${uid}-custom-time-toggle`}
-                checked={customTimeEnabled}
-                onCheckedChange={toggleCustomTime}
-              />
-            </div>
-            
-            {customTimeEnabled && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
-                className="mb-4 pl-6"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Zeit (Sekunden):</span>
-                  <span className="text-xs font-medium">{question.timeLimit || 10} Sek.</span>
-                </div>
-                <Slider
-                  min={5}
-                  max={60}
-                  step={5}
-                  value={[question.timeLimit || 10]}
-                  onValueChange={handleTimeLimitChange}
-                  className="mt-1"
-                />
-              </motion.div>
-            )}
-            
-            {/* Points setting */}
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center space-x-2">
-                <Award className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor={`${uid}-custom-points-toggle`} className="text-sm font-normal cursor-pointer">
-                  Eigene Punktzahl
-                </Label>
-              </div>
-              <Switch
-                id={`${uid}-custom-points-toggle`}
-                checked={customPointsEnabled}
-                onCheckedChange={toggleCustomPoints}
-              />
-            </div>
-            
-            {customPointsEnabled && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
-                className="mb-4 pl-6"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Punkte:</span>
-                  <span className="text-xs font-medium">{question.points || 1} Punkt(e)</span>
-                </div>
-                <Slider
-                  min={1}
-                  max={5}
-                  step={1}
-                  value={[question.points || 1]}
-                  onValueChange={handlePointsChange}
-                  className="mt-1"
-                />
-              </motion.div>
-            )}
-            
-            {/* Multiplier setting */}
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center space-x-2">
-                <Percent className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor={`${uid}-custom-multiplier-toggle`} className="text-sm font-normal cursor-pointer">
-                  Eigener Multiplikator
-                </Label>
-              </div>
-              <Switch
-                id={`${uid}-custom-multiplier-toggle`}
-                checked={customMultiplierEnabled}
-                onCheckedChange={toggleCustomMultiplier}
-              />
-            </div>
-            
-            {customMultiplierEnabled && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
-                className="mb-4 pl-6"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">Multiplikator:</span>
-                  <span className="text-xs font-medium">{question.multiplier || 1}x</span>
-                </div>
-                <Slider
-                  min={1}
-                  max={3}
-                  step={0.5}
-                  value={[question.multiplier || 1]}
-                  onValueChange={handleMultiplierChange}
-                  className="mt-1"
-                />
-              </motion.div>
-            )}
-          </div>
-        </CardFooter>
       </Card>
     </motion.div>
   );

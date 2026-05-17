@@ -67,9 +67,7 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
     description: "Beschreibung des Tests",
     targetLanguage: "Englisch",
     cefrLevel: "B1",
-    defaultTimePerQuestion: 10,
     defaultCreditPoints: 1,
-    defaultMultiplier: 1,
   });
   
   // State for questions
@@ -102,9 +100,7 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
         description: test.description || "",
         targetLanguage: test.targetLanguage,
         cefrLevel: test.cefrLevel,
-        defaultTimePerQuestion: test.defaultTimePerQuestion,
         defaultCreditPoints: test.defaultCreditPoints,
-        defaultMultiplier: test.defaultMultiplier,
       });
       
       // Set questions
@@ -165,35 +161,29 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
           text: "",
           options: ["", ""],
           correctOption: 0,
-          timeLimit: testSettings.defaultTimePerQuestion,
           points: testSettings.defaultCreditPoints,
-          multiplier: testSettings.defaultMultiplier,
         } as MultipleChoiceQuestion;
         break;
-        
+
       case "true-false":
         newQuestion = {
           type: "true-false",
           text: "",
           isTrue: false,
-          timeLimit: testSettings.defaultTimePerQuestion,
           points: testSettings.defaultCreditPoints,
-          multiplier: testSettings.defaultMultiplier,
         } as TrueFalseQuestion;
         break;
-        
+
       case "gap-fill":
         newQuestion = {
           type: "gap-fill",
           text: "",
           gaps: [""],
           distractors: [],
-          timeLimit: testSettings.defaultTimePerQuestion,
           points: testSettings.defaultCreditPoints,
-          multiplier: testSettings.defaultMultiplier,
         } as GapFillQuestion;
         break;
-        
+
       case "matching":
         newQuestion = {
           type: "matching",
@@ -202,12 +192,10 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
           rightItems: ["", ""],
           correctMatches: [0, 1],
           distractors: [],
-          timeLimit: testSettings.defaultTimePerQuestion,
           points: testSettings.defaultCreditPoints,
-          multiplier: testSettings.defaultMultiplier,
         } as MatchingQuestion;
         break;
-        
+
       case "reordering-horizontal":
       case "reordering-vertical":
         newQuestion = {
@@ -216,9 +204,7 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
           items: ["", "", ""],
           correctOrder: [0, 1, 2],
           isGap: [false, false, false],
-          timeLimit: testSettings.defaultTimePerQuestion,
           points: testSettings.defaultCreditPoints,
-          multiplier: testSettings.defaultMultiplier,
         } as ReorderingQuestion;
         break;
         
@@ -255,9 +241,7 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
         description: testSettings.description,
         targetLanguage: testSettings.targetLanguage,
         cefrLevel: testSettings.cefrLevel as CEFRLevel,
-        defaultTimePerQuestion: testSettings.defaultTimePerQuestion,
         defaultCreditPoints: testSettings.defaultCreditPoints,
-        defaultMultiplier: testSettings.defaultMultiplier,
         isAIGenerated: false,
       };
       

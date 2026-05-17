@@ -17,9 +17,7 @@ export interface TestGeneralSettings {
   description: string;
   targetLanguage: string;
   cefrLevel: string;
-  defaultTimePerQuestion: number;
   defaultCreditPoints: number;
-  defaultMultiplier: number;
 }
 
 interface TestGeneralSettingsFormProps {
@@ -46,9 +44,7 @@ export const TestGeneralSettingsForm: React.FC<TestGeneralSettingsFormProps> = (
   if (!values.description.trim()) errors.description = "Beschreibung ist erforderlich.";
   if (!values.targetLanguage) errors.targetLanguage = "Sprache ist erforderlich.";
   if (!values.cefrLevel) errors.cefrLevel = "CEFR-Niveau ist erforderlich.";
-  if (values.defaultTimePerQuestion < 5 || values.defaultTimePerQuestion > 60) errors.defaultTimePerQuestion = "Zeit pro Frage: 5–60 Sekunden.";
   if (values.defaultCreditPoints < 1 || values.defaultCreditPoints > 5) errors.defaultCreditPoints = "Punkte: 1–5.";
-  if (values.defaultMultiplier < 1 || values.defaultMultiplier > 3) errors.defaultMultiplier = "Multiplikator: 1–3.";
 
   const handleChange = <K extends keyof TestGeneralSettings>(key: K, value: TestGeneralSettings[K]) => {
     setValues((prev) => ({ ...prev, [key]: value }));
@@ -130,46 +126,18 @@ export const TestGeneralSettingsForm: React.FC<TestGeneralSettingsFormProps> = (
             </div>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <Label htmlFor="defaultTimePerQuestion">Zeit pro Frage (Sekunden) *</Label>
-              <Slider
-                id="defaultTimePerQuestion"
-                min={5}
-                max={60}
-                step={5}
-                value={[values.defaultTimePerQuestion]}
-                onValueChange={([val]) => handleChange("defaultTimePerQuestion", val)}
-              />
-              <div className="text-sm mt-1">{values.defaultTimePerQuestion} Sekunden</div>
-              {touched.defaultTimePerQuestion && errors.defaultTimePerQuestion && <div className="text-destructive text-sm mt-1">{errors.defaultTimePerQuestion}</div>}
-            </div>
-            <div className="flex-1">
-              <Label htmlFor="defaultCreditPoints">Punkte pro Frage *</Label>
-              <Slider
-                id="defaultCreditPoints"
-                min={1}
-                max={5}
-                step={1}
-                value={[values.defaultCreditPoints]}
-                onValueChange={([val]) => handleChange("defaultCreditPoints", val)}
-              />
-              <div className="text-sm mt-1">{values.defaultCreditPoints} Punkt(e)</div>
-              {touched.defaultCreditPoints && errors.defaultCreditPoints && <div className="text-destructive text-sm mt-1">{errors.defaultCreditPoints}</div>}
-            </div>
-            <div className="flex-1">
-              <Label htmlFor="defaultMultiplier">Multiplikator *</Label>
-              <Slider
-                id="defaultMultiplier"
-                min={1}
-                max={3}
-                step={0.5}
-                value={[values.defaultMultiplier]}
-                onValueChange={([val]) => handleChange("defaultMultiplier", val)}
-              />
-              <div className="text-sm mt-1">{values.defaultMultiplier}x</div>
-              {touched.defaultMultiplier && errors.defaultMultiplier && <div className="text-destructive text-sm mt-1">{errors.defaultMultiplier}</div>}
-            </div>
+          <div className="max-w-xs">
+            <Label htmlFor="defaultCreditPoints">Punkte pro Frage *</Label>
+            <Slider
+              id="defaultCreditPoints"
+              min={1}
+              max={5}
+              step={1}
+              value={[values.defaultCreditPoints]}
+              onValueChange={([val]) => handleChange("defaultCreditPoints", val)}
+            />
+            <div className="text-sm mt-1">{values.defaultCreditPoints} Punkt(e)</div>
+            {touched.defaultCreditPoints && errors.defaultCreditPoints && <div className="text-destructive text-sm mt-1">{errors.defaultCreditPoints}</div>}
           </div>
         </CardContent>
       </Card>

@@ -8,6 +8,7 @@ A rolling list of pending work, scoped by priority. Each item lives here until i
 - **Worksheet PDF export** — the original goal: student works through a worksheet on iPad, downloads a well-formatted PDF for GoodNotes import. `src/services/pdf-generator.ts` is currently a 3-line stub returning the literal string `"Sample PDF data"`. Needs a real renderer (probably `@react-pdf/renderer`).
 - **`/impressum` and `/datenschutz`** — both linked from the dashboard but don't exist. Need at least minimal content. Blocking dependency for the consent form (see plans below).
 - **Student password reset** — promised in the Hilfe text ("folgt in Kürze"). Small admin-SDK callable + UI affordance on the class detail page.
+- **Optional test-level duration (exam time)** — the de-scoped competitive flow had per-question time limits, which were dropped. A single optional "Bearbeitungszeit (Minuten)" field on the test (shown on the test card, displayed to students during the worksheet) maps better to actual exam prep. Schema: add `durationMinutes?: number` to `Test`. UI: optional input in `TestGeneralSettingsForm`, chip on the tests list card, surfaced to students once the student-side renderer exists.
 
 ## Planned features (have plan files)
 

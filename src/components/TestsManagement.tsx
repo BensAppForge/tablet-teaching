@@ -11,10 +11,8 @@ import {
 	Pencil,
 	Trash2,
 	Share2,
-	Trophy,
 	ChevronRight,
 	Loader2,
-	Clock,
 	Tag,
 	Book,
 	Calendar,
@@ -122,10 +120,6 @@ const TestsManagement: React.FC = () => {
 		router.push(`/share-test/${testId}`);
 	};
 
-	const handleViewLeaderboard = (testId: string) => {
-		router.push(`/leaderboard/${testId}`);
-	};
-
 	const formatDate = (timestamp: any) => {
 		if (!timestamp) return "Unbekannt";
 
@@ -220,11 +214,7 @@ const TestsManagement: React.FC = () => {
 										</Badge>
 									</div>
 
-									<div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
-										<div className="flex items-center text-sm text-muted-foreground">
-											<Clock className="h-4 w-4 mr-1" />
-											{test.defaultTimePerQuestion}s pro Frage
-										</div>
+									<div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-4">
 										<div className="flex items-center text-sm text-muted-foreground">
 											<Tag className="h-4 w-4 mr-1" />
 											{test.defaultCreditPoints} Punkte
@@ -263,18 +253,6 @@ const TestsManagement: React.FC = () => {
 											<span className="flex items-center">
 												<Share2 className="mr-2 h-4 w-4" />
 												Teilen
-											</span>
-											<ChevronRight className="h-4 w-4" />
-										</Button>
-
-										<Button
-											variant="outline"
-											className="w-full justify-between"
-											onClick={() => handleViewLeaderboard(test.id!)}
-										>
-											<span className="flex items-center">
-												<Trophy className="mr-2 h-4 w-4" />
-												Rangliste
 											</span>
 											<ChevronRight className="h-4 w-4" />
 										</Button>
