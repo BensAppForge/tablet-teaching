@@ -1,7 +1,6 @@
 import {
 	addDoc,
 	collection,
-	deleteDoc,
 	doc,
 	getDoc,
 	getDocs,
@@ -12,7 +11,8 @@ import {
 	updateDoc,
 	where,
 } from "firebase/firestore";
-import { firestore } from "./config";
+import { httpsCallable } from "firebase/functions";
+import { firestore, functions } from "./config";
 
 export interface Class {
 	id?: string;
@@ -75,6 +75,23 @@ export async function setClassArchived(
 	});
 }
 
-export async function deleteClass(classId: string): Promise<void> {
-	await deleteDoc(doc(firestore, "classes", classId));
+export interface DeleteClassResult {
+	deletedStudentCount: number;
+	classDeleted: boolean;
+	failedStudents: { uid: string; error: string }[];
+}
+
+const deleteClassFn = httpsCallable<{ classId: string }, DeleteClassResult>(
+	functions,
+	"deleteClass"
+);
+
+/**
+ * Cascading class delete. Removes every student (Auth + Firestore) and
+ * then the class doc itself. Implemented as a Cloud Function because it
+ * needs the Admin SDK to delete Auth users.
+ */
+export async function deleteClass(classId: string): Promise<DeleteClassResult> {
+	const res = await deleteClassFn({ classId });
+	return res.data;
 }

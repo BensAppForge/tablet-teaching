@@ -1,7 +1,7 @@
-import { randomBytes, randomInt } from "node:crypto";
+import { randomInt } from "node:crypto";
 
 // Curated short German nouns without umlauts/ß. Kept easy to type on an
-// iPad keyboard. Roughly 100 entries → 100^3 × 100 ≈ 10^8 combinations per
+// iPad keyboard. Roughly 100 entries → 100^2 × 100 ≈ 10^6 combinations per
 // password, which is moot vs. Firebase Auth rate limits but plenty.
 const WORDS = [
 	"katze", "hund", "maus", "fisch", "vogel", "kuh", "ente", "esel", "lamm",
@@ -16,7 +16,7 @@ const WORDS = [
 	"karotte", "tomate", "nudel", "keks", "schoki", "saft",
 	"ball", "puppe", "auto", "bus", "zug", "schiff", "drache", "buch", "stift",
 	"lampe", "tisch", "stuhl", "tasse", "teller", "kissen", "decke", "uhr",
-	"brille", "schluessel", "garten", "wiese",
+	"brille", "garten", "wiese",
 ];
 
 const DIGITS = "0123456789";
@@ -26,31 +26,58 @@ function pickWord(): string {
 }
 
 function pick2Digits(): string {
-	const a = DIGITS[randomInt(0, DIGITS.length)];
-	const b = DIGITS[randomInt(0, DIGITS.length)];
-	return a + b;
+	return DIGITS[randomInt(0, 10)] + DIGITS[randomInt(0, 10)];
 }
 
 /**
- * Memorable 3-word + 2-digit password, e.g. "katze-blau-haus-47".
- * Designed for hand-entry on iPad keyboards by 8-14 year olds.
+ * Memorable 2-word + 2-digit password, all lowercase, no separators —
+ * e.g. "katzeblau47". Optimised for hand-entry on iPad keyboards: no
+ * hyphen-hunting, no symbol layer, no case switch.
+ * ~100 × 100 × 100 = 1M combos. Firebase Auth rate-limits brute force,
+ * so entropy isn't the bottleneck — typability is.
  */
 export function generatePassword(): string {
-	return `${pickWord()}-${pickWord()}-${pickWord()}-${pick2Digits()}`;
+	return `${pickWord()}${pickWord()}${pick2Digits()}`;
 }
 
-// Local-part alphabet for synth emails: lowercase letters + digits 2-9
-// (no 0, 1 to avoid being mistaken for o, l, i).
-const EMAIL_ALPHABET = "abcdefghijklmnopqrstuvwxyz23456789";
+/**
+ * Sanitise a German name into a lowercase ASCII slug suitable for an email
+ * local-part. Umlauts/ß expand to ae/oe/ue/ss; remaining accents are
+ * stripped; non-[a-z0-9] becomes a hyphen; hyphens are collapsed/trimmed.
+ *
+ * Examples:
+ *   "Jörg"        -> "joerg"
+ *   "Anna Maria"  -> "anna-maria"
+ *   "François"    -> "francois"
+ */
+export function sanitiseNamePart(s: string): string {
+	return s
+		.toLowerCase()
+		.replace(/ä/g, "ae")
+		.replace(/ö/g, "oe")
+		.replace(/ü/g, "ue")
+		.replace(/ß/g, "ss")
+		.normalize("NFKD")
+		.replace(/[̀-ͯ]/g, "")
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+}
 
 /**
- * Random 6-char local part, e.g. "s-abc23k".
+ * Canonical email local-part for a student, e.g. "anna-b" for
+ * firstName="Anna", lastInitial="B". Collisions are resolved by the
+ * caller (which appends "-2", "-3", … and retries createUser).
  */
-export function generateEmailLocal(): string {
-	const buf = randomBytes(6);
-	let out = "";
-	for (let i = 0; i < 6; i++) {
-		out += EMAIL_ALPHABET[buf[i] % EMAIL_ALPHABET.length];
-	}
-	return `s-${out}`;
+export function buildEmailLocalBase(
+	firstName: string,
+	lastInitial: string
+): string {
+	const fn = sanitiseNamePart(firstName);
+	const li = sanitiseNamePart(lastInitial);
+	if (fn && li) return `${fn}-${li}`;
+	if (fn) return fn;
+	if (li) return li;
+	// Pathological input (name was all special chars). Fall back to a
+	// short opaque local-part so we don't fail the whole import.
+	return `s-${randomInt(100000, 999999)}`;
 }

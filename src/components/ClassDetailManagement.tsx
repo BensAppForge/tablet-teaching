@@ -2,19 +2,45 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Download, Loader2, Printer, UserPlus } from "lucide-react";
+import {
+	ArrowLeft,
+	Download,
+	Loader2,
+	Pencil,
+	Printer,
+	Trash2,
+	UserPlus,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/context/AuthContext";
-import { Class, getClass } from "@/lib/firebase/classes";
+import {
+	Class,
+	deleteClass,
+	getClass,
+	renameClass,
+} from "@/lib/firebase/classes";
 import {
 	BulkImportResponse,
 	bulkImportStudents,
+	compareStudents,
+	deleteStudent,
 	getStudentsByClass,
 	Student,
+	updateStudent,
 } from "@/lib/firebase/students";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
 	Dialog,
 	DialogContent,
@@ -23,6 +49,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -48,8 +75,6 @@ function parseRoster(text: string): ParsedLine[] {
 					error: "Nachname-Initial fehlt",
 				};
 			}
-			// Last token = initial, everything before = first name
-			// (handles multi-word first names like "Anna Maria B" or "Max von M").
 			const lastInitial = parts[parts.length - 1];
 			const firstName = parts.slice(0, -1).join(" ");
 			if (!firstName) {
@@ -142,15 +167,37 @@ const ClassDetailManagement: React.FC = () => {
 	const [students, setStudents] = useState<Student[]>([]);
 	const [loading, setLoading] = useState(true);
 
+	// Bulk import
 	const [roster, setRoster] = useState("");
 	const [importing, setImporting] = useState(false);
-
 	const [resultOpen, setResultOpen] = useState(false);
 	const [result, setResult] = useState<BulkImportResponse | null>(null);
+
+	// Class actions
+	const [renameOpen, setRenameOpen] = useState(false);
+	const [renameValue, setRenameValue] = useState("");
+	const [renaming, setRenaming] = useState(false);
+	const [deleteClassOpen, setDeleteClassOpen] = useState(false);
+	const [deletingClass, setDeletingClass] = useState(false);
+
+	// Student actions
+	const [editStudent, setEditStudent] = useState<Student | null>(null);
+	const [editFirstName, setEditFirstName] = useState("");
+	const [editLastInitial, setEditLastInitial] = useState("");
+	const [savingStudent, setSavingStudent] = useState(false);
+	const [deleteStudentTarget, setDeleteStudentTarget] =
+		useState<Student | null>(null);
+	const [deletingStudent, setDeletingStudent] = useState(false);
 
 	const parsed = useMemo(() => parseRoster(roster), [roster]);
 	const validParsed = parsed.filter((p) => !p.error);
 	const hasErrors = parsed.some((p) => p.error);
+
+	const reloadStudents = async () => {
+		if (!currentUser) return;
+		const updated = await getStudentsByClass(currentUser.uid, classId);
+		setStudents(updated);
+	};
 
 	useEffect(() => {
 		if (!currentUser || !classId) return;
@@ -160,7 +207,7 @@ const ClassDetailManagement: React.FC = () => {
 			try {
 				const [c, sts] = await Promise.all([
 					getClass(classId),
-					getStudentsByClass(classId),
+					getStudentsByClass(currentUser.uid, classId),
 				]);
 				if (cancelled) return;
 				if (!c) {
@@ -195,28 +242,147 @@ const ClassDetailManagement: React.FC = () => {
 		}
 
 		setImporting(true);
+		const promise = bulkImportStudents(
+			classId,
+			validParsed.map((p) => ({
+				firstName: p.firstName,
+				lastInitial: p.lastInitial,
+			}))
+		);
+		toast.promise(promise, {
+			loading: `Erstelle ${validParsed.length} Zugangsdaten…`,
+			success: (data) =>
+				data.failed.length > 0
+					? `${data.created.length} erstellt, ${data.failed.length} fehlgeschlagen`
+					: `${data.created.length} Zugangsdaten erstellt`,
+			error: "Fehler beim Erstellen",
+		});
+
 		try {
-			const res = await bulkImportStudents(
-				classId,
-				validParsed.map((p) => ({
-					firstName: p.firstName,
-					lastInitial: p.lastInitial,
-				}))
-			);
+			const res = await promise;
 			setResult(res);
 			setResultOpen(true);
 			setRoster("");
-			const updated = await getStudentsByClass(classId);
-			setStudents(updated);
-		} catch (err: any) {
+			await reloadStudents();
+		} catch (err) {
 			console.error(err);
-			toast.error(
-				err?.message
-					? `Import fehlgeschlagen: ${err.message}`
-					: "Import fehlgeschlagen"
-			);
 		} finally {
 			setImporting(false);
+		}
+	};
+
+	const openRename = () => {
+		setRenameValue(cls?.name ?? "");
+		setRenameOpen(true);
+	};
+
+	const handleRename = async () => {
+		if (!cls) return;
+		const name = renameValue.trim();
+		if (!name) {
+			toast.error("Bitte einen Namen eingeben");
+			return;
+		}
+		if (name === cls.name) {
+			setRenameOpen(false);
+			return;
+		}
+		setRenaming(true);
+		try {
+			await renameClass(classId, name);
+			setCls({ ...cls, name });
+			toast.success("Klasse umbenannt");
+			setRenameOpen(false);
+		} catch (err) {
+			console.error(err);
+			toast.error("Fehler beim Umbenennen");
+		} finally {
+			setRenaming(false);
+		}
+	};
+
+	const handleDeleteClass = async () => {
+		setDeletingClass(true);
+		const promise = deleteClass(classId);
+		toast.promise(promise, {
+			loading: `Lösche Klasse${students.length > 0 ? ` und ${students.length} Schüler:innen` : ""}…`,
+			success: (data) =>
+				data.classDeleted
+					? "Klasse gelöscht"
+					: `${data.deletedStudentCount} Schüler:innen gelöscht, Klasse konnte nicht entfernt werden`,
+			error: "Fehler beim Löschen",
+		});
+		try {
+			const data = await promise;
+			if (data.classDeleted) {
+				router.push("/classes");
+			} else {
+				setDeleteClassOpen(false);
+				await reloadStudents();
+			}
+		} catch (err) {
+			console.error(err);
+		} finally {
+			setDeletingClass(false);
+		}
+	};
+
+	const openEditStudent = (s: Student) => {
+		setEditStudent(s);
+		setEditFirstName(s.firstName);
+		setEditLastInitial(s.lastInitial);
+	};
+
+	const handleSaveStudent = async () => {
+		if (!editStudent) return;
+		const firstName = editFirstName.trim();
+		const lastInitial = editLastInitial.trim();
+		if (!firstName || !lastInitial) {
+			toast.error("Vorname und Nachname-Initial sind erforderlich");
+			return;
+		}
+		if (
+			firstName === editStudent.firstName &&
+			lastInitial === editStudent.lastInitial
+		) {
+			setEditStudent(null);
+			return;
+		}
+		setSavingStudent(true);
+		try {
+			await updateStudent(editStudent.id, { firstName, lastInitial });
+			setStudents((prev) =>
+				prev
+					.map((s) =>
+						s.id === editStudent.id ? { ...s, firstName, lastInitial } : s
+					)
+					.sort(compareStudents)
+			);
+			toast.success("Schüler:in aktualisiert");
+			setEditStudent(null);
+		} catch (err: any) {
+			console.error(err);
+			toast.error(err?.message ?? "Fehler beim Aktualisieren");
+		} finally {
+			setSavingStudent(false);
+		}
+	};
+
+	const handleDeleteStudent = async () => {
+		if (!deleteStudentTarget) return;
+		setDeletingStudent(true);
+		try {
+			await deleteStudent(deleteStudentTarget.id);
+			setStudents((prev) =>
+				prev.filter((s) => s.id !== deleteStudentTarget.id)
+			);
+			toast.success("Schüler:in gelöscht");
+			setDeleteStudentTarget(null);
+		} catch (err: any) {
+			console.error(err);
+			toast.error(err?.message ?? "Fehler beim Löschen");
+		} finally {
+			setDeletingStudent(false);
 		}
 	};
 
@@ -242,10 +408,33 @@ const ClassDetailManagement: React.FC = () => {
 				</Button>
 			</div>
 
-			<div className="border-b mb-6">
-				<h1 className="text-2xl font-semibold py-2 text-gray-700 dark:text-gray-200">
+			<div className="border-b mb-6 flex items-center justify-between gap-3">
+				<h1 className="text-2xl font-semibold py-2 text-gray-700 dark:text-gray-200 truncate">
 					{loading ? "Laden…" : cls?.name ?? "Klasse"}
 				</h1>
+				{!loading && cls && (
+					<div className="flex items-center gap-2 shrink-0">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={openRename}
+							aria-label="Klasse umbenennen"
+						>
+							<Pencil className="h-4 w-4 mr-2" />
+							Umbenennen
+						</Button>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={() => setDeleteClassOpen(true)}
+							aria-label="Klasse löschen"
+							className="text-destructive"
+						>
+							<Trash2 className="h-4 w-4 mr-2" />
+							Löschen
+						</Button>
+					</div>
+				)}
 			</div>
 
 			{loading ? (
@@ -269,14 +458,36 @@ const ClassDetailManagement: React.FC = () => {
 									{students.map((s) => (
 										<li
 											key={s.id}
-											className="py-2 flex items-center justify-between gap-3"
+											className="py-2 flex items-center gap-3"
 										>
-											<span className="font-medium">
-												{s.firstName} {s.lastInitial}
-											</span>
-											<span className="text-xs text-muted-foreground font-mono truncate">
-												{s.synthEmail}
-											</span>
+											<div className="flex-1 min-w-0">
+												<div className="font-medium truncate">
+													{s.firstName} {s.lastInitial}
+												</div>
+												<div className="text-xs text-muted-foreground font-mono truncate">
+													{s.synthEmail}
+												</div>
+											</div>
+											<div className="flex items-center gap-1 shrink-0">
+												<Button
+													variant="ghost"
+													size="icon"
+													className="h-8 w-8"
+													onClick={() => openEditStudent(s)}
+													aria-label="Bearbeiten"
+												>
+													<Pencil className="h-4 w-4" />
+												</Button>
+												<Button
+													variant="ghost"
+													size="icon"
+													className="h-8 w-8 text-destructive"
+													onClick={() => setDeleteStudentTarget(s)}
+													aria-label="Löschen"
+												>
+													<Trash2 className="h-4 w-4" />
+												</Button>
+											</div>
 										</li>
 									))}
 								</ul>
@@ -331,7 +542,7 @@ const ClassDetailManagement: React.FC = () => {
 										.filter((p) => p.error)
 										.map((p, i) => (
 											<li key={i}>
-												<span className="font-mono">„{p.raw}“</span>:{" "}
+												<span className="font-mono">„{p.raw}"</span>:{" "}
 												{p.error}
 											</li>
 										))}
@@ -365,6 +576,7 @@ const ClassDetailManagement: React.FC = () => {
 				</div>
 			)}
 
+			{/* Result modal */}
 			<Dialog open={resultOpen} onOpenChange={setResultOpen}>
 				<DialogContent className="max-w-3xl">
 					<DialogHeader>
@@ -450,6 +662,194 @@ const ClassDetailManagement: React.FC = () => {
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+
+			{/* Rename class dialog */}
+			<Dialog open={renameOpen} onOpenChange={setRenameOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Klasse umbenennen</DialogTitle>
+					</DialogHeader>
+					<div className="grid gap-2 py-2">
+						<Label htmlFor="class-rename">Name</Label>
+						<Input
+							id="class-rename"
+							autoFocus
+							value={renameValue}
+							onChange={(e) => setRenameValue(e.target.value)}
+							onKeyDown={(e) => {
+								if (e.key === "Enter" && !renaming) handleRename();
+							}}
+						/>
+					</div>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setRenameOpen(false)}
+							disabled={renaming}
+						>
+							Abbrechen
+						</Button>
+						<Button onClick={handleRename} disabled={renaming}>
+							{renaming ? (
+								<>
+									<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+									Speichern…
+								</>
+							) : (
+								"Speichern"
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Delete class confirm */}
+			<AlertDialog open={deleteClassOpen} onOpenChange={setDeleteClassOpen}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Klasse löschen?</AlertDialogTitle>
+						<AlertDialogDescription>
+							Diese Aktion kann nicht rückgängig gemacht werden.
+							{students.length > 0 && (
+								<>
+									{" "}
+									Die Klasse enthält noch{" "}
+									<strong>
+										{students.length} Schüler:in
+										{students.length === 1 ? "" : "nen"}
+									</strong>
+									. Diese werden ebenfalls gelöscht (Zugang verfällt sofort).
+								</>
+							)}
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={deletingClass}>
+							Abbrechen
+						</AlertDialogCancel>
+						<AlertDialogAction
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+							onClick={(e) => {
+								e.preventDefault();
+								handleDeleteClass();
+							}}
+							disabled={deletingClass}
+						>
+							{deletingClass ? (
+								<>
+									<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+									Lösche…
+								</>
+							) : (
+								"Endgültig löschen"
+							)}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
+			{/* Edit student */}
+			<Dialog
+				open={!!editStudent}
+				onOpenChange={(open) => {
+					if (!open) setEditStudent(null);
+				}}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Schüler:in bearbeiten</DialogTitle>
+						<DialogDescription>
+							E-Mail und Passwort bleiben unverändert.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="grid gap-4 py-2">
+						<div className="grid gap-2">
+							<Label htmlFor="edit-first">Vorname</Label>
+							<Input
+								id="edit-first"
+								autoFocus
+								value={editFirstName}
+								onChange={(e) => setEditFirstName(e.target.value)}
+							/>
+						</div>
+						<div className="grid gap-2">
+							<Label htmlFor="edit-initial">Nachname-Initial</Label>
+							<Input
+								id="edit-initial"
+								value={editLastInitial}
+								onChange={(e) => setEditLastInitial(e.target.value)}
+								maxLength={3}
+							/>
+						</div>
+					</div>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setEditStudent(null)}
+							disabled={savingStudent}
+						>
+							Abbrechen
+						</Button>
+						<Button onClick={handleSaveStudent} disabled={savingStudent}>
+							{savingStudent ? (
+								<>
+									<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+									Speichern…
+								</>
+							) : (
+								"Speichern"
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Delete student confirm */}
+			<AlertDialog
+				open={!!deleteStudentTarget}
+				onOpenChange={(open) => {
+					if (!open) setDeleteStudentTarget(null);
+				}}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Schüler:in löschen?</AlertDialogTitle>
+						<AlertDialogDescription>
+							{deleteStudentTarget && (
+								<>
+									<strong>
+										{deleteStudentTarget.firstName}{" "}
+										{deleteStudentTarget.lastInitial}
+									</strong>{" "}
+									wird endgültig gelöscht. Der Zugang verfällt sofort.
+								</>
+							)}
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={deletingStudent}>
+							Abbrechen
+						</AlertDialogCancel>
+						<AlertDialogAction
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+							onClick={(e) => {
+								e.preventDefault();
+								handleDeleteStudent();
+							}}
+							disabled={deletingStudent}
+						>
+							{deletingStudent ? (
+								<>
+									<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+									Lösche…
+								</>
+							) : (
+								"Endgültig löschen"
+							)}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 };

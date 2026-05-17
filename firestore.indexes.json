@@ -33,6 +33,10 @@
 			"queryScope": "COLLECTION",
 			"fields": [
 				{
+					"fieldPath": "teacherId",
+					"order": "ASCENDING"
+				},
+				{
 					"fieldPath": "classId",
 					"order": "ASCENDING"
 				},

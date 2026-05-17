@@ -3,7 +3,12 @@ import { defineSecret } from "firebase-functions/params";
 import { z } from "zod";
 import { buildAi } from "./ai";
 
-export { bulkImportStudents } from "./students";
+export {
+	bulkImportStudents,
+	updateStudent,
+	deleteStudent,
+} from "./students";
+export { deleteClass } from "./classes";
 
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 
