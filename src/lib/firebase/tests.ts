@@ -214,51 +214,13 @@ export const getTest = async (
 		// Log all available collection references
 		console.log("getTest() - Collection reference created:", questionsRef.path);
 
-		// Now try the ordered query
-		console.log("getTest() - Trying ordered query...");
-
-		// First try without any ordering to see if we get results
-		let querySnapshot;
-		try {
-			console.log("getTest() - Trying simple query without ordering...");
-			querySnapshot = await getDocs(questionsRef);
-			console.log("getTest() - Simple query result size:", querySnapshot.size);
-
-			if (querySnapshot.size === 0) {
-				// If we got no results, try with just one ordering field
-				console.log(
-					"getTest() - No results with simple query, trying with just 'order' field..."
-				);
-				querySnapshot = await getDocs(query(questionsRef, orderBy("order")));
-				console.log(
-					"getTest() - Query with 'order' only result size:",
-					querySnapshot.size
-				);
-
-				if (querySnapshot.size === 0) {
-					// Try with just createdAt
-					console.log(
-						"getTest() - No results with 'order', trying with just 'createdAt' field..."
-					);
-					querySnapshot = await getDocs(
-						query(questionsRef, orderBy("createdAt"))
-					);
-					console.log(
-						"getTest() - Query with 'createdAt' only result size:",
-						querySnapshot.size
-					);
-				}
-			}
-		} catch (error) {
-			console.error("getTest() - Error with alternative queries:", error);
-			// Fall back to the original double-ordered query as a last resort
-			console.log(
-				"getTest() - Falling back to original query with both order fields..."
-			);
-			querySnapshot = await getDocs(
-				query(questionsRef, orderBy("order"), orderBy("createdAt"))
-			);
-		}
+		// Fetch questions ordered by their explicit `order` field. Every
+		// write path (createTest, updateTest, addQuestionToTest,
+		// reorderQuestions, deleteQuestion) sets this field, so a single
+		// orderBy is sufficient — no fallback chain needed.
+		const querySnapshot = await getDocs(
+			query(questionsRef, orderBy("order", "asc"))
+		);
 
 		console.log(
 			"getTest() - Raw questions query result size:",
