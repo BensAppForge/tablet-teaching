@@ -132,13 +132,21 @@ export const createTest = async (
 		const testDocRef = await addDoc(testsRef, testWithTimestamps);
 		const testId = testDocRef.id;
 
-		// Add each question as a document in the questions subcollection
+		// Add each question as a document in the questions subcollection.
+		// Strip undefined fields — Firestore rejects them, and several
+		// editors emit `undefined` for cleared per-question overrides
+		// (timeLimit, points, multiplier) or empty optional collections
+		// (distractors on matching).
 		const questionsRef = collection(firestore, `tests/${testId}/questions`);
 
 		for (let i = 0; i < questions.length; i++) {
+			const clean: Record<string, any> = { ...questions[i] };
+			Object.keys(clean).forEach((key) => {
+				if (clean[key] === undefined) delete clean[key];
+			});
 			await addDoc(questionsRef, {
-				...questions[i],
-				order: i, // Set explicit order based on array index
+				...clean,
+				order: i,
 				createdAt: serverTimestamp(),
 			});
 		}

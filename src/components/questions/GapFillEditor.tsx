@@ -38,6 +38,9 @@ const GapFillEditor: React.FC<GapFillEditorProps> = ({
   onDelete,
   showDelete = false,
 }) => {
+  // Per-instance id prefix — see MultipleChoiceEditor for rationale.
+  const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, "");
+
   // References
   const previewRef = useRef<HTMLDivElement>(null);
   
@@ -418,7 +421,7 @@ const GapFillEditor: React.FC<GapFillEditorProps> = ({
                 </div>
               </div>
               <div
-                id="gap-preview"
+                id={`${uid}-gap-preview`}
                 ref={previewRef}
                 className="p-3 border rounded-md bg-background min-h-[100px] cursor-text"
                 dangerouslySetInnerHTML={{ __html: renderPreviewText() }}
@@ -499,12 +502,12 @@ const GapFillEditor: React.FC<GapFillEditorProps> = ({
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="custom-time-toggle" className="text-sm font-normal cursor-pointer">
+                <Label htmlFor={`${uid}-custom-time-toggle`} className="text-sm font-normal cursor-pointer">
                   Eigene Zeitbegrenzung
                 </Label>
               </div>
-              <Switch 
-                id="custom-time-toggle"
+              <Switch
+                id={`${uid}-custom-time-toggle`}
                 checked={customTimeEnabled}
                 onCheckedChange={toggleCustomTime}
               />
@@ -537,12 +540,12 @@ const GapFillEditor: React.FC<GapFillEditorProps> = ({
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-2">
                 <Award className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="custom-points-toggle" className="text-sm font-normal cursor-pointer">
+                <Label htmlFor={`${uid}-custom-points-toggle`} className="text-sm font-normal cursor-pointer">
                   Eigene Punktzahl
                 </Label>
               </div>
-              <Switch 
-                id="custom-points-toggle"
+              <Switch
+                id={`${uid}-custom-points-toggle`}
                 checked={customPointsEnabled}
                 onCheckedChange={toggleCustomPoints}
               />
@@ -575,12 +578,12 @@ const GapFillEditor: React.FC<GapFillEditorProps> = ({
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-2">
                 <Percent className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="custom-multiplier-toggle" className="text-sm font-normal cursor-pointer">
+                <Label htmlFor={`${uid}-custom-multiplier-toggle`} className="text-sm font-normal cursor-pointer">
                   Eigener Multiplikator
                 </Label>
               </div>
-              <Switch 
-                id="custom-multiplier-toggle"
+              <Switch
+                id={`${uid}-custom-multiplier-toggle`}
                 checked={customMultiplierEnabled}
                 onCheckedChange={toggleCustomMultiplier}
               />

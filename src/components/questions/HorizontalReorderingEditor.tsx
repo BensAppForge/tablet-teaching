@@ -24,6 +24,9 @@ const HorizontalReorderingEditor: React.FC<HorizontalReorderingEditorProps> = ({
   onDelete,
   showDelete = false,
 }) => {
+  // Per-instance id prefix — see MultipleChoiceEditor for rationale.
+  const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, "");
+
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange({ ...question, text: e.target.value });
   };
@@ -145,9 +148,9 @@ const HorizontalReorderingEditor: React.FC<HorizontalReorderingEditorProps> = ({
         <CardContent className="pt-4">
           <div className="space-y-4">
             <div>
-              <Label htmlFor="reorder-question-text">Fragetext</Label>
+              <Label htmlFor={`${uid}-reorder-question-text`}>Fragetext</Label>
               <Input
-                id="reorder-question-text"
+                id={`${uid}-reorder-question-text`}
                 value={question.text}
                 onChange={handleTextChange}
                 placeholder="Geben Sie hier Ihre Frage ein..."
@@ -205,11 +208,11 @@ const HorizontalReorderingEditor: React.FC<HorizontalReorderingEditorProps> = ({
                           <div className="flex items-center gap-2">
                             <div className="flex items-center space-x-2">
                               <Switch
-                                id={`gap-switch-${idx}`}
+                                id={`${uid}-gap-switch-${idx}`}
                                 checked={(question.isGap || [])[idx] || false}
                                 onCheckedChange={() => handleToggleGap(idx)}
                               />
-                              <Label htmlFor={`gap-switch-${idx}`} className="text-xs">
+                              <Label htmlFor={`${uid}-gap-switch-${idx}`} className="text-xs">
                                 Lücke
                               </Label>
                             </div>

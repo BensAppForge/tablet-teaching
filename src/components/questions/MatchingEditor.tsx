@@ -14,7 +14,7 @@ import {
 	CardTitle,
 	CardFooter,
 } from "@/components/ui/card";
-import Xarrow, { anchorType } from "react-xarrows";
+import Xarrow, { anchorType, Xwrapper, useXarrow } from "react-xarrows";
 
 interface MatchingEditorProps {
 	question: MatchingQuestion;
@@ -43,6 +43,10 @@ interface ItemProps {
 	isSelected: boolean;
 	isConnected: boolean;
 	connectionColor: string;
+	// HTML id assigned to the connection-circle div. Threaded in from the
+	// parent so the id can include a per-editor-instance prefix (avoids
+	// collisions when multiple MatchingEditors are on the same page).
+	connectionId: string;
 	onChange: (value: string) => void;
 	onClick: () => void;
 	connectionRef: (el: HTMLDivElement | null) => void;
@@ -57,6 +61,7 @@ const LeftItem = React.memo(
 		isSelected,
 		isConnected,
 		connectionColor,
+		connectionId,
 		onChange,
 		onClick,
 		connectionRef,
@@ -72,7 +77,7 @@ const LeftItem = React.memo(
 				/>
 				<div
 					ref={connectionRef}
-					id={`left-connection-${index}`}
+					id={connectionId}
 					className="absolute right-[-12px] top-1/2 transform -translate-y-1/2 h-6 w-6 flex items-center justify-center"
 					style={{ zIndex: 10 }}
 				>
@@ -104,6 +109,7 @@ const RightItem = React.memo(
 		isSelected,
 		isConnected,
 		connectionColor,
+		connectionId,
 		onChange,
 		onClick,
 		connectionRef,
@@ -119,7 +125,7 @@ const RightItem = React.memo(
 				/>
 				<div
 					ref={connectionRef}
-					id={`right-connection-${index}`}
+					id={connectionId}
 					className="absolute left-[-12px] top-1/2 transform -translate-y-1/2 h-6 w-6 flex items-center justify-center"
 					style={{ zIndex: 10 }}
 				>
@@ -141,6 +147,30 @@ const RightItem = React.memo(
 		</motion.div>
 	)
 );
+
+// Helper that lives inside <Xwrapper> and calls updateXarrow() on every
+// animation frame for the first 1000ms after mount. The editor enters
+// with a framer-motion spring (~600ms to settle), and react-xarrows
+// otherwise snapshots dot positions at the wrong moment, leaving
+// arrows visibly off-centre until the next state change. updateXarrow
+// re-measures without remounting the Xarrow components, so it's cheap
+// to call every frame.
+const ArrowSyncer: React.FC = () => {
+	const updateXarrow = useXarrow();
+	useEffect(() => {
+		let rafId = 0;
+		const start = performance.now();
+		const tick = () => {
+			updateXarrow();
+			if (performance.now() - start < 1000) {
+				rafId = requestAnimationFrame(tick);
+			}
+		};
+		rafId = requestAnimationFrame(tick);
+		return () => cancelAnimationFrame(rafId);
+	}, [updateXarrow]);
+	return null;
+};
 
 // Distractor item (integrated with right items)
 const DistractorItem = React.memo(
@@ -184,6 +214,15 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 	onDelete,
 	showDelete = false,
 }) => {
+	// Per-instance id prefix so the connection-circle ids (used by Xarrow
+	// to draw lines) and form ids don't collide when multiple
+	// MatchingEditors live on the same page. Strip every non-alphanumeric
+	// char because Xarrow passes these ids to querySelector and React's
+	// useId can emit chars like colons or guillemets that break CSS
+	// selectors. The remaining alphanumeric core is still unique per
+	// component instance.
+	const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, "");
+
 	// State
 	const [questionText, setQuestionText] = useState(() => question.text || "");
 	const [leftItems, setLeftItems] = useState<string[]>(() =>
@@ -208,6 +247,22 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 	} | null>(null);
 	const [shuffleKey, setShuffleKey] = useState(0);
 
+	// Display order for the right-side column, expressed as a stable list
+	// of row ids ("regular-N" / "distractor-N"). Independent of the
+	// canonical rightItems/distractors arrays: hitting "Mischen" only
+	// reshuffles this list — never the underlying data — so a distractor
+	// can appear anywhere in the column, not always at the bottom.
+	const [visualOrderIds, setVisualOrderIds] = useState<string[]>(() => {
+		const ids: string[] = [];
+		(question.rightItems || []).forEach((_, i) =>
+			ids.push(`regular-${i}`)
+		);
+		(question.distractors || []).forEach((_, i) =>
+			ids.push(`distractor-${i}`)
+		);
+		return ids;
+	});
+
 	// Refs
 	const leftRefs = useRef<(HTMLDivElement | null)[]>([]);
 	const rightRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -228,6 +283,14 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 		});
 		setConnections(arr);
 		setSelectedItem(null);
+		const ids: string[] = [];
+		(question.rightItems || []).forEach((_, i) =>
+			ids.push(`regular-${i}`)
+		);
+		(question.distractors || []).forEach((_, i) =>
+			ids.push(`distractor-${i}`)
+		);
+		setVisualOrderIds(ids);
 	}, [question.id]);
 
 	// Sync up
@@ -351,100 +414,101 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 		[]
 	);
 
-	// Completely restructure the component to use a unified approach for right items and distractors
-	// This type represents any item on the right side (regular item or distractor)
+	// Unified view of every right-hand row (real items + distractors).
+	// `originalIndex` is the row's canonical position in its source array
+	// (rightItems or distractors). It MUST be carried through here rather
+	// than recomputed via indexOf(value), because two rows with the same
+	// string value (e.g. two empty inputs in a fresh question) collapse
+	// to the same index under indexOf — which leads to duplicate
+	// connection ids, dangling Xarrow targets and "second click goes to
+	// first dot" bugs.
 	type RightSideItem = {
 		value: string;
 		isDistractor: boolean;
-		id: string; // Unique identifier for each item
+		id: string;
+		originalIndex: number;
 	};
 
-	// Convert the separate arrays into a unified structure for internal use
 	const rightSideItems: RightSideItem[] = useMemo(() => {
-		const items: RightSideItem[] = [];
-		
-		// Add regular right items
+		const byId = new Map<string, RightSideItem>();
 		rightItems.forEach((value, index) => {
-			items.push({
+			const id = `regular-${index}`;
+			byId.set(id, {
 				value,
 				isDistractor: false,
-				id: `regular-${index}`,
+				id,
+				originalIndex: index,
 			});
 		});
-		
-		// Add distractors
 		distractors.forEach((value, index) => {
-			items.push({
+			const id = `distractor-${index}`;
+			byId.set(id, {
 				value,
 				isDistractor: true,
-				id: `distractor-${index}`,
+				id,
+				originalIndex: index,
 			});
 		});
-		
-		return items;
-	}, [rightItems, distractors]);
+		// Honour visualOrderIds for display, but tolerate transient drift
+		// (e.g. between an add/remove and the length-change reset effect
+		// firing) by appending any items missing from the order at the end
+		// and skipping ids that no longer correspond to a row.
+		const ordered: RightSideItem[] = [];
+		const seen = new Set<string>();
+		visualOrderIds.forEach((id) => {
+			const item = byId.get(id);
+			if (item) {
+				ordered.push(item);
+				seen.add(id);
+			}
+		});
+		byId.forEach((item, id) => {
+			if (!seen.has(id)) ordered.push(item);
+		});
+		return ordered;
+	}, [rightItems, distractors, visualOrderIds]);
 
-	// Shuffle all right items (including distractors)
+	// Reset the display order to natural (regulars first, then distractors)
+	// when the item counts change. Stable per-row ids would let us preserve
+	// the shuffled order across add/remove but the underlying data model
+	// re-keys by array index, so a reset is the simplest correct option.
+	useEffect(() => {
+		const ids: string[] = [];
+		rightItems.forEach((_, i) => ids.push(`regular-${i}`));
+		distractors.forEach((_, i) => ids.push(`distractor-${i}`));
+		setVisualOrderIds(ids);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [rightItems.length, distractors.length]);
+
+	// Shuffle the display order of the right-side column (regular items
+	// and distractors mixed). Does NOT touch rightItems, distractors, or
+	// connections — those are the canonical data model. Xarrow finds
+	// dots by id and re-measures their positions, so connections stay
+	// visually correct regardless of how the column is reordered.
 	const shuffleAll = useCallback(() => {
-		// Create a mapping of original indices to track connections
-		const rightItemsMap = new Map<number, string>();
-		rightItems.forEach((_, index) => {
-			rightItemsMap.set(index, `regular-${index}`);
-		});
-
-		// Create a copy of the unified items array for shuffling
-		const shuffledItems = [...rightSideItems];
-
-		// Fisher-Yates shuffle algorithm
-		for (let i = shuffledItems.length - 1; i > 0; i--) {
-			const j = Math.floor(Math.random() * (i + 1));
-			[shuffledItems[i], shuffledItems[j]] = [shuffledItems[j], shuffledItems[i]];
-		}
-
-		// Separate the shuffled items back into rightItems and distractors
-		const newRightItems: string[] = [];
-		const newDistractors: string[] = [];
-		const idToNewIndexMap = new Map<string, number>();
-
-		// First pass: separate items and build the ID to new index mapping
-		shuffledItems.forEach((item, newIndex) => {
-			if (!item.isDistractor) {
-				newRightItems.push(item.value);
-				idToNewIndexMap.set(item.id, newRightItems.length - 1);
-			} else {
-				newDistractors.push(item.value);
+		setVisualOrderIds((order) => {
+			const shuffled = [...order];
+			for (let i = shuffled.length - 1; i > 0; i--) {
+				const j = Math.floor(Math.random() * (i + 1));
+				[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
 			}
+			return shuffled;
 		});
-
-		// Update connections to maintain the correct relationships
-		const newConnections = connections.map(({ leftIndex, rightIndex }) => {
-			const originalId = rightItemsMap.get(rightIndex);
-			if (originalId && idToNewIndexMap.has(originalId)) {
-				return {
-					leftIndex,
-					rightIndex: idToNewIndexMap.get(originalId)!,
-				};
-			}
-			return { leftIndex, rightIndex: 0 }; // Fallback to first item if not found
-		});
-
-		// Update the state with the new shuffled values
-		setRightItems(newRightItems);
-		setDistractors(newDistractors);
-		setConnections(newConnections);
-		setShuffleKey(k => k + 1);
-	}, [rightItems, distractors, connections, rightSideItems]);
+		setShuffleKey((k) => k + 1);
+	}, []);
 
 	return (
-		<motion.div
-			layout
-			initial={{ opacity: 0, y: 20 }}
-			animate={{ opacity: 1, y: 0 }}
-			exit={{ opacity: 0, y: -20 }}
-			transition={{ type: "spring", stiffness: 300, damping: 30 }}
-			className="w-full"
-		>
-			<Card className="mb-4 border-green-200 dark:border-green-800">
+		<Xwrapper>
+			<ArrowSyncer />
+			<motion.div
+				layout
+				initial={{ opacity: 0, y: 20 }}
+				animate={{ opacity: 1, y: 0 }}
+				exit={{ opacity: 0, y: -20 }}
+				transition={{ type: "spring", stiffness: 300, damping: 30 }}
+				className="w-full"
+			>
+				<Card className="mb-4 border-green-200 dark:border-green-800">
 				<CardHeader className="bg-green-50 dark:bg-green-950/20 flex flex-row justify-between items-center pb-2">
 					<CardTitle className="text-md font-medium">Zuordnung</CardTitle>
 					{showDelete && onDelete && (
@@ -459,9 +523,9 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 					)}
 				</CardHeader>
 				<CardContent className="pt-4 space-y-4">
-					<Label htmlFor="matching-question-text">Fragetext</Label>
+					<Label htmlFor={`${uid}-matching-question-text`}>Fragetext</Label>
 					<Input
-						id="matching-question-text"
+						id={`${uid}-matching-question-text`}
 						value={questionText}
 						onChange={(e) => setQuestionText(e.target.value)}
 						placeholder="Ordnen Sie die Elemente korrekt zu..."
@@ -500,6 +564,7 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 															CONNECTION_COLORS.length
 												  ]
 										}
+										connectionId={`${uid}-left-connection-${idx}`}
 										onChange={(v) => handleLeftChange(idx, v)}
 										onClick={() => handleClick("left", idx)}
 										connectionRef={(el) => (leftRefs.current[idx] = el)}
@@ -519,38 +584,40 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 										transition={{ type: "spring", stiffness: 300, damping: 25 }}
 									>
 										{!item.isDistractor ? (
-											// Regular right item with connection
+											// Regular right item with connection. All indices come
+											// from item.originalIndex — see RightSideItem type for why.
 											<>
 												<RightItem
-													index={rightItems.indexOf(item.value)}
+													index={item.originalIndex}
 													value={item.value}
-													placeholder={`Rechtes Element ${rightItems.indexOf(item.value) + 1}`}
+													placeholder={`Rechtes Element ${item.originalIndex + 1}`}
 													isSelected={
 														selectedItem?.side === "right" &&
-														selectedItem.index === rightItems.indexOf(item.value)
+														selectedItem.index === item.originalIndex
 													}
 													isConnected={connections.some(
-														(c) => c.rightIndex === rightItems.indexOf(item.value)
+														(c) => c.rightIndex === item.originalIndex
 													)}
 													connectionColor={
 														selectedItem?.side === "right" &&
-														selectedItem.index === rightItems.indexOf(item.value)
+														selectedItem.index === item.originalIndex
 															? getNextColor()
 															: CONNECTION_COLORS[
 																	connections.findIndex(
-																		(c) => c.rightIndex === rightItems.indexOf(item.value)
+																		(c) => c.rightIndex === item.originalIndex
 																	) % CONNECTION_COLORS.length
 															  ]
 													}
-													onChange={(v) => handleRightChange(rightItems.indexOf(item.value), v)}
-													onClick={() => handleClick("right", rightItems.indexOf(item.value))}
-													connectionRef={(el) => (rightRefs.current[rightItems.indexOf(item.value)] = el)}
+													connectionId={`${uid}-right-connection-${item.originalIndex}`}
+													onChange={(v) => handleRightChange(item.originalIndex, v)}
+													onClick={() => handleClick("right", item.originalIndex)}
+													connectionRef={(el) => (rightRefs.current[item.originalIndex] = el)}
 												/>
-												{rightItems.indexOf(item.value) >= 2 && (
+												{item.originalIndex >= 2 && (
 													<Button
 														variant="ghost"
 														size="icon"
-														onClick={() => removePair(rightItems.indexOf(item.value))}
+														onClick={() => removePair(item.originalIndex)}
 														className="text-destructive hover:bg-destructive/10"
 													>
 														<Trash className="h-4 w-4" />
@@ -558,12 +625,11 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 												)}
 											</>
 										) : (
-											// Distractor item
 											<DistractorItem
-												index={distractors.indexOf(item.value)}
+												index={item.originalIndex}
 												value={item.value}
-												onChange={(v) => changeDistractor(distractors.indexOf(item.value), v)}
-												onRemove={() => removeDistractor(distractors.indexOf(item.value))}
+												onChange={(v) => changeDistractor(item.originalIndex, v)}
+												onRemove={() => removeDistractor(item.originalIndex)}
 											/>
 										)}
 									</motion.div>
@@ -574,8 +640,8 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 							{connections.map(({ leftIndex, rightIndex }) => (
 								<Xarrow
 									key={`${leftIndex}-${rightIndex}-${shuffleKey}`}
-									start={`left-connection-${leftIndex}`}
-									end={`right-connection-${rightIndex}`}
+									start={`${uid}-left-connection-${leftIndex}`}
+									end={`${uid}-right-connection-${rightIndex}`}
 									color={
 										CONNECTION_COLORS[
 											connections.findIndex(
@@ -635,6 +701,7 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 				</CardFooter>
 			</Card>
 		</motion.div>
+		</Xwrapper>
 	);
 };
 

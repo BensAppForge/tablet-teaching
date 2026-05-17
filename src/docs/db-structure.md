@@ -65,7 +65,7 @@ Each test document contains a `questions` subcollection. Each question document 
 }
 ```
 
-### Reordering (`horizontal-reordering` or `vertical-reordering`)
+### Reordering (`reordering-horizontal` or `reordering-vertical`)
 
 ```json
 {

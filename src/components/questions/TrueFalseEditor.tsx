@@ -26,6 +26,9 @@ const TrueFalseEditor: React.FC<TrueFalseEditorProps> = ({
   onDelete,
   showDelete = false,
 }) => {
+  // Per-instance id prefix — see MultipleChoiceEditor for rationale.
+  const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, "");
+
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange({ ...question, text: e.target.value });
   };
@@ -113,9 +116,9 @@ const TrueFalseEditor: React.FC<TrueFalseEditorProps> = ({
         <CardContent className="pt-4">
           <div className="space-y-4">
             <div>
-              <Label htmlFor="tf-question-text">Aussage</Label>
+              <Label htmlFor={`${uid}-tf-question-text`}>Aussage</Label>
               <Input
-                id="tf-question-text"
+                id={`${uid}-tf-question-text`}
                 value={question.text}
                 onChange={handleTextChange}
                 placeholder="Geben Sie hier Ihre Aussage ein..."
@@ -129,12 +132,12 @@ const TrueFalseEditor: React.FC<TrueFalseEditorProps> = ({
                 className="flex space-x-4 mt-2"
               >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="true" id="tf-true" />
-                  <Label htmlFor="tf-true" className="cursor-pointer">Wahr</Label>
+                  <RadioGroupItem value="true" id={`${uid}-tf-true`} />
+                  <Label htmlFor={`${uid}-tf-true`} className="cursor-pointer">Wahr</Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="false" id="tf-false" />
-                  <Label htmlFor="tf-false" className="cursor-pointer">Falsch</Label>
+                  <RadioGroupItem value="false" id={`${uid}-tf-false`} />
+                  <Label htmlFor={`${uid}-tf-false`} className="cursor-pointer">Falsch</Label>
                 </div>
               </RadioGroup>
             </div>
@@ -150,12 +153,12 @@ const TrueFalseEditor: React.FC<TrueFalseEditorProps> = ({
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="custom-time-toggle" className="text-sm font-normal cursor-pointer">
+                <Label htmlFor={`${uid}-custom-time-toggle`} className="text-sm font-normal cursor-pointer">
                   Eigene Zeitbegrenzung
                 </Label>
               </div>
-              <Switch 
-                id="custom-time-toggle"
+              <Switch
+                id={`${uid}-custom-time-toggle`}
                 checked={customTimeEnabled}
                 onCheckedChange={toggleCustomTime}
               />
@@ -188,12 +191,12 @@ const TrueFalseEditor: React.FC<TrueFalseEditorProps> = ({
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-2">
                 <Award className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="custom-points-toggle" className="text-sm font-normal cursor-pointer">
+                <Label htmlFor={`${uid}-custom-points-toggle`} className="text-sm font-normal cursor-pointer">
                   Eigene Punktzahl
                 </Label>
               </div>
-              <Switch 
-                id="custom-points-toggle"
+              <Switch
+                id={`${uid}-custom-points-toggle`}
                 checked={customPointsEnabled}
                 onCheckedChange={toggleCustomPoints}
               />
@@ -226,12 +229,12 @@ const TrueFalseEditor: React.FC<TrueFalseEditorProps> = ({
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-2">
                 <Percent className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="custom-multiplier-toggle" className="text-sm font-normal cursor-pointer">
+                <Label htmlFor={`${uid}-custom-multiplier-toggle`} className="text-sm font-normal cursor-pointer">
                   Eigener Multiplikator
                 </Label>
               </div>
-              <Switch 
-                id="custom-multiplier-toggle"
+              <Switch
+                id={`${uid}-custom-multiplier-toggle`}
                 checked={customMultiplierEnabled}
                 onCheckedChange={toggleCustomMultiplier}
               />

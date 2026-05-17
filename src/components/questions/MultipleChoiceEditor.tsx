@@ -26,6 +26,14 @@ const MultipleChoiceEditor: React.FC<MultipleChoiceEditorProps> = ({
   onDelete,
   showDelete = false,
 }) => {
+  // Per-instance id prefix so multiple MC editors on the same page don't
+  // share HTML ids (which would break <label htmlFor> linking and is
+  // invalid HTML). Strip every non-alphanumeric char from useId so the
+  // result is safe as a CSS selector / querySelector argument — React's
+  // useId can emit colons, guillemets («r1r»), etc. depending on the
+  // bundler/runtime.
+  const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, "");
+
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange({ ...question, text: e.target.value });
   };
@@ -146,9 +154,9 @@ const MultipleChoiceEditor: React.FC<MultipleChoiceEditorProps> = ({
         <CardContent className="pt-4">
           <div className="space-y-4">
             <div>
-              <Label htmlFor="mc-question-text">Fragetext</Label>
+              <Label htmlFor={`${uid}-mc-question-text`}>Fragetext</Label>
               <Input
-                id="mc-question-text"
+                id={`${uid}-mc-question-text`}
                 value={question.text}
                 onChange={handleTextChange}
                 placeholder="Geben Sie hier Ihre Frage ein..."
@@ -172,7 +180,7 @@ const MultipleChoiceEditor: React.FC<MultipleChoiceEditorProps> = ({
                       transition={{ type: "spring", stiffness: 400, damping: 30, duration: 0.25 }}
                       layout
                     >
-                      <RadioGroupItem value={String(idx)} id={`mc-option-${idx}`} />
+                      <RadioGroupItem value={String(idx)} id={`${uid}-mc-option-${idx}`} />
                       <Input
                         value={opt}
                         onChange={(e) => handleOptionChange(idx, e.target.value)}
@@ -220,12 +228,12 @@ const MultipleChoiceEditor: React.FC<MultipleChoiceEditorProps> = ({
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="custom-time-toggle" className="text-sm font-normal cursor-pointer">
+                <Label htmlFor={`${uid}-custom-time-toggle`} className="text-sm font-normal cursor-pointer">
                   Eigene Zeitbegrenzung
                 </Label>
               </div>
-              <Switch 
-                id="custom-time-toggle"
+              <Switch
+                id={`${uid}-custom-time-toggle`}
                 checked={customTimeEnabled}
                 onCheckedChange={toggleCustomTime}
               />
@@ -258,12 +266,12 @@ const MultipleChoiceEditor: React.FC<MultipleChoiceEditorProps> = ({
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-2">
                 <Award className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="custom-points-toggle" className="text-sm font-normal cursor-pointer">
+                <Label htmlFor={`${uid}-custom-points-toggle`} className="text-sm font-normal cursor-pointer">
                   Eigene Punktzahl
                 </Label>
               </div>
-              <Switch 
-                id="custom-points-toggle"
+              <Switch
+                id={`${uid}-custom-points-toggle`}
                 checked={customPointsEnabled}
                 onCheckedChange={toggleCustomPoints}
               />
@@ -296,12 +304,12 @@ const MultipleChoiceEditor: React.FC<MultipleChoiceEditorProps> = ({
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center space-x-2">
                 <Percent className="h-4 w-4 text-muted-foreground" />
-                <Label htmlFor="custom-multiplier-toggle" className="text-sm font-normal cursor-pointer">
+                <Label htmlFor={`${uid}-custom-multiplier-toggle`} className="text-sm font-normal cursor-pointer">
                   Eigener Multiplikator
                 </Label>
               </div>
-              <Switch 
-                id="custom-multiplier-toggle"
+              <Switch
+                id={`${uid}-custom-multiplier-toggle`}
                 checked={customMultiplierEnabled}
                 onCheckedChange={toggleCustomMultiplier}
               />
