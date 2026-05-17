@@ -143,7 +143,11 @@ const ClassesManagement: React.FC = () => {
 			) : (
 				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 					{classes.map((cls) => (
-						<Card key={cls.id} className="overflow-hidden">
+						<Card
+							key={cls.id}
+							className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+							onClick={() => router.push(`/class?id=${cls.id}`)}
+						>
 							<CardContent className="p-5">
 								<div className="flex items-start justify-between gap-3">
 									<div className="min-w-0">

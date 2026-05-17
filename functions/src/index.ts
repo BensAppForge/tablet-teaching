@@ -3,6 +3,8 @@ import { defineSecret } from "firebase-functions/params";
 import { z } from "zod";
 import { buildAi } from "./ai";
 
+export { bulkImportStudents } from "./students";
+
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 
 const QuestionTypeEnum = z.enum([
