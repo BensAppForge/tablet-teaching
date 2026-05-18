@@ -11,18 +11,26 @@ import {
 } from "@/components/ui/tooltip";
 
 export const UserProfile: React.FC = () => {
-	const { currentUser, teacherData, isPremiumActive } = useAuth();
+	const { currentUser, role, teacherData, studentData, isPremiumActive } =
+		useAuth();
 
 	if (!currentUser) {
 		return null;
 	}
 
-	// Get display name using teacherData if available
-	const displayName = teacherData
-		? `${teacherData.firstName} ${teacherData.lastName}`
-		: currentUser.displayName ||
-		  currentUser.email?.split("@")[0] ||
-		  "Unbekannter Benutzer";
+	let displayName: string;
+	if (role === "student" && studentData) {
+		displayName = `${studentData.firstName} ${studentData.lastInitial}`;
+	} else if (teacherData) {
+		displayName = `${teacherData.firstName} ${teacherData.lastName}`;
+	} else {
+		displayName =
+			currentUser.displayName ||
+			currentUser.email?.split("@")[0] ||
+			"Unbekannter Benutzer";
+	}
+
+	const showPremiumBadge = role !== "student" && isPremiumActive;
 
 	return (
 		<div className="flex items-center text-sm">
@@ -30,7 +38,7 @@ export const UserProfile: React.FC = () => {
 				<User className="h-4 w-4 mr-1" />
 				<span>{displayName}</span>
 
-				{isPremiumActive && (
+				{showPremiumBadge && (
 					<TooltipProvider>
 						<Tooltip>
 							<TooltipTrigger asChild>

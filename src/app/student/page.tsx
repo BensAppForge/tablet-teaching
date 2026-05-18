@@ -1,0 +1,31 @@
+"use client";
+
+import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+
+const StudentRoot: React.FC = () => {
+	const { currentUser, role, loading } = useAuth();
+	const router = useRouter();
+
+	useEffect(() => {
+		if (loading) return;
+		if (!currentUser) {
+			router.push("/student/login");
+			return;
+		}
+		if (role === "teacher") {
+			router.push("/teacher/dashboard");
+			return;
+		}
+		router.push("/student/dashboard");
+	}, [currentUser, role, loading, router]);
+
+	return (
+		<div className="flex justify-center items-center h-screen">
+			<p>Laden…</p>
+		</div>
+	);
+};
+
+export default StudentRoot;

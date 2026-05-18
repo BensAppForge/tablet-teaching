@@ -24,6 +24,20 @@ interface TeacherData {
 	premiumExpiresOn?: any; // Optional timestamp
 }
 
+// Student data shape (mirrors the students/{uid} Firestore doc written
+// by the bulkImportStudents callable).
+interface StudentData {
+	firstName: string;
+	lastInitial: string;
+	teacherId: string;
+	classId: string;
+	synthEmail: string;
+	active: boolean;
+	createdAt?: any;
+}
+
+export type Role = "teacher" | "student";
+
 // Interface for feature restrictions
 interface FeatureRestrictions {
 	maxTests: number;
@@ -35,7 +49,9 @@ interface FeatureRestrictions {
 // Define the shape of the context data we want to expose
 interface AuthContextType {
 	currentUser: User | null; // The Firebase User object or null if not logged in
+	role: Role | null; // 'student' if the user's custom claim says so, else 'teacher'
 	teacherData: TeacherData | null; // The teacher's Firestore data or null if not available
+	studentData: StudentData | null; // The student's Firestore data or null if not available
 	loading: boolean; // Flag to indicate if the auth state is still being determined
 	logout: () => Promise<void>; // Function to handle user logout
 	isPremiumActive: boolean; // Computed property to check if premium is active
@@ -64,7 +80,9 @@ interface AuthProviderProps {
 // AuthProvider Component: Manages and provides the authentication state
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 	const [currentUser, setCurrentUser] = useState<User | null>(null);
+	const [role, setRole] = useState<Role | null>(null);
 	const [teacherData, setTeacherData] = useState<TeacherData | null>(null);
+	const [studentData, setStudentData] = useState<StudentData | null>(null);
 	const [loading, setLoading] = useState(true); // Start loading until we know the auth state
 	const router = useRouter();
 
@@ -110,50 +128,53 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 		};
 	}, [isPremiumActive]);
 
-	// Fetch teacher data from Firestore
-	const fetchTeacherData = async (userId: string) => {
-		try {
-			const docRef = doc(firestore, "teachers", userId);
-			const docSnap = await getDoc(docRef);
-
-			if (docSnap.exists()) {
-				setTeacherData(docSnap.data() as TeacherData);
-			} else {
-				console.log("No teacher document found for this user");
-				setTeacherData(null);
-			}
-		} catch (error) {
-			console.error("Error fetching teacher data:", error);
-			setTeacherData(null);
-		}
-	};
-
 	useEffect(() => {
-		// onAuthStateChanged returns an unsubscribe function.
-		// Firebase handles checking token validity, etc.
+		// onAuthStateChanged fires immediately with the current state and
+		// again whenever auth changes. We branch on the `role` custom claim
+		// (set by bulkImportStudents for students) to fetch the right doc.
+		// Existing teacher accounts have no role claim — default to teacher.
 		const unsubscribe = onAuthStateChanged(auth, async (user) => {
-			// This callback fires immediately with the current state,
-			// and again whenever the auth state changes (login/logout).
-			setCurrentUser(user); // user is null if logged out, or the User object if logged in.
+			setCurrentUser(user);
 
-			// If there's a user, fetch their teacher data
-			if (user) {
-				await fetchTeacherData(user.uid);
-			} else {
+			if (!user) {
+				setRole(null);
 				setTeacherData(null);
+				setStudentData(null);
+				setLoading(false);
+				return;
 			}
 
-			setLoading(false); // We now know the auth state, so loading is complete.
-			console.log(
-				"Auth State Changed: ",
-				user ? user.email : "No user logged in"
-			); // Useful for debugging
+			try {
+				const tokenResult = await user.getIdTokenResult();
+				const detectedRole: Role =
+					tokenResult.claims.role === "student" ? "student" : "teacher";
+				setRole(detectedRole);
+
+				if (detectedRole === "student") {
+					const snap = await getDoc(doc(firestore, "students", user.uid));
+					setStudentData(
+						snap.exists() ? (snap.data() as StudentData) : null
+					);
+					setTeacherData(null);
+				} else {
+					const snap = await getDoc(doc(firestore, "teachers", user.uid));
+					setTeacherData(
+						snap.exists() ? (snap.data() as TeacherData) : null
+					);
+					setStudentData(null);
+				}
+			} catch (err) {
+				console.error("Error resolving auth role / data:", err);
+				setRole(null);
+				setTeacherData(null);
+				setStudentData(null);
+			}
+
+			setLoading(false);
 		});
 
-		// Cleanup: Unsubscribe from the listener when the component unmounts.
-		// This prevents memory leaks.
 		return () => unsubscribe();
-	}, []); // Empty dependency array ensures this effect runs only once when the provider mounts.
+	}, []);
 
 	// Logout Function: Signs the user out using Firebase Auth
 	const logout = async () => {
@@ -161,7 +182,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 		try {
 			await signOut(auth);
 			setCurrentUser(null); // Explicitly set user to null
-			setTeacherData(null); // Clear teacher data
+			setRole(null);
+			setTeacherData(null);
+			setStudentData(null);
 			// Redirect to the home page after successful logout
 			router.push("/");
 		} catch (error) {
@@ -177,7 +200,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 	// The value object that will be provided to consuming components
 	const value: AuthContextType = {
 		currentUser,
+		role,
 		teacherData,
+		studentData,
 		loading,
 		logout,
 		isPremiumActive,

@@ -13,28 +13,30 @@ export const AuthRequired: React.FC<AuthRequiredProps> = ({
 	children,
 	redirectTo = "/auth/teacher-login",
 }) => {
-	const { currentUser, loading } = useAuth();
+	const { currentUser, role, loading } = useAuth();
 	const router = useRouter();
 
 	useEffect(() => {
-		if (!loading && !currentUser) {
+		if (loading) return;
+		if (!currentUser) {
 			router.push(redirectTo);
+			return;
 		}
-	}, [currentUser, loading, redirectTo, router]);
+		// A signed-in student should never see teacher pages — bounce
+		// them to the student dashboard instead of the login screen.
+		if (role === "student") {
+			router.push("/student/dashboard");
+		}
+	}, [currentUser, role, loading, redirectTo, router]);
 
-	// If still loading, show nothing or a spinner
 	if (loading) {
 		return (
 			<div className="flex justify-center items-center h-screen">Laden...</div>
 		);
 	}
-
-	// If not authenticated after loading completes, don't render children
-	if (!currentUser) {
+	if (!currentUser || role === "student") {
 		return null;
 	}
-
-	// If authenticated, render children
 	return <>{children}</>;
 };
 

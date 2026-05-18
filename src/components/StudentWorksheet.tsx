@@ -1,0 +1,471 @@
+"use client";
+
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, CheckCircle2, Download, Loader2, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
+
+import { useAuth } from "@/context/AuthContext";
+import { Class, getClass } from "@/lib/firebase/classes";
+import {
+	getTest,
+	Test,
+	Question,
+	MultipleChoiceQuestion,
+	TrueFalseQuestion,
+	GapFillQuestion,
+	MatchingQuestion,
+	ReorderingQuestion,
+} from "@/lib/firebase/tests";
+import { getStrings, mapTargetLanguageToLocale } from "@/lib/i18n";
+import type { Strings } from "@/lib/i18n/types";
+import {
+	gradeAll,
+	GapAnswer,
+	MCAnswer,
+	MatchingAnswer,
+	ReorderingAnswer,
+	TFAnswer,
+} from "@/lib/student/scoring";
+import {
+	clearAttempt,
+	loadAttempt,
+	saveAttempt,
+	SubmissionResult,
+} from "@/lib/student/storage";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+	MultipleChoiceView,
+	TrueFalseView,
+	GapFillView,
+	MatchingView,
+	HorizontalReorderingView,
+	VerticalReorderingView,
+} from "@/components/student";
+
+type Answers = Record<string, unknown>;
+
+function renderQuestion(
+	q: Question,
+	displayIndex: number,
+	answer: unknown,
+	onAnswer: (a: unknown) => void,
+	mode: "take" | "review",
+	strings: Strings
+): React.ReactNode {
+	const ws = strings.worksheet;
+	switch (q.type) {
+		case "multiple-choice":
+			return (
+				<MultipleChoiceView
+					question={q as MultipleChoiceQuestion}
+					index={displayIndex}
+					answer={answer as MCAnswer | undefined}
+					onAnswer={onAnswer as (a: MCAnswer) => void}
+					mode={mode}
+					strings={ws}
+				/>
+			);
+		case "true-false":
+			return (
+				<TrueFalseView
+					question={q as TrueFalseQuestion}
+					index={displayIndex}
+					answer={answer as TFAnswer | undefined}
+					onAnswer={onAnswer as (a: TFAnswer) => void}
+					mode={mode}
+					strings={ws}
+				/>
+			);
+		case "gap-fill":
+			return (
+				<GapFillView
+					question={q as GapFillQuestion}
+					index={displayIndex}
+					answer={answer as GapAnswer | undefined}
+					onAnswer={onAnswer as (a: GapAnswer) => void}
+					mode={mode}
+					strings={ws}
+				/>
+			);
+		case "matching":
+			return (
+				<MatchingView
+					question={q as MatchingQuestion}
+					index={displayIndex}
+					answer={answer as MatchingAnswer | undefined}
+					onAnswer={onAnswer as (a: MatchingAnswer) => void}
+					mode={mode}
+					strings={ws}
+				/>
+			);
+		case "reordering-horizontal":
+			return (
+				<HorizontalReorderingView
+					question={q as ReorderingQuestion}
+					index={displayIndex}
+					answer={answer as ReorderingAnswer | undefined}
+					onAnswer={onAnswer as (a: ReorderingAnswer) => void}
+					mode={mode}
+					strings={ws}
+				/>
+			);
+		case "reordering-vertical":
+			return (
+				<VerticalReorderingView
+					question={q as ReorderingQuestion}
+					index={displayIndex}
+					answer={answer as ReorderingAnswer | undefined}
+					onAnswer={onAnswer as (a: ReorderingAnswer) => void}
+					mode={mode}
+					strings={ws}
+				/>
+			);
+		default:
+			return (
+				<p className="text-destructive text-sm">
+					Unbekannter Fragentyp: {(q as any).type}
+				</p>
+			);
+	}
+}
+
+const StudentWorksheet: React.FC = () => {
+	const router = useRouter();
+	const params = useSearchParams();
+	const testId = params.get("id") ?? "";
+	const { currentUser, studentData } = useAuth();
+	const [test, setTest] = useState<Test | null>(null);
+	const [cls, setCls] = useState<Class | null>(null);
+	const [questions, setQuestions] = useState<Question[]>([]);
+	const [loading, setLoading] = useState(true);
+
+	const [answers, setAnswers] = useState<Answers>({});
+	const [submitted, setSubmitted] = useState<SubmissionResult | null>(null);
+	const [confirmOpen, setConfirmOpen] = useState(false);
+	const [retakeOpen, setRetakeOpen] = useState(false);
+	const [generatingPdf, setGeneratingPdf] = useState(false);
+
+	// Load test + restore any saved attempt for this (student, test).
+	useEffect(() => {
+		if (!testId || !currentUser || !studentData) return;
+		let cancelled = false;
+		(async () => {
+			setLoading(true);
+			try {
+				const [{ test, questions }, klass] = await Promise.all([
+					getTest(testId),
+					getClass(studentData.classId),
+				]);
+				if (cancelled) return;
+				if (test.teacherId !== studentData.teacherId) {
+					toast.error("Dieses Arbeitsblatt ist nicht für dich verfügbar.");
+					router.push("/student/dashboard");
+					return;
+				}
+				setTest(test);
+				setQuestions(questions);
+				setCls(klass);
+				const stored = loadAttempt(currentUser.uid, testId);
+				if (stored) {
+					setAnswers(stored.answers || {});
+					setSubmitted(stored.submitted ?? null);
+				}
+			} catch (err) {
+				console.error(err);
+				toast.error("Fehler beim Laden des Arbeitsblatts");
+			} finally {
+				if (!cancelled) setLoading(false);
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [testId, currentUser, studentData, router]);
+
+	// Auto-save on every answer or submission change.
+	useEffect(() => {
+		if (!currentUser || !testId || loading) return;
+		saveAttempt(currentUser.uid, testId, {
+			answers,
+			submitted: submitted ?? undefined,
+		});
+	}, [answers, submitted, currentUser, testId, loading]);
+
+	const setAnswerFor = useCallback(
+		(qId: string) => (a: unknown) => {
+			if (submitted) return;
+			setAnswers((prev) => ({ ...prev, [qId]: a }));
+		},
+		[submitted]
+	);
+
+	const answered = useMemo(
+		() => questions.filter((q) => answers[q.id ?? ""] !== undefined).length,
+		[questions, answers]
+	);
+
+	const handleSubmit = () => {
+		const result = gradeAll(questions, answers);
+		const submission: SubmissionResult = {
+			submittedAt: Date.now(),
+			totalEarned: Math.round(result.totalEarned * 100) / 100,
+			totalPossible: result.totalPossible,
+			perQuestion: result.perQuestion,
+		};
+		setSubmitted(submission);
+		setConfirmOpen(false);
+		// Scroll to the top of the results so the kid sees the score.
+		if (typeof window !== "undefined") {
+			window.scrollTo({ top: 0, behavior: "smooth" });
+		}
+	};
+
+	const handleRetake = () => {
+		if (!currentUser || !testId) return;
+		clearAttempt(currentUser.uid, testId);
+		setAnswers({});
+		setSubmitted(null);
+		setRetakeOpen(false);
+	};
+
+	const handleDownloadPdf = async () => {
+		if (!test || !submitted || !studentData) return;
+		setGeneratingPdf(true);
+		try {
+			// Dynamic import keeps @react-pdf/renderer (~300KB) out of the
+			// page bundle until the student actually asks for a PDF.
+			const [{ pdf }, { WorksheetResultsPDF }] = await Promise.all([
+				import("@react-pdf/renderer"),
+				import("@/components/student/WorksheetResultsPDF"),
+			]);
+			const blob = await pdf(
+				<WorksheetResultsPDF
+					testTitle={test.title}
+					testDescription={test.description}
+					questions={questions}
+					answers={answers}
+					submission={submitted}
+					studentName={`${studentData.firstName} ${studentData.lastInitial}`.trim()}
+					className={cls?.name ?? ""}
+					strings={strings}
+				/>
+			).toBlob();
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			const slug = (s: string) =>
+				s
+					.normalize("NFKD")
+					.replace(/[̀-ͯ]/g, "")
+					.replace(/[^a-zA-Z0-9]+/g, "-")
+					.replace(/^-+|-+$/g, "")
+					.toLowerCase() || "arbeitsblatt";
+			const datePart = new Date(submitted.submittedAt)
+				.toISOString()
+				.slice(0, 10);
+			a.download = `${slug(test.title)}-${slug(studentData.firstName)}-${datePart}.pdf`;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			URL.revokeObjectURL(url);
+		} catch (err) {
+			console.error(err);
+			toast.error(strings.pdf.generationFailed);
+		} finally {
+			setGeneratingPdf(false);
+		}
+	};
+
+	if (!testId) {
+		return (
+			<div className="container mx-auto px-4 py-6">
+				<p className="text-muted-foreground">
+					Keine Arbeitsblatt-ID angegeben.
+				</p>
+			</div>
+		);
+	}
+
+	const mode: "take" | "review" = submitted ? "review" : "take";
+	const totalQuestions = questions.length;
+	const percent =
+		submitted && submitted.totalPossible > 0
+			? Math.round((submitted.totalEarned / submitted.totalPossible) * 100)
+			: 0;
+	const strings = useMemo(
+		() => getStrings(mapTargetLanguageToLocale(test?.targetLanguage)),
+		[test?.targetLanguage]
+	);
+
+	return (
+		<div className="container mx-auto px-4 py-6 max-w-3xl">
+			<div className="flex items-center gap-2 mb-4">
+				<Button
+					variant="outline"
+					size="sm"
+					className="gap-1 text-muted-foreground"
+					onClick={() => router.push("/student/dashboard")}
+				>
+					<ArrowLeft className="h-4 w-4" />
+					<span>Mein Bereich</span>
+				</Button>
+			</div>
+
+			<div className="border-b mb-6">
+				<h1 className="text-2xl font-semibold py-2 text-gray-700 dark:text-gray-200">
+					{loading ? "Laden…" : test?.title ?? "Arbeitsblatt"}
+				</h1>
+				{test?.description && (
+					<p className="text-sm text-muted-foreground pb-2">
+						{test.description}
+					</p>
+				)}
+			</div>
+
+			{loading ? (
+				<div className="flex justify-center items-center py-12">
+					<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+				</div>
+			) : questions.length === 0 ? (
+				<Card>
+					<CardContent className="py-8 text-center text-muted-foreground">
+						Dieses Arbeitsblatt enthält noch keine Aufgaben.
+					</CardContent>
+				</Card>
+			) : (
+				<>
+					{submitted ? (
+						<Card className="mb-6 border-primary/30 bg-primary/5">
+							<CardContent className="p-5 flex items-center gap-4">
+								<CheckCircle2 className="h-10 w-10 text-primary shrink-0" />
+								<div className="flex-1">
+									<p className="text-lg font-semibold">
+										{submitted.totalEarned} / {submitted.totalPossible} Punkte
+										<span className="text-muted-foreground font-normal text-base ml-2">
+											({percent}%)
+										</span>
+									</p>
+									<p className="text-sm text-muted-foreground">
+										Abgegeben am{" "}
+										{new Date(submitted.submittedAt).toLocaleString("de-DE")}
+									</p>
+								</div>
+								<div className="flex items-center gap-2 shrink-0">
+									<Button
+										variant="default"
+										onClick={handleDownloadPdf}
+										disabled={generatingPdf}
+									>
+										{generatingPdf ? (
+											<>
+												<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+												{strings.pdf.generating}
+											</>
+										) : (
+											<>
+												<Download className="h-4 w-4 mr-2" />
+												{strings.pdf.downloadButton}
+											</>
+										)}
+									</Button>
+									<Button
+										variant="outline"
+										onClick={() => setRetakeOpen(true)}
+									>
+										<RotateCcw className="h-4 w-4 mr-2" />
+										Neu starten
+									</Button>
+								</div>
+							</CardContent>
+						</Card>
+					) : (
+						<div className="mb-4 text-sm text-muted-foreground">
+							{answered} / {totalQuestions} Aufgaben bearbeitet
+						</div>
+					)}
+
+					<div className="space-y-6">
+						{questions.map((q, i) => (
+							<Card key={q.id ?? i}>
+								<CardContent className="p-5">
+									{renderQuestion(
+										q,
+										i,
+										answers[q.id ?? ""],
+										setAnswerFor(q.id ?? ""),
+										mode,
+										strings
+									)}
+								</CardContent>
+							</Card>
+						))}
+					</div>
+
+					{!submitted && (
+						<div className="flex justify-end mt-8">
+							<Button
+								size="lg"
+								onClick={() => setConfirmOpen(true)}
+								disabled={questions.length === 0}
+							>
+								<CheckCircle2 className="h-5 w-5 mr-2" />
+								Fertig & abgeben
+							</Button>
+						</div>
+					)}
+				</>
+			)}
+
+			{/* Submit confirmation */}
+			<AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Arbeitsblatt abgeben?</AlertDialogTitle>
+						<AlertDialogDescription>
+							Du hast {answered} von {totalQuestions} Aufgaben bearbeitet.
+							Nach dem Abgeben kannst du keine Antworten mehr ändern.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Zurück</AlertDialogCancel>
+						<AlertDialogAction onClick={handleSubmit}>
+							Abgeben
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
+			{/* Retake confirmation */}
+			<AlertDialog open={retakeOpen} onOpenChange={setRetakeOpen}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Arbeitsblatt neu starten?</AlertDialogTitle>
+						<AlertDialogDescription>
+							Deine bisherigen Antworten und das Ergebnis werden gelöscht.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Abbrechen</AlertDialogCancel>
+						<AlertDialogAction onClick={handleRetake}>
+							Neu starten
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+		</div>
+	);
+};
+
+export default StudentWorksheet;

@@ -56,9 +56,13 @@ export interface TrueFalseQuestion extends BaseQuestion {
 // Gap fill question
 export interface GapFillQuestion extends BaseQuestion {
 	type: "gap-fill";
-	text: string; // Text with gaps marked as __gap__
-	gaps: string[]; // Correct answers
-	distractors?: string[]; // Optional wrong answers
+	text: string; // Full sentence/paragraph, gaps stored separately by position
+	gaps: string[]; // Correct answers, one per gap, in document order
+	distractors?: string[]; // Optional extra wrong-answer chips for the word bank
+	// Character offsets into `text` for each gap, in the same order as
+	// `gaps`. Written by GapFillEditor; needed by the student renderer to
+	// know where to inject the input field.
+	gapPositions?: { start: number; end: number }[];
 }
 
 // Matching question
@@ -320,6 +324,11 @@ export const getTest = async (
 							distractors: Array.isArray(data.distractors)
 								? data.distractors
 								: [],
+							// Carry gapPositions through; without it the student
+							// renderer doesn't know where to inject input fields.
+							gapPositions: Array.isArray(data.gapPositions)
+								? data.gapPositions
+								: undefined,
 							order: data.order !== undefined ? data.order : 999,
 							createdAt: data.createdAt || new Date(),
 							explanation: data.explanation || "",

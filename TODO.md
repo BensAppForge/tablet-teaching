@@ -15,6 +15,11 @@ A rolling list of pending work, scoped by priority. Each item lives here until i
 - **[Parent consent form (Einverständniserklärung)](docs/plans/parent-consent-form.md)** — printable per-class PDF template for parental consent. Lower priority; depends on the PDF renderer and the basic privacy pages.
 - **[Custom-token student login](docs/plans/custom-token-login.md)** — short login code instead of synth email + password. Should ship right after the basic student login screen exists.
 
+## Hardening for v2
+
+- **Move grading server-side** (Cloud Function). Today `correctOption`, `isTrue`, `correctMatches`, `correctOrder`, and `gaps` ship to the client in the question doc — a curious student with DevTools can see the answers before submitting. For classroom worksheets that's acceptable; for any high-stakes use we'd move grading into a callable that returns `{ correct, points }` per question without ever exposing the correct answers.
+- **Server-side PDF rendering** (Cloud Function with Puppeteer or @react-pdf/renderer running on Node). The v1 client-side PDF will get us to the first pilot but server-side rendering gives better fonts, smaller bundle, and lets us watermark / sign / archive on the backend.
+
 ## Tech debt to revisit (when the app stabilises)
 
 - `getTest()` in `src/lib/firebase/tests.ts` is ~270 lines with cascading fallback queries and dozens of debug `console.log` calls. Simplify to a single `orderBy("order")` query and strip the logs.
