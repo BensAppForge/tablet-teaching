@@ -134,6 +134,15 @@ const TeacherLoginForm: React.FC = () => {
 								Registrieren
 							</Link>
 						</div>
+						<div className="text-center text-sm text-muted-foreground border-t pt-3">
+							Du bist Schüler:in?{" "}
+							<Link
+								href="/student/login"
+								className="text-primary hover:underline"
+							>
+								Hier anmelden
+							</Link>
+						</div>
 					</form>
 				</CardContent>
 			</Card>
