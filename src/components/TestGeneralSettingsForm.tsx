@@ -30,13 +30,15 @@ export const TestGeneralSettingsForm: React.FC<TestGeneralSettingsFormProps> = (
   const [values, setValues] = useState<TestGeneralSettings>(initialValues);
   const [touched, setTouched] = useState<{ [K in keyof TestGeneralSettings]?: boolean }>({});
 
+  // Mirror prop changes (e.g. when an existing test loads or the
+  // AI flow nudges title/description) into local state. Note: we
+  // intentionally DON'T have an effect that pushes `values` back
+  // to the parent — that used to cause a render loop together with
+  // this one when the parent re-created its onChange handler on
+  // every render. Updates flow out via handleChange below instead.
   useEffect(() => {
     setValues(initialValues);
   }, [initialValues]);
-
-  useEffect(() => {
-    onChange(values);
-  }, [values, onChange]);
 
   // Validation
   const errors: Partial<Record<keyof TestGeneralSettings, string>> = {};
@@ -47,8 +49,10 @@ export const TestGeneralSettingsForm: React.FC<TestGeneralSettingsFormProps> = (
   if (values.defaultCreditPoints < 1 || values.defaultCreditPoints > 5) errors.defaultCreditPoints = "Punkte: 1–5.";
 
   const handleChange = <K extends keyof TestGeneralSettings>(key: K, value: TestGeneralSettings[K]) => {
-    setValues((prev) => ({ ...prev, [key]: value }));
+    const next = { ...values, [key]: value };
+    setValues(next);
     setTouched((prev) => ({ ...prev, [key]: true }));
+    onChange(next);
   };
 
   return (
