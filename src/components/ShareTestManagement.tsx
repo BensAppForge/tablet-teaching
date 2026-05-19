@@ -69,12 +69,17 @@ const ShareTestManagement: React.FC = () => {
 
 	const quickCode = test?.quickCode ?? null;
 
-	// URL the QR code encodes. Resolved at render time so it picks up the
-	// current origin (works in dev on localhost and in prod).
+	// URL the QR code encodes. Prefers NEXT_PUBLIC_APP_URL when set so a
+	// production deploy never accidentally emits localhost QR codes from
+	// a developer machine; falls back to window.location.origin otherwise.
 	const quickUrl = useMemo(() => {
 		if (!quickCode) return null;
-		if (typeof window === "undefined") return null;
-		return `${window.location.origin}/student/quick?code=${quickCode}`;
+		const envOrigin = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
+		const origin =
+			envOrigin ||
+			(typeof window !== "undefined" ? window.location.origin : null);
+		if (!origin) return null;
+		return `${origin}/student/quick?code=${quickCode}`;
 	}, [quickCode]);
 
 	const enableQuickAccess = async () => {
