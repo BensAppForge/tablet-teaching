@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { Reorder } from "framer-motion";
 import { GripVertical, Check, X } from "lucide-react";
 import { ReorderingQuestion } from "@/lib/firebase/tests";
@@ -69,6 +69,28 @@ const HorizontalReorderingView: React.FC<Props> = ({
 			: shuffleIndicesAvoiding(question.items.length, avoid);
 	const gapTexts = answer?.gapTexts ?? {};
 
+	// Word bank shown above the exercise: gap solutions (the correct word
+	// for each isGap item) plus any teacher-defined distractors, shuffled
+	// once per question so it doesn't reshuffle on every keystroke.
+	const wordBank = useMemo(() => {
+		const gapWords = (question.isGap || [])
+			.map((isGap, i) => (isGap ? question.items[i] : null))
+			.filter(
+				(w): w is string => typeof w === "string" && w.trim().length > 0
+			);
+		const dist = (question.distractors ?? []).filter(
+			(w): w is string => typeof w === "string" && w.trim().length > 0
+		);
+		const all = [...gapWords, ...dist];
+		const arr = [...all];
+		for (let i = arr.length - 1; i > 0; i--) {
+			const j = Math.floor(Math.random() * (i + 1));
+			[arr[i], arr[j]] = [arr[j], arr[i]];
+		}
+		return arr;
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [question.id]);
+
 	const updateOrder = (newOrder: number[]) => {
 		onAnswer({ order: newOrder, gapTexts });
 	};
@@ -84,6 +106,23 @@ const HorizontalReorderingView: React.FC<Props> = ({
 				{index + 1}.{" "}
 				{question.text || strings.defaultQuestion.horizontalReordering}
 			</p>
+			{wordBank.length > 0 && (
+				<div className="pl-6">
+					<p className="text-xs text-muted-foreground mb-1">
+						{strings.wordBank}
+					</p>
+					<div className="flex flex-wrap gap-2">
+						{wordBank.map((w, i) => (
+							<span
+								key={i}
+								className="text-sm px-2.5 py-1 rounded border bg-muted/40"
+							>
+								{w}
+							</span>
+						))}
+					</div>
+				</div>
+			)}
 			<Reorder.Group
 				as="div"
 				axis="x"
@@ -132,12 +171,12 @@ const HorizontalReorderingView: React.FC<Props> = ({
 										disabled={review}
 										aria-label={`Lückenwort an Position ${displayIndex + 1}`}
 										className={[
-											"h-7 px-2 min-w-[8ch] text-sm",
+											"h-7 px-2 text-sm",
 											gapRight ? "border-green-500" : "",
 											gapWrong ? "border-destructive" : "",
 										].join(" ")}
 										style={{
-											width: `${Math.max(gapTyped.length, itemText.length) + 2}ch`,
+											width: `${Math.max(itemText.length, 8) + 2}ch`,
 										}}
 									/>
 								) : (

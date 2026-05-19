@@ -145,7 +145,7 @@ const StudentWorksheet: React.FC = () => {
 	const router = useRouter();
 	const params = useSearchParams();
 	const testId = params.get("id") ?? "";
-	const { currentUser, studentData } = useAuth();
+	const { currentUser, role, studentData, anonAttempt } = useAuth();
 	const [test, setTest] = useState<Test | null>(null);
 	const [cls, setCls] = useState<Class | null>(null);
 	const [questions, setQuestions] = useState<Question[]>([]);
@@ -157,21 +157,38 @@ const StudentWorksheet: React.FC = () => {
 	const [retakeOpen, setRetakeOpen] = useState(false);
 	const [generatingPdf, setGeneratingPdf] = useState(false);
 
-	// Load test + restore any saved attempt for this (student, test).
+	// Load test + restore any saved attempt for this (user, test). Two
+	// identity paths: managed students fetch their class; Schnellzugang
+	// (anonymous) kids skip the class lookup and rely on anonAttempt
+	// instead.
 	useEffect(() => {
-		if (!testId || !currentUser || !studentData) return;
+		if (!testId || !currentUser) return;
+		const isAnon = role === "anonymous";
+		if (!isAnon && !studentData) return;
+		if (isAnon && !anonAttempt) return;
 		let cancelled = false;
 		(async () => {
 			setLoading(true);
 			try {
+				const expectedTeacherId = isAnon
+					? anonAttempt!.teacherId
+					: studentData!.teacherId;
 				const [{ test, questions }, klass] = await Promise.all([
 					getTest(testId),
-					getClass(studentData.classId),
+					isAnon
+						? Promise.resolve(null)
+						: getClass(studentData!.classId),
 				]);
 				if (cancelled) return;
-				if (test.teacherId !== studentData.teacherId) {
+				if (test.teacherId !== expectedTeacherId) {
 					toast.error("Dieses Arbeitsblatt ist nicht für dich verfügbar.");
-					router.push("/student/dashboard");
+					router.push(isAnon ? "/student/quick" : "/student/dashboard");
+					return;
+				}
+				if (isAnon && test.id !== anonAttempt!.testId) {
+					// Anon kids may only access the test they got the code for.
+					toast.error("Dieses Arbeitsblatt ist nicht für dich verfügbar.");
+					router.push(`/student/worksheet?id=${anonAttempt!.testId}`);
 					return;
 				}
 				setTest(test);
@@ -192,7 +209,7 @@ const StudentWorksheet: React.FC = () => {
 		return () => {
 			cancelled = true;
 		};
-	}, [testId, currentUser, studentData, router]);
+	}, [testId, currentUser, role, studentData, anonAttempt, router]);
 
 	// Auto-save on every answer or submission change.
 	useEffect(() => {
@@ -241,7 +258,12 @@ const StudentWorksheet: React.FC = () => {
 	};
 
 	const handleDownloadPdf = async () => {
-		if (!test || !submitted || !studentData) return;
+		if (!test || !submitted) return;
+		const isAnon = role === "anonymous";
+		const studentDisplayName = isAnon
+			? anonAttempt?.displayName ?? ""
+			: `${studentData?.firstName ?? ""} ${studentData?.lastInitial ?? ""}`.trim();
+		if (!studentDisplayName) return;
 		setGeneratingPdf(true);
 		try {
 			// Dynamic import keeps @react-pdf/renderer (~300KB) out of the
@@ -257,7 +279,7 @@ const StudentWorksheet: React.FC = () => {
 					questions={questions}
 					answers={answers}
 					submission={submitted}
-					studentName={`${studentData.firstName} ${studentData.lastInitial}`.trim()}
+					studentName={studentDisplayName}
 					className={cls?.name ?? ""}
 					strings={strings}
 				/>
@@ -275,7 +297,7 @@ const StudentWorksheet: React.FC = () => {
 			const datePart = new Date(submitted.submittedAt)
 				.toISOString()
 				.slice(0, 10);
-			a.download = `${slug(test.title)}-${slug(studentData.firstName)}-${datePart}.pdf`;
+			a.download = `${slug(test.title)}-${slug(studentDisplayName.split(" ")[0] || "schueler")}-${datePart}.pdf`;
 			document.body.appendChild(a);
 			a.click();
 			document.body.removeChild(a);
@@ -316,10 +338,16 @@ const StudentWorksheet: React.FC = () => {
 					variant="outline"
 					size="sm"
 					className="gap-1 text-muted-foreground"
-					onClick={() => router.push("/student/dashboard")}
+					onClick={() =>
+						router.push(
+							role === "anonymous" ? "/" : "/student/dashboard"
+						)
+					}
 				>
 					<ArrowLeft className="h-4 w-4" />
-					<span>Mein Bereich</span>
+					<span>
+						{role === "anonymous" ? "Startseite" : "Mein Bereich"}
+					</span>
 				</Button>
 			</div>
 

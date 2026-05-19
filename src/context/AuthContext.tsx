@@ -12,6 +12,7 @@ import { auth, firestore } from "@/lib/firebase/config"; // Adjust path if your 
 import { useRouter } from "next/navigation"; // To redirect after logout
 import { doc, getDoc } from "firebase/firestore";
 import { FEATURE_LIMITS } from "@/lib/firebase/teachers";
+import { getQuickAttempt, QuickAttempt } from "@/lib/firebase/quickAccess";
 
 // Define teacher data interface
 interface TeacherData {
@@ -36,7 +37,7 @@ interface StudentData {
 	createdAt?: any;
 }
 
-export type Role = "teacher" | "student";
+export type Role = "teacher" | "student" | "anonymous";
 
 // Interface for feature restrictions
 interface FeatureRestrictions {
@@ -49,9 +50,10 @@ interface FeatureRestrictions {
 // Define the shape of the context data we want to expose
 interface AuthContextType {
 	currentUser: User | null; // The Firebase User object or null if not logged in
-	role: Role | null; // 'student' if the user's custom claim says so, else 'teacher'
+	role: Role | null; // 'anonymous' for quick-access kids, 'student' for managed accounts, else 'teacher'
 	teacherData: TeacherData | null; // The teacher's Firestore data or null if not available
 	studentData: StudentData | null; // The student's Firestore data or null if not available
+	anonAttempt: QuickAttempt | null; // The Schnellzugang attempt for anonymous students
 	loading: boolean; // Flag to indicate if the auth state is still being determined
 	logout: () => Promise<void>; // Function to handle user logout
 	isPremiumActive: boolean; // Computed property to check if premium is active
@@ -83,6 +85,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 	const [role, setRole] = useState<Role | null>(null);
 	const [teacherData, setTeacherData] = useState<TeacherData | null>(null);
 	const [studentData, setStudentData] = useState<StudentData | null>(null);
+	const [anonAttempt, setAnonAttempt] = useState<QuickAttempt | null>(null);
 	const [loading, setLoading] = useState(true); // Start loading until we know the auth state
 	const router = useRouter();
 
@@ -140,34 +143,60 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 				setRole(null);
 				setTeacherData(null);
 				setStudentData(null);
+				setAnonAttempt(null);
 				setLoading(false);
 				return;
 			}
 
 			try {
-				const tokenResult = await user.getIdTokenResult();
-				const detectedRole: Role =
-					tokenResult.claims.role === "student" ? "student" : "teacher";
-				setRole(detectedRole);
-
-				if (detectedRole === "student") {
-					const snap = await getDoc(doc(firestore, "students", user.uid));
-					setStudentData(
-						snap.exists() ? (snap.data() as StudentData) : null
-					);
+				// Anonymous Firebase users are Schnellzugang kids. They have
+				// no role claim and no teachers/students doc — their identity
+				// lives in quickAttempts/{uid}.
+				if (user.isAnonymous) {
+					setRole("anonymous");
 					setTeacherData(null);
-				} else {
-					const snap = await getDoc(doc(firestore, "teachers", user.uid));
-					setTeacherData(
-						snap.exists() ? (snap.data() as TeacherData) : null
-					);
 					setStudentData(null);
+					const attempt = await getQuickAttempt(user.uid);
+					// Drop attempts that have expired since the user's last visit
+					// (the cleanup Function may not have run yet, but we treat
+					// expired attempts as logged-out from the client side).
+					if (attempt) {
+						const expiresMs = attempt.expiresAt?.toMillis?.() ?? 0;
+						if (expiresMs && expiresMs < Date.now()) {
+							setAnonAttempt(null);
+						} else {
+							setAnonAttempt(attempt);
+						}
+					} else {
+						setAnonAttempt(null);
+					}
+				} else {
+					setAnonAttempt(null);
+					const tokenResult = await user.getIdTokenResult();
+					const detectedRole: Role =
+						tokenResult.claims.role === "student" ? "student" : "teacher";
+					setRole(detectedRole);
+
+					if (detectedRole === "student") {
+						const snap = await getDoc(doc(firestore, "students", user.uid));
+						setStudentData(
+							snap.exists() ? (snap.data() as StudentData) : null
+						);
+						setTeacherData(null);
+					} else {
+						const snap = await getDoc(doc(firestore, "teachers", user.uid));
+						setTeacherData(
+							snap.exists() ? (snap.data() as TeacherData) : null
+						);
+						setStudentData(null);
+					}
 				}
 			} catch (err) {
 				console.error("Error resolving auth role / data:", err);
 				setRole(null);
 				setTeacherData(null);
 				setStudentData(null);
+				setAnonAttempt(null);
 			}
 
 			setLoading(false);
@@ -185,6 +214,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 			setRole(null);
 			setTeacherData(null);
 			setStudentData(null);
+			setAnonAttempt(null);
 			// Redirect to the home page after successful logout
 			router.push("/");
 		} catch (error) {
@@ -203,6 +233,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 		role,
 		teacherData,
 		studentData,
+		anonAttempt,
 		loading,
 		logout,
 		isPremiumActive,

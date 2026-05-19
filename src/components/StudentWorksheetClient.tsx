@@ -6,7 +6,7 @@ import StudentWorksheet from "@/components/StudentWorksheet";
 
 const StudentWorksheetClient: React.FC = () => {
 	return (
-		<StudentRequired>
+		<StudentRequired allowAnonymous>
 			<StudentWorksheet />
 		</StudentRequired>
 	);

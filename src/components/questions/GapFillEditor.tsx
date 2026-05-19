@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Trash, Highlighter } from "lucide-react";
+import { Trash, Highlighter, Plus } from "lucide-react";
 import { GapFillQuestion } from "@/lib/firebase/tests";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -380,6 +380,82 @@ const GapFillEditor: React.FC<GapFillEditorProps> = ({
               />
             </div>
             
+            {/* Distractors — optional extra words shown in the student's
+                word bank alongside the gap answers, to make filling the
+                gaps harder. Updates question.distractors directly so the
+                schema reflects whatever the teacher entered. */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label>Distraktoren (optional)</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    onChange({
+                      ...question,
+                      distractors: [...(question.distractors ?? []), ""],
+                    })
+                  }
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Distraktor hinzufügen
+                </Button>
+              </div>
+              {(question.distractors ?? []).length === 0 ? (
+                <p className="text-xs text-muted-foreground italic">
+                  Distraktoren erscheinen im Wortschatz der Schüler:innen,
+                  zählen aber nie als richtige Antwort.
+                </p>
+              ) : (
+                <AnimatePresence initial={false}>
+                  {(question.distractors ?? []).map((value, idx) => (
+                    <motion.div
+                      key={`distractor-${idx}`}
+                      className="flex items-center gap-2 mt-2"
+                      initial={{ opacity: 0, x: 32 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -32 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 400,
+                        damping: 25,
+                      }}
+                      layout
+                    >
+                      <Badge variant="outline" className="shrink-0">
+                        D{idx + 1}
+                      </Badge>
+                      <Input
+                        value={value}
+                        onChange={(e) => {
+                          const next = [...(question.distractors ?? [])];
+                          next[idx] = e.target.value;
+                          onChange({ ...question, distractors: next });
+                        }}
+                        placeholder="Falsche Antwort"
+                        className="flex-1"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          const next = (question.distractors ?? []).filter(
+                            (_, i) => i !== idx
+                          );
+                          onChange({ ...question, distractors: next });
+                        }}
+                        aria-label="Distraktor entfernen"
+                      >
+                        <Trash className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              )}
+            </div>
+
             {/* Gap answers list */}
             <div>
               <Label>Korrekte Antworten für die Lücken</Label>

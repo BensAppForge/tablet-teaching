@@ -131,6 +131,16 @@ const StudentLoginClient: React.FC = () => {
 						<Button type="submit" disabled={isLoading} className="w-full">
 							{isLoading ? "Anmelden…" : "Anmelden"}
 						</Button>
+						<div className="text-center text-sm text-muted-foreground">
+							Kein Zugang? Mit{" "}
+							<Link
+								href="/student/quick"
+								className="text-primary hover:underline"
+							>
+								Schnellzugang
+							</Link>{" "}
+							anmelden.
+						</div>
 						<div className="text-center text-sm text-muted-foreground border-t pt-3">
 							Sie sind Lehrkraft?{" "}
 							<Link

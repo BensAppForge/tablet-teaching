@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 
 const StudentRoot: React.FC = () => {
-	const { currentUser, role, loading } = useAuth();
+	const { currentUser, role, anonAttempt, loading } = useAuth();
 	const router = useRouter();
 
 	useEffect(() => {
@@ -18,8 +18,16 @@ const StudentRoot: React.FC = () => {
 			router.push("/teacher/dashboard");
 			return;
 		}
+		if (role === "anonymous") {
+			router.push(
+				anonAttempt?.testId
+					? `/student/worksheet?id=${anonAttempt.testId}`
+					: "/student/quick"
+			);
+			return;
+		}
 		router.push("/student/dashboard");
-	}, [currentUser, role, loading, router]);
+	}, [currentUser, role, anonAttempt, loading, router]);
 
 	return (
 		<div className="flex justify-center items-center h-screen">

@@ -23,9 +23,12 @@ export const AuthRequired: React.FC<AuthRequiredProps> = ({
 			return;
 		}
 		// A signed-in student should never see teacher pages — bounce
-		// them to the student dashboard instead of the login screen.
+		// them to the appropriate student page.
 		if (role === "student") {
 			router.push("/student/dashboard");
+		}
+		if (role === "anonymous") {
+			router.push("/student");
 		}
 	}, [currentUser, role, loading, redirectTo, router]);
 
@@ -34,7 +37,7 @@ export const AuthRequired: React.FC<AuthRequiredProps> = ({
 			<div className="flex justify-center items-center h-screen">Laden...</div>
 		);
 	}
-	if (!currentUser || role === "student") {
+	if (!currentUser || role === "student" || role === "anonymous") {
 		return null;
 	}
 	return <>{children}</>;

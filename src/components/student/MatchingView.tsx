@@ -177,7 +177,10 @@ const MatchingView: React.FC<Props> = ({
 					{index + 1}. {question.text || strings.defaultQuestion.matching}
 				</p>
 				<div className="relative">
-					<div className="grid grid-cols-[1fr_auto_1fr] gap-x-8 gap-y-2 pl-6">
+					{/* Middle column has a guaranteed min width so the left and
+					    right connection dots don't appear glued together when
+					    item text is short. */}
+					<div className="grid grid-cols-[1fr_minmax(3rem,6rem)_1fr] gap-x-6 gap-y-2 pl-6">
 						<ul className="space-y-3 py-1">
 							{question.leftItems.map((item, i) => {
 								const isSelected =

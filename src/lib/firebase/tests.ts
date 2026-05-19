@@ -81,6 +81,10 @@ export interface ReorderingQuestion extends BaseQuestion {
 	correctOrder: number[];
 	gaps?: number[]; // Optional indices of items that need to be typed by players
 	isGap?: boolean[]; // Whether each item is a gap that needs to be filled
+	// Extra words shown in the student-side word bank alongside the
+	// gap solutions. Always wrong answers — they exist to make the
+	// gap inputs harder, never appear in the draggable item list.
+	distractors?: string[];
 }
 
 // Union type for all question types
@@ -106,6 +110,10 @@ export interface Test {
 	defaultMultiplier?: number;
 	defaultCreditPoints: number;
 	isAIGenerated: boolean;
+	// Optional 6-char short code that lets students log in anonymously
+	// (Schnellzugang) and take this test without a class assignment.
+	// When set, a corresponding doc lives at quickCodes/{code}.
+	quickCode?: string;
 	createdAt?: Timestamp;
 	updatedAt?: Timestamp;
 }
@@ -371,6 +379,9 @@ export const getTest = async (
 								? data.correctOrder
 								: [0, 1],
 							isGap: Array.isArray(data.isGap) ? data.isGap : [false, false],
+							distractors: Array.isArray(data.distractors)
+								? data.distractors
+								: undefined,
 							order: data.order !== undefined ? data.order : 999,
 							createdAt: data.createdAt || new Date(),
 							explanation: data.explanation || "",
