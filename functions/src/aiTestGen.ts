@@ -27,7 +27,10 @@ const QuestionTypeEnum = z.enum(ALL_TYPES);
 
 const InputSchema = z.object({
 	prompt: z.string().trim().min(3).max(4000),
-	sourceText: z.string().trim().max(30000).optional(),
+	// nullish() so the Firebase callable wire format (which can turn
+	// `undefined` into `null` on the way over) doesn't break the call
+	// when the teacher leaves the source-text field empty.
+	sourceText: z.string().trim().max(30000).nullish(),
 	language: z.string().trim().min(1).max(40),
 	cefrLevel: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]),
 	count: z.number().int().min(1).max(15),

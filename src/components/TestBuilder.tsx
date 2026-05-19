@@ -193,14 +193,19 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
     }
     setAiGenerating(true);
     try {
-      const res = await generateTestQuestions({
+      // Don't include sourceText when empty — Firebase httpsCallable
+      // serialises `undefined` as `null` over the wire, which fails the
+      // Function-side Zod schema (string-only).
+      const input: Parameters<typeof generateTestQuestions>[0] = {
         prompt,
-        sourceText: aiSourceText.trim() || undefined,
         language: testSettings.targetLanguage,
         cefrLevel: testSettings.cefrLevel as CEFRLevel,
         count: aiCount,
         allowedTypes: aiAllowedTypes,
-      });
+      };
+      const trimmedSource = aiSourceText.trim();
+      if (trimmedSource) input.sourceText = trimmedSource;
+      const res = await generateTestQuestions(input);
       if (!res.questions.length) {
         toast.error("Die KI hat keine Aufgaben erzeugt. Bitte erneut versuchen.", {
           duration: Infinity,
