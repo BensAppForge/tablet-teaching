@@ -32,10 +32,14 @@ export interface ExplainAnswerResponse {
 	explanationForStudent: string;
 }
 
+// Default client-side callable timeout is ~70s. Gemini occasionally takes
+// longer for 10–15 questions with a pasted source text; the Function
+// itself is configured for 120s, so match that here so the SDK doesn't
+// give up while the server is still working.
 const generateTestQuestionsFn = httpsCallable<
 	GenerateTestQuestionsInput,
 	GenerateTestQuestionsResponse
->(functions, "generateTestQuestions");
+>(functions, "generateTestQuestions", { timeout: 120_000 });
 
 const explainAnswerFn = httpsCallable<
 	{
