@@ -75,7 +75,9 @@ export default function RootLayout({
 						</div>
 
 						{/* Toast notifications - using only Sonner now */}
-						<Toaster richColors position="top-center" />
+						{/* closeButton renders an × on every toast so the duration:Infinity
+					    error toasts have an obvious dismissal affordance. */}
+					<Toaster richColors closeButton position="top-center" />
 					</FooterInfoProvider>
 				</AuthProvider>
 			</body>
