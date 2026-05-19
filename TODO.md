@@ -22,6 +22,10 @@ A rolling list of pending work, scoped by priority. Each item lives here until i
 - **Move grading server-side** (Cloud Function). Today `correctOption`, `isTrue`, `correctMatches`, `correctOrder`, and `gaps` ship to the client in the question doc — a curious student with DevTools can see the answers before submitting. For classroom worksheets that's acceptable; for any high-stakes use we'd move grading into a callable that returns `{ correct, points }` per question without ever exposing the correct answers.
 - **Server-side PDF rendering** (Cloud Function with Puppeteer or @react-pdf/renderer running on Node). The v1 client-side PDF will get us to the first pilot but server-side rendering gives better fonts, smaller bundle, and lets us watermark / sign / archive on the backend.
 
+## Ops gotchas
+
+- **New callable Functions need `allUsers/run.invoker`.** When deploying a *new* Firebase v2 onCall function for the first time, the Cloud Run service it creates sometimes doesn't get the `allUsers` invoker role automatically. Without it, the browser sees a "CORS error" (actually a 403 with no CORS headers). Fix is a single `gcloud run services add-iam-policy-binding <name> --region=europe-west1 --project=tablet-teaching --member="allUsers" --role="roles/run.invoker"` — or via Cloud Run console → Permissions → Add principal. Worth checking after every new callable deploy.
+
 ## Tech debt to revisit (when the app stabilises)
 
 - `getTest()` in `src/lib/firebase/tests.ts` is ~270 lines with cascading fallback queries and dozens of debug `console.log` calls. Simplify to a single `orderBy("order")` query and strip the logs.
