@@ -13,6 +13,7 @@ import {
 	ShieldCheck,
 	BadgeCheck,
 	Users,
+	Sparkles,
 } from "lucide-react";
 import {
 	Tooltip,
@@ -145,6 +146,15 @@ const TeacherDashboard: React.FC = () => {
 							icon={<Users />}
 							href="/classes"
 							colorIndex={1}
+						/>
+
+						{/* Test mit KI erstellen */}
+						<DashboardTile
+							title="KI-Test erstellen"
+							description="Aufgaben automatisch aus einer Anweisung oder einem Text generieren"
+							icon={<Sparkles />}
+							href="/create-test-ai"
+							colorIndex={5}
 						/>
 
 						{/* Premium Features */}

@@ -18,6 +18,7 @@ import {
 	Calendar,
 	ArrowLeft,
 	Settings,
+	Sparkles,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
@@ -199,7 +200,18 @@ const TestsManagement: React.FC = () => {
 								<div className="md:col-span-4 p-6">
 									<div className="flex items-start justify-between">
 										<div>
-											<h2 className="text-xl font-semibold">{test.title}</h2>
+											<div className="flex items-center gap-2">
+												<h2 className="text-xl font-semibold">{test.title}</h2>
+												{test.isAIGenerated && (
+													<Badge
+														variant="outline"
+														className="gap-1 text-xs"
+													>
+														<Sparkles className="h-3 w-3" />
+														KI
+													</Badge>
+												)}
+											</div>
 											{test.description && (
 												<p className="text-muted-foreground mt-1 text-sm line-clamp-2">
 													{test.description}
