@@ -17,8 +17,6 @@ import {
   Save,
   Plus,
   Loader2,
-  Copy,
-  KeyRound,
 } from "lucide-react";
 import {
   createTest,
@@ -34,14 +32,6 @@ import {
   MatchingQuestion,
   ReorderingQuestion,
 } from "@/lib/firebase/tests";
-import {
-  createQuickCode,
-  deleteQuickCode,
-  findUniqueQuickCode,
-} from "@/lib/firebase/quickAccess";
-import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { AnimatePresence, motion } from "framer-motion";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
@@ -83,16 +73,6 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
   // State for questions
   const [questions, setQuestions] = useState<Question[]>([]);
 
-  // Schnellzugang (quick-access) state. quickCode is the code shown in
-  // the form; originalQuickCode is what was on the test when loaded —
-  // we diff the two on save to decide whether to write/delete the
-  // quickCodes/{code} doc.
-  const [quickCode, setQuickCode] = useState<string | null>(null);
-  const [originalQuickCode, setOriginalQuickCode] = useState<string | null>(
-    null
-  );
-  const [generatingQuickCode, setGeneratingQuickCode] = useState(false);
-
   // UI state
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -125,8 +105,6 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
       
       // Set questions
       setQuestions(loadedQuestions);
-      setQuickCode(test.quickCode ?? null);
-      setOriginalQuickCode(test.quickCode ?? null);
     } catch (error) {
       console.error("Error loading test:", error);
       toast.error("Fehler beim Laden des Tests");
@@ -265,38 +243,14 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
         cefrLevel: testSettings.cefrLevel as CEFRLevel,
         defaultCreditPoints: testSettings.defaultCreditPoints,
         isAIGenerated: false,
-        ...(quickCode ? { quickCode } : {}),
       };
 
-      let persistedTestId: string;
       if (testId) {
         await updateTest(testId, testData, questions);
-        persistedTestId = testId;
         toast.success("Test erfolgreich aktualisiert");
       } else {
-        persistedTestId = await createTest(testData, questions);
+        await createTest(testData, questions);
         toast.success("Test erfolgreich erstellt");
-      }
-
-      // Reconcile the quickCodes/{code} lookup doc with the form state:
-      // delete the old code, create the new one. Best-effort — failures
-      // here are logged but don't break the test save itself.
-      try {
-        if (originalQuickCode && originalQuickCode !== quickCode) {
-          await deleteQuickCode(originalQuickCode);
-        }
-        if (quickCode && quickCode !== originalQuickCode) {
-          await createQuickCode(quickCode, persistedTestId, currentUser.uid);
-        }
-      } catch (err) {
-        console.error("Quick-access code sync failed:", err);
-        toast.error(
-          "Test gespeichert, aber Schnellzugang-Code konnte nicht aktualisiert werden."
-        );
-      }
-      setOriginalQuickCode(quickCode);
-
-      if (!testId) {
         router.push("/tests");
       }
     } catch (error) {
@@ -428,88 +382,6 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
             onChange={handleTestSettingsChange}
             mode={testId ? "edit" : "create"}
           />
-        </CardContent>
-      </Card>
-
-      {/* Schnellzugang (quick-access) */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Schnellzugang</CardTitle>
-          <CardDescription>
-            Erlaube anonyme Anmeldung mit Namen und einem 6-stelligen Code.
-            Der Zugang läuft nach 24 Stunden ab.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <Switch
-                id="quick-access-toggle"
-                checked={quickCode !== null}
-                disabled={generatingQuickCode}
-                onCheckedChange={async (checked) => {
-                  if (checked) {
-                    setGeneratingQuickCode(true);
-                    try {
-                      const code = await findUniqueQuickCode();
-                      setQuickCode(code);
-                    } catch (err) {
-                      console.error(err);
-                      toast.error(
-                        "Code konnte nicht erzeugt werden. Bitte erneut versuchen."
-                      );
-                    } finally {
-                      setGeneratingQuickCode(false);
-                    }
-                  } else {
-                    setQuickCode(null);
-                  }
-                }}
-              />
-              <Label
-                htmlFor="quick-access-toggle"
-                className="text-sm font-normal cursor-pointer"
-              >
-                Schnellzugang aktivieren
-              </Label>
-            </div>
-            {generatingQuickCode && (
-              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-            )}
-          </div>
-          {quickCode && (
-            <div className="mt-4 flex items-center gap-2 max-w-md">
-              <div className="relative flex-1">
-                <KeyRound className="absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground" />
-                <Input
-                  readOnly
-                  value={quickCode}
-                  className="pl-10 font-mono tracking-widest text-base"
-                />
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                aria-label="Code kopieren"
-                onClick={() => {
-                  if (typeof navigator !== "undefined" && navigator.clipboard) {
-                    navigator.clipboard
-                      .writeText(quickCode)
-                      .then(() => toast.success("Code kopiert"))
-                      .catch(() => toast.error("Kopieren fehlgeschlagen"));
-                  }
-                }}
-              >
-                <Copy className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-          {quickCode && quickCode !== originalQuickCode && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Der Code wird mit dem Speichern aktiviert.
-            </p>
-          )}
         </CardContent>
       </Card>
 

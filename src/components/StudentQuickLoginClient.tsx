@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signInAnonymously, signOut } from "firebase/auth";
 import { KeyRound, User as UserIcon } from "lucide-react";
@@ -27,9 +27,13 @@ import { Label } from "@/components/ui/label";
 
 const StudentQuickLoginClient: React.FC = () => {
 	const router = useRouter();
+	const params = useSearchParams();
 	const { currentUser, role, anonAttempt, loading } = useAuth();
+	// Prefill the code from the URL (?code=...) so a kid arriving via the
+	// teacher-shared QR / link only has to type their name.
+	const initialCode = (params.get("code") ?? "").trim().toLowerCase();
 	const [displayName, setDisplayName] = useState("");
-	const [code, setCode] = useState("");
+	const [code, setCode] = useState(initialCode);
 	const [error, setError] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 

@@ -117,7 +117,7 @@ const TestsManagement: React.FC = () => {
 	};
 
 	const handleShareTest = (testId: string) => {
-		router.push(`/share-test/${testId}`);
+		router.push(`/share-test?id=${testId}`);
 	};
 
 	const formatDate = (timestamp: any) => {
