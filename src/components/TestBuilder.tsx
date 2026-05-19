@@ -17,7 +17,18 @@ import {
   Save,
   Plus,
   Loader2,
+  Sparkles,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import {
+  AiQuestionType,
+  generateTestQuestions,
+} from "@/lib/firebase/ai";
 import {
   createTest,
   updateTest,
@@ -76,6 +87,20 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
   // UI state
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // Track whether the AI-generation panel is open, plus its fields.
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiSourceText, setAiSourceText] = useState("");
+  const [aiCount, setAiCount] = useState(8);
+  const [aiAllowedTypes, setAiAllowedTypes] = useState<AiQuestionType[]>([
+    "multiple-choice",
+    "true-false",
+    "gap-fill",
+    "matching",
+    "reordering-horizontal",
+    "reordering-vertical",
+  ]);
+  const [aiGenerating, setAiGenerating] = useState(false);
   // We no longer need this state since we're always showing the question selector
   // const [showQuestionSelector, setShowQuestionSelector] = useState(false);
   const [selectedQuestionType, setSelectedQuestionType] = useState<QuestionType>("multiple-choice");
@@ -148,6 +173,71 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
     updatePreference("confirmations", "deleteQuestion", !checked);
   };
   
+  const toggleAiType = (t: AiQuestionType) => {
+    setAiAllowedTypes((prev) =>
+      prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]
+    );
+  };
+
+  const handleAiGenerate = async () => {
+    const prompt = aiPrompt.trim();
+    if (prompt.length < 3) {
+      toast.error("Bitte eine kurze Anweisung eingeben.", { duration: Infinity });
+      return;
+    }
+    if (aiAllowedTypes.length === 0) {
+      toast.error("Mindestens ein Aufgabentyp muss erlaubt sein.", {
+        duration: Infinity,
+      });
+      return;
+    }
+    setAiGenerating(true);
+    try {
+      const res = await generateTestQuestions({
+        prompt,
+        sourceText: aiSourceText.trim() || undefined,
+        language: testSettings.targetLanguage,
+        cefrLevel: testSettings.cefrLevel as CEFRLevel,
+        count: aiCount,
+        allowedTypes: aiAllowedTypes,
+      });
+      if (!res.questions.length) {
+        toast.error("Die KI hat keine Aufgaben erzeugt. Bitte erneut versuchen.", {
+          duration: Infinity,
+        });
+        return;
+      }
+      // Append to existing questions so the teacher can mix manual + AI.
+      setQuestions((prev) => [...prev, ...res.questions]);
+      // If the test still has the default title/description, accept the
+      // AI's suggestions; otherwise keep what the teacher typed.
+      setTestSettings((prev) => ({
+        ...prev,
+        title:
+          prev.title === "Neuer Test" && res.title ? res.title : prev.title,
+        description:
+          prev.description === "Beschreibung des Tests" && res.description
+            ? res.description
+            : prev.description,
+      }));
+      setAiPrompt("");
+      setAiSourceText("");
+      setAiOpen(false);
+      toast.success(`${res.questions.length} Aufgaben generiert`);
+    } catch (err: any) {
+      console.error(err);
+      const code = err?.code as string | undefined;
+      const msg =
+        code === "functions/resource-exhausted"
+          ? err?.message ??
+            "KI-Limit erreicht. Mit Premium gibt es keine Beschränkung."
+          : err?.message ?? "KI-Anfrage fehlgeschlagen";
+      toast.error(msg, { duration: Infinity });
+    } finally {
+      setAiGenerating(false);
+    }
+  };
+
   const handleAddQuestion = () => {
     if (!selectedQuestionType) return;
     
@@ -233,7 +323,7 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
     }
     
     setIsSaving(true);
-    
+
     try {
       const testData: Test = {
         teacherId: currentUser.uid,
@@ -407,12 +497,134 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
               </motion.div>
             ))}
           </AnimatePresence>
-          
+
+          {/* AI generation panel — lives next to the manual add card so
+              the teacher can mix the two. Generated questions are
+              appended to the existing list, then editable in-place. */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
           >
+            <Card className="border-dashed border-2 p-4 mb-4 bg-primary/5 border-primary/30">
+              <CardContent className="p-0">
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between gap-2"
+                  onClick={() => setAiOpen((v) => !v)}
+                >
+                  <span className="flex items-center gap-2 text-lg font-medium">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    Aufgaben mit KI generieren
+                  </span>
+                  {aiOpen ? (
+                    <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  )}
+                </button>
+                {aiOpen && (
+                  <div className="mt-4 space-y-3">
+                    <div className="grid gap-2">
+                      <Label htmlFor="ai-prompt">Anweisung *</Label>
+                      <Textarea
+                        id="ai-prompt"
+                        rows={2}
+                        placeholder='z. B. "Vokabeltest zum Thema Familie, gemischte Aufgabentypen."'
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        disabled={aiGenerating}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="ai-source">Quelltext (optional)</Label>
+                      <Textarea
+                        id="ai-source"
+                        rows={4}
+                        placeholder="Optionaler Text, auf den die Aufgaben sich beziehen sollen."
+                        value={aiSourceText}
+                        onChange={(e) => setAiSourceText(e.target.value)}
+                        disabled={aiGenerating}
+                        maxLength={30000}
+                      />
+                    </div>
+                    <div className="grid gap-2 max-w-[12rem]">
+                      <Label htmlFor="ai-count">Anzahl Aufgaben</Label>
+                      <Input
+                        id="ai-count"
+                        type="number"
+                        min={1}
+                        max={15}
+                        value={aiCount}
+                        onChange={(e) =>
+                          setAiCount(
+                            Math.max(
+                              1,
+                              Math.min(15, parseInt(e.target.value, 10) || 1)
+                            )
+                          )
+                        }
+                        disabled={aiGenerating}
+                      />
+                    </div>
+                    <div>
+                      <Label>Erlaubte Aufgabentypen</Label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                        {[
+                          { value: "multiple-choice", label: "Multiple Choice" },
+                          { value: "true-false", label: "Wahr / Falsch" },
+                          { value: "gap-fill", label: "Lückentext" },
+                          { value: "matching", label: "Zuordnung" },
+                          {
+                            value: "reordering-horizontal",
+                            label: "Horizontale Reihenfolge",
+                          },
+                          {
+                            value: "reordering-vertical",
+                            label: "Vertikale Reihenfolge",
+                          },
+                        ].map((t) => (
+                          <label
+                            key={t.value}
+                            className="flex items-center gap-2 rounded-md border p-2 cursor-pointer hover:bg-accent/40 bg-background"
+                          >
+                            <Checkbox
+                              checked={aiAllowedTypes.includes(
+                                t.value as AiQuestionType
+                              )}
+                              onCheckedChange={() =>
+                                toggleAiType(t.value as AiQuestionType)
+                              }
+                              disabled={aiGenerating}
+                            />
+                            <span className="text-sm">{t.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex justify-end pt-1">
+                      <Button
+                        onClick={handleAiGenerate}
+                        disabled={aiGenerating}
+                      >
+                        {aiGenerating ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Generiere…
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            Generieren
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
             <Card className="border-dashed border-2 p-4 mb-4">
               <CardContent className="p-0">
                 <h3 className="text-lg font-medium mb-4">Neue Frage hinzufügen</h3>
@@ -433,7 +645,7 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
                       <SelectItem value="reordering-vertical">Vertikale Reihenfolge</SelectItem>
                     </SelectContent>
                   </Select>
-                  <Button 
+                  <Button
                     onClick={handleAddQuestion}
                     className="h-10"
                   >
