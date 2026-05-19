@@ -15,6 +15,24 @@
 			]
 		},
 		{
+			"collectionGroup": "tests",
+			"queryScope": "COLLECTION",
+			"fields": [
+				{
+					"fieldPath": "teacherId",
+					"order": "ASCENDING"
+				},
+				{
+					"fieldPath": "assignedClassIds",
+					"arrayConfig": "CONTAINS"
+				},
+				{
+					"fieldPath": "createdAt",
+					"order": "DESCENDING"
+				}
+			]
+		},
+		{
 			"collectionGroup": "classes",
 			"queryScope": "COLLECTION",
 			"fields": [

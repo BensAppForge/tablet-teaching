@@ -7,10 +7,26 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == teacherId;
     }
 
-    // Tests collection - allow teachers to read all tests, but enforce filtering in the app code
-    // This is simpler and reduces the rule complexity
+    // Tests collection. Reads are scoped:
+    //   - The owning teacher can read all of their own tests.
+    //   - A managed student can read a test if it's assigned to their
+    //     class (the student's classId custom claim must be present in
+    //     the test's assignedClassIds list). Their list query MUST
+    //     include `where("assignedClassIds", "array-contains", classId)`
+    //     for the rule to be satisfiable.
+    //   - Anonymous Schnellzugang users can read any test — they
+    //     arrived via a quickCodes/{code} lookup that bound them to a
+    //     specific test, and the worksheet itself re-checks testId
+    //     against their quickAttempts doc.
     match /tests/{testId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null && (
+        resource.data.teacherId == request.auth.uid ||
+        (
+          request.auth.token.role == 'student' &&
+          resource.data.get('assignedClassIds', []).hasAny([request.auth.token.classId])
+        ) ||
+        request.auth.token.firebase.sign_in_provider == 'anonymous'
+      );
       allow create, update: if request.auth != null && request.resource.data.teacherId == request.auth.uid;
       allow delete: if request.auth != null && get(/databases/$(database)/documents/tests/$(testId)).data.teacherId == request.auth.uid;
     }

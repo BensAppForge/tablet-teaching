@@ -114,6 +114,11 @@ export interface Test {
 	// (Schnellzugang) and take this test without a class assignment.
 	// When set, a corresponding doc lives at quickCodes/{code}.
 	quickCode?: string;
+	// IDs of classes whose students can see this test on their
+	// dashboard. Missing/empty means "not assigned" — no managed
+	// student sees the test until the teacher assigns it.
+	// Schnellzugang students bypass this list entirely.
+	assignedClassIds?: string[];
 	createdAt?: Timestamp;
 	updatedAt?: Timestamp;
 }
@@ -447,6 +452,42 @@ export const getTeacherTests = async (teacherId: string): Promise<Test[]> => {
 		console.error("Error getting teacher tests:", error);
 		throw error;
 	}
+};
+
+/**
+ * Tests visible to a managed student: those owned by the student's
+ * teacher AND assigned to the student's class. Requires a composite
+ * (teacherId asc, assignedClassIds array-contains) index — declared in
+ * firestore.indexes.json.
+ */
+export const getTestsForStudent = async (
+	teacherId: string,
+	classId: string
+): Promise<Test[]> => {
+	const testsRef = collection(firestore, "tests");
+	const q = query(
+		testsRef,
+		where("teacherId", "==", teacherId),
+		where("assignedClassIds", "array-contains", classId),
+		orderBy("createdAt", "desc")
+	);
+	const snap = await getDocs(q);
+	return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Test));
+};
+
+/**
+ * Replace the full assigned-classes set on a test in one write. Pass an
+ * empty array to unassign the test entirely.
+ */
+export const setAssignedClasses = async (
+	testId: string,
+	classIds: string[]
+): Promise<void> => {
+	const testRef = doc(firestore, "tests", testId);
+	await updateDoc(testRef, {
+		assignedClassIds: classIds,
+		updatedAt: serverTimestamp(),
+	});
 };
 
 /**

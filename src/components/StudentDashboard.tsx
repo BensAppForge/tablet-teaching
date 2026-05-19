@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { useAuth } from "@/context/AuthContext";
 import { getClass, Class } from "@/lib/firebase/classes";
-import { getTeacherTests, Test } from "@/lib/firebase/tests";
+import { getTestsForStudent, Test } from "@/lib/firebase/tests";
 import { Card, CardContent } from "@/components/ui/card";
 
 const StudentDashboard: React.FC = () => {
@@ -25,7 +25,10 @@ const StudentDashboard: React.FC = () => {
 			try {
 				const [klass, list] = await Promise.all([
 					getClass(studentData.classId),
-					getTeacherTests(studentData.teacherId),
+					getTestsForStudent(
+						studentData.teacherId,
+						studentData.classId
+					),
 				]);
 				if (cancelled) return;
 				setCls(klass);

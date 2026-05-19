@@ -25,6 +25,7 @@
 *.pem
 firebase-debug.log
 firebase-debug.*.log
+.firebase/
 
 # debug
 npm-debug.log*
