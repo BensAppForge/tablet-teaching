@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,58 @@ const VerticalReorderingEditor: React.FC<VerticalReorderingEditorProps> = ({
   // Per-instance id prefix — see MultipleChoiceEditor for rationale.
   const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, "");
 
+  // Stable opaque id per row. See HorizontalReorderingEditor for the
+  // full rationale — short version: framer-motion's Reorder uses the
+  // `value` as identity, so duplicate or empty item strings collide
+  // and break drag-and-drop.
+  const idCounterRef = useRef(0);
+  const makeId = () => `r${idCounterRef.current++}`;
+  const [rowIds, setRowIds] = useState<string[]>(() =>
+    question.items.map(() => `r${idCounterRef.current++}`)
+  );
+
+  useEffect(() => {
+    setRowIds(question.items.map(() => makeId()));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question.id]);
+
+  useEffect(() => {
+    if (rowIds.length === question.items.length) return;
+    setRowIds((prev) => {
+      const next = prev.slice(0, question.items.length);
+      while (next.length < question.items.length) next.push(makeId());
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question.items.length]);
+
+  // One-time per question: normalise non-identity correctOrder so
+  // items are stored in correct sequence with correctOrder = identity.
+  useEffect(() => {
+    const len = question.items.length;
+    const co = question.correctOrder ?? [];
+    const isIdentity =
+      co.length === len && co.every((v, i) => v === i);
+    if (isIdentity || len === 0) return;
+    const seen = new Set<number>();
+    for (const n of co) {
+      if (!Number.isInteger(n) || n < 0 || n >= len || seen.has(n)) return;
+      seen.add(n);
+    }
+    const reorderedItems = co.map((i) => question.items[i]);
+    const reorderedIsGap =
+      (question.isGap ?? []).length === len
+        ? co.map((i) => !!question.isGap![i])
+        : new Array(len).fill(false);
+    onChange({
+      ...question,
+      items: reorderedItems,
+      isGap: reorderedIsGap,
+      correctOrder: reorderedItems.map((_, i) => i),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question.id]);
+
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange({ ...question, text: e.target.value });
   };
@@ -39,48 +91,28 @@ const VerticalReorderingEditor: React.FC<VerticalReorderingEditorProps> = ({
 
   const handleAddItem = () => {
     const newItems = [...question.items, ""];
-    
-    // Update correctOrder to include the new item at the end
-    const newCorrectOrder = [...(question.correctOrder || []), newItems.length - 1];
-    
-    // Update isGap array if it exists
     const newIsGap = question.isGap ? [...question.isGap, false] : undefined;
-    
+    setRowIds((prev) => [...prev, makeId()]);
     onChange({
       ...question,
       items: newItems,
-      correctOrder: newCorrectOrder,
-      isGap: newIsGap
+      correctOrder: newItems.map((_, i) => i),
+      isGap: newIsGap,
     });
   };
 
   const handleRemoveItem = (index: number) => {
     if (question.items.length <= 2) return; // Minimum 2 items
-    
     const newItems = question.items.filter((_, i) => i !== index);
-    
-    // Update correctOrder to maintain valid indices
-    let newCorrectOrder = [...(question.correctOrder || [])];
-    
-    // Remove the index from correctOrder
-    newCorrectOrder = newCorrectOrder.filter(i => i !== index);
-    
-    // Adjust indices for removed item
-    newCorrectOrder = newCorrectOrder.map(i => {
-      if (i > index) return i - 1;
-      return i;
-    });
-    
-    // Update isGap array if it exists
-    const newIsGap = question.isGap 
+    const newIsGap = question.isGap
       ? question.isGap.filter((_, i) => i !== index)
       : undefined;
-    
+    setRowIds((prev) => prev.filter((_, i) => i !== index));
     onChange({
       ...question,
       items: newItems,
-      correctOrder: newCorrectOrder,
-      isGap: newIsGap
+      correctOrder: newItems.map((_, i) => i),
+      isGap: newIsGap,
     });
   };
 
@@ -97,29 +129,21 @@ const VerticalReorderingEditor: React.FC<VerticalReorderingEditorProps> = ({
     });
   };
 
-  const handleReorder = (newOrder: string[]) => {
-    // Map the new order of items to their original indices
-    const itemsMap = question.items.reduce((acc, item, index) => {
-      acc[item] = index;
-      return acc;
-    }, {} as Record<string, number>);
-    
-    // Create new items array based on the reordered items
-    const newItems = [...newOrder];
-    
-    // Update correctOrder to reflect the new order
-    const newCorrectOrder = newOrder.map(item => itemsMap[item]);
-    
-    // Update isGap array if it exists to follow the items
-    const newIsGap = question.isGap 
-      ? newOrder.map(item => question.isGap![itemsMap[item]])
+  const handleReorder = (newRowIds: string[]) => {
+    const oldIndexById = new Map<string, number>();
+    rowIds.forEach((id, i) => oldIndexById.set(id, i));
+    const newItems = newRowIds.map(
+      (id) => question.items[oldIndexById.get(id) ?? 0]
+    );
+    const newIsGap = question.isGap
+      ? newRowIds.map((id) => !!question.isGap![oldIndexById.get(id) ?? 0])
       : undefined;
-    
+    setRowIds(newRowIds);
     onChange({
       ...question,
       items: newItems,
-      correctOrder: newCorrectOrder,
-      isGap: newIsGap
+      correctOrder: newItems.map((_, i) => i),
+      isGap: newIsGap,
     });
   };
 
@@ -173,16 +197,16 @@ const VerticalReorderingEditor: React.FC<VerticalReorderingEditorProps> = ({
               
               <div className="space-y-2">
                 <AnimatePresence initial={false}>
-                  <Reorder.Group 
-                    axis="y" 
-                    values={question.items} 
+                  <Reorder.Group
+                    axis="y"
+                    values={rowIds}
                     onReorder={handleReorder}
                     className="space-y-2"
                   >
-                    {question.items.map((item, idx) => (
-                      <Reorder.Item 
-                        key={`item-${idx}`}
-                        value={item}
+                    {rowIds.map((rowId, idx) => (
+                      <Reorder.Item
+                        key={rowId}
+                        value={rowId}
                         className="touch-none"
                       >
                         <motion.div
@@ -200,7 +224,7 @@ const VerticalReorderingEditor: React.FC<VerticalReorderingEditorProps> = ({
                             {idx + 1}
                           </Badge>
                           <Input
-                            value={item}
+                            value={question.items[idx] ?? ""}
                             onChange={(e) => handleItemChange(idx, e.target.value)}
                             placeholder={`Element ${idx + 1}`}
                             className="flex-1"

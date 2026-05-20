@@ -11,9 +11,26 @@ export type AiQuestionType =
 	| "reordering-horizontal"
 	| "reordering-vertical";
 
+// MIME types accepted by the AI test generator's file upload path.
+export const AI_SOURCE_PDF_MIME = "application/pdf";
+export const AI_SOURCE_DOCX_MIME =
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+export type AiSourceFileMime =
+	| typeof AI_SOURCE_PDF_MIME
+	| typeof AI_SOURCE_DOCX_MIME;
+
+export interface AiSourceFile {
+	name?: string;
+	mimeType: AiSourceFileMime;
+	// Plain base64 (no "data:" URL prefix). Server enforces a ~9 MB
+	// binary cap; the picker UI rejects larger files client-side.
+	dataBase64: string;
+}
+
 export interface GenerateTestQuestionsInput {
 	prompt: string;
 	sourceText?: string;
+	sourceFile?: AiSourceFile;
 	language: string;
 	cefrLevel: "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 	count: number;

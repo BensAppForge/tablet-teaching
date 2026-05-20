@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 export const metadata: Metadata = {
 	title: "Schnellzugang - Tablet Teaching",
 };
@@ -6,5 +7,9 @@ export const metadata: Metadata = {
 import StudentQuickLoginClient from "@/components/StudentQuickLoginClient";
 
 export default function StudentQuickLoginPage() {
-	return <StudentQuickLoginClient />;
+	return (
+		<Suspense fallback={<div className="p-8 text-center">Laden…</div>}>
+			<StudentQuickLoginClient />
+		</Suspense>
+	);
 }

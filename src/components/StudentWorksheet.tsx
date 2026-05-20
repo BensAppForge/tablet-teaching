@@ -35,6 +35,7 @@ import {
 } from "@/lib/student/storage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -310,6 +311,11 @@ const StudentWorksheet: React.FC = () => {
 		}
 	};
 
+	const strings = useMemo(
+		() => getStrings(mapTargetLanguageToLocale(test?.targetLanguage)),
+		[test?.targetLanguage]
+	);
+
 	if (!testId) {
 		return (
 			<div className="container mx-auto px-4 py-6">
@@ -326,13 +332,11 @@ const StudentWorksheet: React.FC = () => {
 		submitted && submitted.totalPossible > 0
 			? Math.round((submitted.totalEarned / submitted.totalPossible) * 100)
 			: 0;
-	const strings = useMemo(
-		() => getStrings(mapTargetLanguageToLocale(test?.targetLanguage)),
-		[test?.targetLanguage]
-	);
+	const completionPercent =
+		totalQuestions > 0 ? Math.round((answered / totalQuestions) * 100) : 0;
 
 	return (
-		<div className="container mx-auto px-4 py-6 max-w-3xl">
+		<div className="mx-auto w-full max-w-4xl px-4 py-5 ipad-safe-x">
 			<div className="flex items-center gap-2 mb-4">
 				<Button
 					variant="outline"
@@ -351,12 +355,12 @@ const StudentWorksheet: React.FC = () => {
 				</Button>
 			</div>
 
-			<div className="border-b mb-6">
-				<h1 className="text-2xl font-semibold py-2 text-gray-700 dark:text-gray-200">
+			<div className="mb-5 border-b pb-4">
+				<h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100 md:text-3xl">
 					{loading ? "Laden…" : test?.title ?? "Arbeitsblatt"}
 				</h1>
 				{test?.description && (
-					<p className="text-sm text-muted-foreground pb-2">
+					<p className="mt-2 text-base text-muted-foreground">
 						{test.description}
 					</p>
 				)}
@@ -375,10 +379,10 @@ const StudentWorksheet: React.FC = () => {
 			) : (
 				<>
 					{submitted ? (
-						<Card className="mb-6 border-primary/30 bg-primary/5">
-							<CardContent className="p-5 flex items-center gap-4">
-								<CheckCircle2 className="h-10 w-10 text-primary shrink-0" />
-								<div className="flex-1">
+							<Card className="mb-6 border-primary/30 bg-primary/5">
+								<CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
+									<CheckCircle2 className="h-10 w-10 text-primary shrink-0" />
+									<div className="flex-1">
 									<p className="text-lg font-semibold">
 										{submitted.totalEarned} / {submitted.totalPossible} Punkte
 										<span className="text-muted-foreground font-normal text-base ml-2">
@@ -390,12 +394,13 @@ const StudentWorksheet: React.FC = () => {
 										{new Date(submitted.submittedAt).toLocaleString("de-DE")}
 									</p>
 								</div>
-								<div className="flex items-center gap-2 shrink-0">
-									<Button
-										variant="default"
-										onClick={handleDownloadPdf}
-										disabled={generatingPdf}
-									>
+									<div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+										<Button
+											variant="default"
+											onClick={handleDownloadPdf}
+											disabled={generatingPdf}
+											className="w-full sm:w-auto"
+										>
 										{generatingPdf ? (
 											<>
 												<Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -408,21 +413,28 @@ const StudentWorksheet: React.FC = () => {
 											</>
 										)}
 									</Button>
-									<Button
-										variant="outline"
-										onClick={() => setRetakeOpen(true)}
-									>
+										<Button
+											variant="outline"
+											onClick={() => setRetakeOpen(true)}
+											className="w-full sm:w-auto"
+										>
 										<RotateCcw className="h-4 w-4 mr-2" />
 										Neu starten
 									</Button>
 								</div>
 							</CardContent>
 						</Card>
-					) : (
-						<div className="mb-4 text-sm text-muted-foreground">
-							{answered} / {totalQuestions} Aufgaben bearbeitet
-						</div>
-					)}
+						) : (
+							<div className="sticky top-14 z-30 mb-5 rounded-lg border bg-background/95 p-3 shadow-sm backdrop-blur">
+								<div className="mb-2 flex items-center justify-between gap-3 text-sm">
+									<span className="font-medium">Fortschritt</span>
+									<span className="text-muted-foreground">
+										{answered} / {totalQuestions} Aufgaben
+									</span>
+								</div>
+								<Progress value={completionPercent} className="h-2" />
+							</div>
+						)}
 
 					<div className="space-y-6">
 						{questions.map((q, i) => (
@@ -441,16 +453,17 @@ const StudentWorksheet: React.FC = () => {
 						))}
 					</div>
 
-					{!submitted && (
-						<div className="flex justify-end mt-8">
-							<Button
-								size="lg"
-								onClick={() => setConfirmOpen(true)}
-								disabled={questions.length === 0}
-							>
-								<CheckCircle2 className="h-5 w-5 mr-2" />
-								Fertig & abgeben
-							</Button>
+						{!submitted && (
+							<div className="sticky bottom-0 z-30 mt-8 border-t bg-background/95 py-3 backdrop-blur ipad-safe-bottom">
+								<Button
+									size="lg"
+									onClick={() => setConfirmOpen(true)}
+									disabled={questions.length === 0}
+									className="w-full sm:ml-auto sm:w-auto"
+								>
+									<CheckCircle2 className="h-5 w-5 mr-2" />
+									Fertig & abgeben
+								</Button>
 						</div>
 					)}
 				</>

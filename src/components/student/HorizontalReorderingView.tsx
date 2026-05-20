@@ -151,7 +151,7 @@ const HorizontalReorderingView: React.FC<Props> = ({
 						>
 							<div
 								className={[
-									"flex items-center gap-2 px-3 py-2 rounded-md border bg-background",
+									"flex min-h-12 items-center gap-2 rounded-md border bg-background px-3 py-2",
 									review
 										? positionRight
 											? "border-green-500 bg-green-50 dark:bg-green-950/30"
@@ -171,7 +171,7 @@ const HorizontalReorderingView: React.FC<Props> = ({
 										disabled={review}
 										aria-label={`Lückenwort an Position ${displayIndex + 1}`}
 										className={[
-											"h-7 px-2 text-sm",
+											"h-11 px-2 text-sm",
 											gapRight ? "border-green-500" : "",
 											gapWrong ? "border-destructive" : "",
 										].join(" ")}

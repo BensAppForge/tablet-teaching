@@ -131,7 +131,7 @@ const GapFillView: React.FC<Props> = ({
 								disabled={review}
 								aria-label={`Lücke ${seg.gapIndex + 1}`}
 								className={[
-									"inline-block min-w-[6ch] w-auto h-8 text-base px-2",
+										"inline-block h-11 min-w-[6ch] w-auto px-2 text-base",
 									isCorrect
 										? "border-green-500 bg-green-50 dark:bg-green-950/30"
 										: isWrong

@@ -20,6 +20,9 @@ import {
   Sparkles,
   ChevronDown,
   ChevronUp,
+  Paperclip,
+  X,
+  FileText,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -27,6 +30,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import {
   AiQuestionType,
+  AiSourceFile,
+  AiSourceFileMime,
+  AI_SOURCE_DOCX_MIME,
+  AI_SOURCE_PDF_MIME,
   generateTestQuestions,
 } from "@/lib/firebase/ai";
 import {
@@ -101,6 +108,13 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
     "reordering-vertical",
   ]);
   const [aiGenerating, setAiGenerating] = useState(false);
+  // Optional uploaded source document (PDF or DOCX). Stored as plain
+  // base64 so it goes straight into the callable; we also keep size
+  // and name for the UI chip.
+  const [aiSourceFile, setAiSourceFile] = useState<
+    (AiSourceFile & { sizeBytes: number }) | null
+  >(null);
+  const aiFileInputRef = React.useRef<HTMLInputElement | null>(null);
   // We no longer need this state since we're always showing the question selector
   // const [showQuestionSelector, setShowQuestionSelector] = useState(false);
   const [selectedQuestionType, setSelectedQuestionType] = useState<QuestionType>("multiple-choice");
@@ -179,6 +193,69 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
     );
   };
 
+  // 9 MB binary cap — matches the server-side base64 length cap with
+  // a small safety margin so we reject before round-tripping bytes.
+  const AI_FILE_MAX_BYTES = 9 * 1024 * 1024;
+
+  const handleAiFileChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = e.target.files?.[0];
+    // Reset the input value so picking the same filename twice in a row
+    // still fires onChange.
+    e.target.value = "";
+    if (!file) return;
+
+    let mimeType: AiSourceFileMime | null = null;
+    if (file.type === AI_SOURCE_PDF_MIME) mimeType = AI_SOURCE_PDF_MIME;
+    else if (file.type === AI_SOURCE_DOCX_MIME) mimeType = AI_SOURCE_DOCX_MIME;
+    else if (file.name.toLowerCase().endsWith(".pdf"))
+      mimeType = AI_SOURCE_PDF_MIME;
+    else if (file.name.toLowerCase().endsWith(".docx"))
+      mimeType = AI_SOURCE_DOCX_MIME;
+
+    if (!mimeType) {
+      toast.error("Bitte eine PDF- oder DOCX-Datei wählen.", {
+        duration: Infinity,
+      });
+      return;
+    }
+    if (file.size > AI_FILE_MAX_BYTES) {
+      toast.error(
+        `Die Datei ist zu groß (${(file.size / 1024 / 1024).toFixed(
+          1
+        )} MB). Maximum: 9 MB.`,
+        { duration: Infinity }
+      );
+      return;
+    }
+
+    try {
+      const dataBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          // FileReader.readAsDataURL produces "data:<mime>;base64,<payload>".
+          // We send just the payload and pass mimeType separately.
+          const comma = result.indexOf(",");
+          if (comma < 0) reject(new Error("FileReader payload missing"));
+          else resolve(result.slice(comma + 1));
+        };
+        reader.onerror = () => reject(reader.error ?? new Error("read failed"));
+        reader.readAsDataURL(file);
+      });
+      setAiSourceFile({
+        name: file.name,
+        mimeType,
+        dataBase64,
+        sizeBytes: file.size,
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error("Datei konnte nicht gelesen werden.", { duration: Infinity });
+    }
+  };
+
   const handleAiGenerate = async () => {
     const prompt = aiPrompt.trim();
     if (prompt.length < 3) {
@@ -205,6 +282,13 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
       };
       const trimmedSource = aiSourceText.trim();
       if (trimmedSource) input.sourceText = trimmedSource;
+      if (aiSourceFile) {
+        input.sourceFile = {
+          name: aiSourceFile.name,
+          mimeType: aiSourceFile.mimeType,
+          dataBase64: aiSourceFile.dataBase64,
+        };
+      }
       const res = await generateTestQuestions(input);
       if (!res.questions.length) {
         toast.error("Die KI hat keine Aufgaben erzeugt. Bitte erneut versuchen.", {
@@ -227,6 +311,7 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
       }));
       setAiPrompt("");
       setAiSourceText("");
+      setAiSourceFile(null);
       setAiOpen(false);
       toast.success(`${res.questions.length} Aufgaben generiert`);
     } catch (err: any) {
@@ -457,10 +542,34 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
         </Button>
       </div>
       
-      <div className="border-b mb-6">
-        <h1 className="text-2xl font-semibold py-2 text-gray-700 dark:text-gray-200">
-          {testId ? "Test bearbeiten" : "Neuen Test erstellen"}
-        </h1>
+      <div className="sticky top-16 z-30 mb-6 border-b bg-background/95 py-3 backdrop-blur">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
+              {testId ? "Test bearbeiten" : "Neuen Test erstellen"}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              {questions.length} {questions.length === 1 ? "Frage" : "Fragen"}
+            </p>
+          </div>
+          <Button
+            className="gap-2 sm:w-auto"
+            onClick={handleSaveTest}
+            disabled={isSaving}
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Speichern...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                Test speichern
+              </>
+            )}
+          </Button>
+        </div>
       </div>
       
       {/* General Settings */}
@@ -542,11 +651,66 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
                       />
                     </div>
                     <div className="grid gap-2">
-                      <Label htmlFor="ai-source">Quelltext (optional)</Label>
+                      <Label>Quelldokument (optional, PDF oder DOCX)</Label>
+                      <input
+                        ref={aiFileInputRef}
+                        type="file"
+                        accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        className="hidden"
+                        onChange={handleAiFileChange}
+                        disabled={aiGenerating}
+                      />
+                      {aiSourceFile ? (
+                        <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2">
+                          <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm truncate">
+                              {aiSourceFile.name ?? "Dokument"}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {aiSourceFile.mimeType === AI_SOURCE_PDF_MIME
+                                ? "PDF"
+                                : "DOCX"}{" "}
+                              · {(aiSourceFile.sizeBytes / 1024).toFixed(0)} KB
+                            </div>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setAiSourceFile(null)}
+                            disabled={aiGenerating}
+                            aria-label="Datei entfernen"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-fit"
+                          onClick={() => aiFileInputRef.current?.click()}
+                          disabled={aiGenerating}
+                        >
+                          <Paperclip className="h-4 w-4 mr-2" />
+                          Datei auswählen
+                        </Button>
+                      )}
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="ai-source">
+                        Zusätzlicher Quelltext (optional)
+                      </Label>
                       <Textarea
                         id="ai-source"
                         rows={4}
-                        placeholder="Optionaler Text, auf den die Aufgaben sich beziehen sollen."
+                        placeholder={
+                          aiSourceFile
+                            ? "Zusätzliche Hinweise zum Dokument (optional)."
+                            : "Optionaler Text, auf den die Aufgaben sich beziehen sollen."
+                        }
                         value={aiSourceText}
                         onChange={(e) => setAiSourceText(e.target.value)}
                         disabled={aiGenerating}

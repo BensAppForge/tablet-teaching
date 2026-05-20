@@ -45,7 +45,7 @@ const MultipleChoiceView: React.FC<Props> = ({
 								onClick={() => !review && onAnswer({ selectedOption: i })}
 								disabled={review}
 								className={[
-									"w-full flex items-start gap-3 text-left p-2 rounded-md border transition-colors",
+										"w-full min-h-12 flex items-start gap-3 rounded-md border p-3 text-left transition-colors",
 									isCorrect
 										? "border-green-500 bg-green-50 dark:bg-green-950/30"
 										: isWrongSelected

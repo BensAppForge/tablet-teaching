@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -61,13 +60,10 @@ export const TestGeneralSettingsForm: React.FC<TestGeneralSettingsFormProps> = (
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>
+      <div className="space-y-6">
+          <h3 className="text-lg font-semibold">
             {mode === "edit" ? "Test-Einstellungen bearbeiten" : "Allgemeine Test-Einstellungen"}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
+          </h3>
           <div>
             <Label htmlFor="title">Titel *</Label>
             <Input
@@ -143,8 +139,7 @@ export const TestGeneralSettingsForm: React.FC<TestGeneralSettingsFormProps> = (
             <div className="text-sm mt-1">{values.defaultCreditPoints} Punkt(e)</div>
             {touched.defaultCreditPoints && errors.defaultCreditPoints && <div className="text-destructive text-sm mt-1">{errors.defaultCreditPoints}</div>}
           </div>
-        </CardContent>
-      </Card>
+      </div>
     </motion.div>
   );
 };

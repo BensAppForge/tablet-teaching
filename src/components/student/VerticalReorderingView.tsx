@@ -145,7 +145,7 @@ const VerticalReorderingView: React.FC<Props> = ({
 						>
 							<div
 								className={[
-									"flex items-center gap-3 px-3 py-2 rounded-md border bg-background",
+									"flex min-h-12 items-center gap-3 rounded-md border bg-background px-3 py-2",
 									review
 										? positionRight
 											? "border-green-500 bg-green-50 dark:bg-green-950/30"
@@ -168,7 +168,7 @@ const VerticalReorderingView: React.FC<Props> = ({
 										disabled={review}
 										aria-label={`Lückentext an Position ${displayIndex + 1}`}
 										className={[
-											"h-7 px-2 text-sm flex-1",
+											"h-11 px-2 text-sm flex-1",
 											gapRight ? "border-green-500" : "",
 											gapWrong ? "border-destructive" : "",
 										].join(" ")}

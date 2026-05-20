@@ -36,7 +36,7 @@ const TrueFalseView: React.FC<Props> = ({
 				onClick={() => !review && onAnswer({ selected: value })}
 				disabled={review}
 				className={[
-					"flex-1 flex items-center justify-center gap-2 p-3 rounded-md border transition-colors text-base",
+					"flex-1 flex min-h-12 items-center justify-center gap-2 rounded-md border p-3 text-base transition-colors",
 					isCorrect
 						? "border-green-500 bg-green-50 dark:bg-green-950/30"
 						: isWrongSelected

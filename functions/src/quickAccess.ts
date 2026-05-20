@@ -1,5 +1,5 @@
 import { onSchedule } from "firebase-functions/v2/scheduler";
-import { Timestamp } from "firebase-admin/firestore";
+import { Timestamp, QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { auth, db } from "./admin";
 
 /**
@@ -30,7 +30,7 @@ export const cleanupQuickAttempts = onSchedule(
 		}
 
 		const results = await Promise.allSettled(
-			snap.docs.map(async (d) => {
+			snap.docs.map(async (d: QueryDocumentSnapshot) => {
 				try {
 					await auth.deleteUser(d.id);
 				} catch (err: any) {
@@ -40,11 +40,13 @@ export const cleanupQuickAttempts = onSchedule(
 			})
 		);
 
-		const failed = results.filter((r) => r.status === "rejected");
+		const failed = results.filter(
+			(r: PromiseSettledResult<void>) => r.status === "rejected"
+		);
 		console.log(
 			`cleanupQuickAttempts: ${snap.size - failed.length} cleaned, ${failed.length} failed`
 		);
-		failed.forEach((r) => {
+		failed.forEach((r: PromiseSettledResult<void>) => {
 			if (r.status === "rejected") console.error(r.reason);
 		});
 	}

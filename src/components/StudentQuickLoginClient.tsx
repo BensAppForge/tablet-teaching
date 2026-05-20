@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signInAnonymously, signOut } from "firebase/auth";
-import { KeyRound, User as UserIcon } from "lucide-react";
+import { ArrowRight, KeyRound, User as UserIcon } from "lucide-react";
 
 import { auth } from "@/lib/firebase/config";
 import { useAuth } from "@/context/AuthContext";
@@ -108,61 +108,68 @@ const StudentQuickLoginClient: React.FC = () => {
 	};
 
 	return (
-		<div className="container mx-auto p-4 flex items-center justify-center min-h-screen">
-			<Card className="w-full max-w-md">
-				<CardHeader>
-					<CardTitle>Schnellzugang</CardTitle>
-					<CardDescription>
-						Mit Namen und Code anmelden. Dein Zugang läuft nach 24 Stunden ab.
-					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<form onSubmit={handleSubmit} className="grid gap-4">
-						<div className="grid gap-2">
-							<Label htmlFor="quick-name">Name</Label>
-							<div className="relative">
-								<UserIcon className="absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground" />
-								<Input
-									id="quick-name"
-									type="text"
-									autoComplete="off"
-									placeholder="z. B. Anna"
-									className="pl-10"
-									value={displayName}
-									onChange={(e) => setDisplayName(e.target.value)}
-									maxLength={40}
+			<div className="mx-auto flex min-h-[calc(100dvh-8rem)] w-full max-w-2xl items-center justify-center px-4 py-8 ipad-safe-x">
+				<Card className="w-full border-primary/20 shadow-sm">
+					<CardHeader className="space-y-2 text-center">
+						<CardTitle className="text-3xl">Schnellzugang</CardTitle>
+						<CardDescription className="mx-auto max-w-md text-base">
+							Gib deinen Namen und den Code der Lehrkraft ein.
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<form onSubmit={handleSubmit} className="grid gap-5">
+							<div className="grid gap-2">
+								<Label htmlFor="quick-name" className="text-base">
+									Name
+								</Label>
+								<div className="relative">
+									<UserIcon className="absolute left-3 top-3.5 h-5 w-5 text-muted-foreground" />
+									<Input
+										id="quick-name"
+										type="text"
+										autoComplete="off"
+										placeholder="z. B. Anna"
+										className="h-12 pl-11 text-lg md:text-lg"
+										value={displayName}
+										onChange={(e) => setDisplayName(e.target.value)}
+										maxLength={40}
 									required
 									disabled={isLoading}
 								/>
 							</div>
-						</div>
-						<div className="grid gap-2">
-							<Label htmlFor="quick-code">Code</Label>
-							<div className="relative">
-								<KeyRound className="absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground" />
-								<Input
-									id="quick-code"
-									type="text"
-									inputMode="text"
-									autoComplete="off"
-									autoCapitalize="none"
-									spellCheck={false}
-									placeholder="z. B. k7m2px"
-									className="pl-10 font-mono tracking-widest"
-									value={code}
-									onChange={(e) => setCode(e.target.value)}
-									maxLength={6}
-									required
-									disabled={isLoading}
+							</div>
+							<div className="grid gap-2">
+								<Label htmlFor="quick-code" className="text-base">
+									Code
+								</Label>
+								<div className="relative">
+									<KeyRound className="absolute left-3 top-4 h-5 w-5 text-muted-foreground" />
+									<Input
+										id="quick-code"
+										type="text"
+										inputMode="text"
+										autoComplete="off"
+										autoCapitalize="characters"
+										spellCheck={false}
+										placeholder="z. B. K7M2PX"
+										className="h-14 pl-11 font-mono text-2xl uppercase tracking-[0.25em] md:text-2xl"
+										value={code}
+										onChange={(e) => setCode(e.target.value.toUpperCase())}
+										maxLength={6}
+										required
+										disabled={isLoading}
 								/>
 							</div>
 						</div>
-						{error && (
-							<p className="text-sm font-medium text-destructive">{error}</p>
-						)}
-						<Button type="submit" disabled={isLoading} className="w-full">
-							{isLoading ? "Anmelden…" : "Loslegen"}
-						</Button>
+							{error && (
+								<p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-medium text-destructive">
+									{error}
+								</p>
+							)}
+							<Button type="submit" disabled={isLoading} className="h-12 w-full text-base">
+								{isLoading ? "Anmelden…" : "Loslegen"}
+								{!isLoading && <ArrowRight className="h-5 w-5" />}
+							</Button>
 						<div className="text-center text-sm text-muted-foreground border-t pt-3">
 							Du hast eigene Zugangsdaten?{" "}
 							<Link

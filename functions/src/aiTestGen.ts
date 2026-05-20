@@ -8,7 +8,10 @@
 
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
+import { logger } from "firebase-functions";
 import { z } from "zod";
+import mammoth from "mammoth";
+import { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { buildAi } from "./ai";
 import { db } from "./admin";
 
@@ -25,12 +28,33 @@ const ALL_TYPES = [
 
 const QuestionTypeEnum = z.enum(ALL_TYPES);
 
+// Supported source-document MIME types. PDFs are passed through to
+// Gemini natively as a multimodal media part (it parses layout and
+// tables itself). DOCX is text-extracted server-side with mammoth and
+// merged into the textual source block, because Gemini's document
+// support list does not include the OOXML word format.
+const PDF_MIME = "application/pdf";
+const DOCX_MIME =
+	"application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+const SourceFileSchema = z.object({
+	// Optional original filename — kept for logs only.
+	name: z.string().max(255).optional(),
+	mimeType: z.enum([PDF_MIME, DOCX_MIME]),
+	// Plain base64 (no `data:` prefix). Capped at ~9 MB binary
+	// (12 MB of base64) so the whole callable request comfortably
+	// fits the 10 MB Firebase callable cap.
+	dataBase64: z.string().max(12_000_000),
+});
+type SourceFile = z.infer<typeof SourceFileSchema>;
+
 const InputSchema = z.object({
 	prompt: z.string().trim().min(3).max(4000),
 	// nullish() so the Firebase callable wire format (which can turn
 	// `undefined` into `null` on the way over) doesn't break the call
 	// when the teacher leaves the source-text field empty.
 	sourceText: z.string().trim().max(30000).nullish(),
+	sourceFile: SourceFileSchema.nullish(),
 	language: z.string().trim().min(1).max(40),
 	cefrLevel: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]),
 	count: z.number().int().min(1).max(15),
@@ -92,7 +116,10 @@ async function canCreateAITest(teacherId: string): Promise<boolean> {
 		.where("teacherId", "==", teacherId)
 		.where("createdAt", ">=", cutoff)
 		.get();
-	const aiCount = q.docs.filter((d) => d.data().isAIGenerated === true).length;
+	const aiCount = q.docs.filter(
+		(d: QueryDocumentSnapshot) =>
+			d.data().isAIGenerated === true
+	).length;
 	return aiCount < AI_TESTS_PER_MONTH_BASIC;
 }
 
@@ -231,11 +258,18 @@ function cleanQuestion(raw: GeneratedQuestion): any | null {
 			const distractors = (raw.distractors ?? [])
 				.filter((d) => typeof d === "string" && d.trim())
 				.map((d) => d.trim());
+			// Normalise to "items in correct sequence + correctOrder is
+			// identity". Gemini frequently emits items in whatever order
+			// it generated them with a permuted correctOrder; reorder so
+			// the editor always shows the items in the correct sequence
+			// without any further migration logic.
+			const reorderedItems = correctOrder.map((i) => items[i]);
+			const reorderedIsGap = correctOrder.map((i) => isGap[i]);
 			return {
 				...base,
-				items,
-				correctOrder,
-				isGap,
+				items: reorderedItems,
+				correctOrder: reorderedItems.map((_, i) => i),
+				isGap: reorderedIsGap,
 				...(distractors.length > 0 ? { distractors } : {}),
 			};
 		}
@@ -261,13 +295,30 @@ function typeLabel(t: string): string {
 	return t;
 }
 
-function buildPrompt(input: InputType): string {
+function buildPrompt(
+	input: InputType,
+	effectiveSourceText: string,
+	hasPdfAttachment: boolean
+): string {
 	const typeList = input.allowedTypes
 		.map((t) => `- ${t} (${typeLabel(t)})`)
 		.join("\n");
-	const sourceBlock = input.sourceText
-		? `\n\nQuelltext, auf den die Aufgaben sich beziehen sollen (auf Deutsch oder in der Zielsprache; verwende ihn als Grundlage, zitiere nicht wörtlich, sondern stelle Verständnisfragen):\n---\n${input.sourceText.slice(0, 28000)}\n---`
-		: "";
+	// Three cases for the source block:
+	// 1. A PDF is attached — tell the model to use the attachment as
+	//    the primary source. Any pasted text becomes a secondary hint.
+	// 2. No PDF, just text (typed or extracted from DOCX) — old behavior.
+	// 3. Nothing — empty block.
+	const trimmedText = effectiveSourceText.trim();
+	let sourceBlock = "";
+	if (hasPdfAttachment) {
+		sourceBlock =
+			"\n\nDie Aufgaben sollen sich auf das BEIGEFÜGTE PDF-DOKUMENT beziehen. Lies es aufmerksam und stelle Verständnis-, Wortschatz- und Grammatikfragen auf dessen Grundlage. Zitiere nicht wörtlich, sondern formuliere die Aufgaben so um, dass sie Verständnis prüfen.";
+		if (trimmedText) {
+			sourceBlock += `\n\nZusätzlicher Hinweis vom Lehrer:\n---\n${trimmedText.slice(0, 5000)}\n---`;
+		}
+	} else if (trimmedText) {
+		sourceBlock = `\n\nQuelltext, auf den die Aufgaben sich beziehen sollen (auf Deutsch oder in der Zielsprache; verwende ihn als Grundlage, zitiere nicht wörtlich, sondern stelle Verständnisfragen):\n---\n${trimmedText.slice(0, 28000)}\n---`;
+	}
 	return `Du erstellst ${input.count} Aufgaben für einen Sprachtest auf Niveau ${input.cefrLevel} in der Sprache ${input.language}.
 
 Verwende ausschließlich diese Aufgabentypen (in der Antwort exakt diese Werte für das Feld "type"):
@@ -280,7 +331,7 @@ Schema-Hinweise je Typ:
 - true-false: text + isTrue (Boolean).
 - gap-fill: text als Fließtext, in dem die Lückenwörter ENTHALTEN sind. gaps[] ist die Liste der korrekten Wörter in der Reihenfolge, in der sie im Text auftauchen. Optional distractors[] für falsche Wortbank-Einträge.
 - matching: leftItems[] + rightItems[] (gleich lang) + correctMatches[] (für jedes leftItem den Index des passenden rightItem). Optional distractors[] für zusätzliche, irrelevante Einträge in der rechten Spalte.
-- reordering-horizontal / reordering-vertical: items[] in korrekter Reihenfolge, correctOrder = [0,1,2,...] (Identität). Optional isGap[] gleiche Länge: true für Items, die der Schüler eintippen soll. Optional distractors[] für Wortschatz-Einträge.
+- reordering-horizontal / reordering-vertical: items[] in korrekter Reihenfolge, correctOrder = [0,1,2,...] (Identität). Optional isGap[] gleiche Länge: true für Items, die der Schüler eintippen soll. Optional distractors[] für Wortschatz-Einträge. WICHTIG: Wenn items[] gemeinsam einen Satz ergeben, MUSS der Satz vollständig sein — kein Wort und kein Satzzeichen am Ende darf fehlen. Halte die items kurz (idealerweise 1–3 Wörter pro Eintrag), damit die Antwort komplett bleibt.
 
 Anweisung der Lehrkraft: ${input.prompt}${sourceBlock}
 
@@ -309,25 +360,132 @@ export const generateTestQuestions = onCall(
 			);
 		}
 
+		// Build the effective text source by merging any typed source
+		// text with text extracted from a DOCX attachment (if present).
+		// PDFs are NOT extracted server-side — they're attached to the
+		// Gemini call as a multimodal media part instead.
+		let effectiveSourceText = (input.sourceText ?? "").trim();
+		let pdfMediaUrl: string | undefined;
+		const file: SourceFile | null | undefined = input.sourceFile ?? undefined;
+		if (file) {
+			if (file.mimeType === PDF_MIME) {
+				pdfMediaUrl = `data:${PDF_MIME};base64,${file.dataBase64}`;
+			} else if (file.mimeType === DOCX_MIME) {
+				try {
+					const buf = Buffer.from(file.dataBase64, "base64");
+					const extracted = await mammoth.extractRawText({ buffer: buf });
+					const extractedText = (extracted.value ?? "").trim();
+					if (extractedText) {
+						effectiveSourceText = effectiveSourceText
+							? `${effectiveSourceText}\n\n${extractedText}`
+							: extractedText;
+					}
+				} catch (err) {
+					logger.error("generateTestQuestions:docx-extract-failed", {
+						err: String(err),
+						name: file.name,
+					});
+					throw new HttpsError(
+						"invalid-argument",
+						"Das DOCX-Dokument konnte nicht gelesen werden."
+					);
+				}
+			}
+		}
+
 		const ai = buildAi(GEMINI_API_KEY.value());
-		const prompt = ai.definePrompt({
-			name: "generateTestQuestions",
-			input: { schema: InputSchema },
-			output: { schema: OutputSchema, format: "json" },
-			prompt: buildPrompt(input),
+		const promptText = buildPrompt(input, effectiveSourceText, !!pdfMediaUrl);
+		const promptParts: Array<{ text: string } | { media: { url: string; contentType?: string } }> = [
+			{ text: promptText },
+		];
+		if (pdfMediaUrl) {
+			promptParts.push({
+				media: { url: pdfMediaUrl, contentType: PDF_MIME },
+			});
+		}
+
+		logger.info("generateTestQuestions:request", {
+			teacherId,
+			count: input.count,
+			language: input.language,
+			cefrLevel: input.cefrLevel,
+			allowedTypes: input.allowedTypes,
+			hasSourceText: effectiveSourceText.length > 0,
+			sourceTextLen: effectiveSourceText.length,
+			hasSourceFile: !!file,
+			sourceFileMime: file?.mimeType,
+			sourceFileName: file?.name,
+			sourceFileBase64Len: file?.dataBase64.length ?? 0,
 		});
 
 		let output: z.infer<typeof OutputSchema> | undefined;
+		// `any` because Genkit's response type doesn't surface finishReason
+		// on the GenerateResponse generic — we read it best-effort for logs.
+		let rawRes: any;
 		try {
-			const res = await prompt(input);
-			output = res.output as z.infer<typeof OutputSchema> | undefined;
+			rawRes = await ai.generate({
+				prompt: promptParts,
+				output: { schema: OutputSchema, format: "json" },
+				// Gemini 2.5 Flash's default maxOutputTokens (~8k) is not
+				// enough headroom for 10–15 questions of structured JSON,
+				// which previously caused the last item of a reordering
+				// sentence to be truncated mid-word. Bumping this gives the
+				// model room to finish even a large batch.
+				config: { maxOutputTokens: 32768 },
+			});
+			output = rawRes.output as z.infer<typeof OutputSchema> | undefined;
 		} catch (err) {
-			console.error("Gemini call failed", err);
+			logger.error("generateTestQuestions:gemini-call-failed", { err: String(err) });
 			throw new HttpsError(
 				"internal",
 				"KI-Anfrage fehlgeschlagen. Bitte erneut versuchen."
 			);
 		}
+
+		// finishReason === "MAX_TOKENS" / "length" is the canonical signal
+		// that the model hit the output cap. Genkit exposes it on the top
+		// level of GenerateResponse in current versions; fall back to
+		// digging into raw candidates if not.
+		const finishReason: string | undefined =
+			rawRes?.finishReason ??
+			rawRes?.custom?.candidates?.[0]?.finishReason ??
+			rawRes?.raw?.candidates?.[0]?.finishReason;
+		const usage = rawRes?.usage ?? undefined;
+
+		logger.info("generateTestQuestions:response", {
+			finishReason,
+			usage,
+			hasOutput: !!output,
+			questionsCount: output?.questions?.length ?? 0,
+			title: output?.title,
+			// For each reordering question, log items lengths + the last
+			// item text. Lets us spot truncation (e.g. last item is one
+			// short character) or missing trailing words from the logs.
+			reorderingDebug: (output?.questions ?? [])
+				.map((q, i) => {
+					if (
+						q.type !== "reordering-horizontal" &&
+						q.type !== "reordering-vertical"
+					)
+						return null;
+					const items = q.items ?? [];
+					const joined = items.join(" ");
+					return {
+						idx: i,
+						type: q.type,
+						itemsCount: items.length,
+						itemLengths: items.map((s) => (s ?? "").length),
+						lastItem: items[items.length - 1] ?? null,
+						joinedLen: joined.length,
+						// Heuristic: a complete sentence usually ends with
+						// terminal punctuation. Helps spot truncation at a
+						// glance in the log entry.
+						joinedEndsWithPunct: /[.!?…)"»\]]\s*$/.test(joined),
+					};
+				})
+				.filter(Boolean),
+		});
+
 		if (!output) {
 			throw new HttpsError("internal", "Die KI hat keine Antwort geliefert.");
 		}
@@ -335,6 +493,13 @@ export const generateTestQuestions = onCall(
 		const cleaned = output.questions
 			.map(cleanQuestion)
 			.filter((q): q is NonNullable<typeof q> => q !== null);
+
+		if (cleaned.length < output.questions.length) {
+			logger.warn("generateTestQuestions:dropped-questions", {
+				asked: output.questions.length,
+				kept: cleaned.length,
+			});
+		}
 
 		if (cleaned.length === 0) {
 			throw new HttpsError(

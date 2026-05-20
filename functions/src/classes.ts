@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { z } from "zod";
+import { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { auth, db } from "./admin";
 
 const DeleteClassSchema = z.object({
@@ -50,9 +51,11 @@ export const deleteClass = onCall(
 
 		// Auth deletes in parallel.
 		const authResults = await Promise.allSettled(
-			studentsSnap.docs.map((d) => auth.deleteUser(d.id))
+			studentsSnap.docs.map((d: QueryDocumentSnapshot) =>
+				auth.deleteUser(d.id)
+			)
 		);
-		authResults.forEach((r, i) => {
+		authResults.forEach((r: PromiseSettledResult<void>, i: number) => {
 			if (r.status === "rejected") {
 				failedStudents.push({
 					uid: studentsSnap.docs[i].id,
@@ -66,7 +69,7 @@ export const deleteClass = onCall(
 		// users on the next deleteClass call).
 		const failedUids = new Set(failedStudents.map((f) => f.uid));
 		const batch = db.batch();
-		studentsSnap.docs.forEach((d) => {
+		studentsSnap.docs.forEach((d: QueryDocumentSnapshot) => {
 			if (!failedUids.has(d.id)) batch.delete(d.ref);
 		});
 		if (failedStudents.length === 0) {

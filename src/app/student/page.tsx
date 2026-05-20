@@ -11,7 +11,7 @@ const StudentRoot: React.FC = () => {
 	useEffect(() => {
 		if (loading) return;
 		if (!currentUser) {
-			router.push("/student/login");
+			router.push("/student/quick");
 			return;
 		}
 		if (role === "teacher") {

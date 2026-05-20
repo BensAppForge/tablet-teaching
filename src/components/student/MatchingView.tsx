@@ -199,19 +199,23 @@ const MatchingView: React.FC<Props> = ({
 											{i + 1}.
 										</span>
 										<span className="flex-1 text-sm">{item}</span>
-										<button
-											type="button"
-											id={`${uid}-left-${i}`}
-											onClick={() => handleLeftTap(i)}
-											disabled={review}
-											aria-label={`Verbinden mit ${item}`}
-											className="h-6 w-6 rounded-full border-2 shrink-0 transition-transform active:scale-90"
-											style={{
-												borderColor: color,
-												backgroundColor:
-													isSelected || isConnected ? color : "white",
-											}}
-										/>
+											<button
+												type="button"
+												id={`${uid}-left-${i}`}
+												onClick={() => handleLeftTap(i)}
+												disabled={review}
+												aria-label={`Verbinden mit ${item}`}
+												className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-transform active:scale-95 disabled:cursor-default"
+											>
+												<span
+													className="h-7 w-7 rounded-full border-2"
+													style={{
+														borderColor: color,
+														backgroundColor:
+															isSelected || isConnected ? color : "white",
+													}}
+												/>
+											</button>
 									</li>
 								);
 							})}
@@ -234,19 +238,23 @@ const MatchingView: React.FC<Props> = ({
 										: "#9ca3af";
 								return (
 									<li key={row.id} className="flex items-center gap-3">
-										<button
-											type="button"
-											id={`${uid}-right-${row.id}`}
-											onClick={() => handleRightTap(row.code)}
-											disabled={review}
-											aria-label={`Verbinden mit ${row.value}`}
-											className="h-6 w-6 rounded-full border-2 shrink-0 transition-transform active:scale-90"
-											style={{
-												borderColor: color,
-												backgroundColor:
-													isSelected || isConnected ? color : "white",
-											}}
-										/>
+											<button
+												type="button"
+												id={`${uid}-right-${row.id}`}
+												onClick={() => handleRightTap(row.code)}
+												disabled={review}
+												aria-label={`Verbinden mit ${row.value}`}
+												className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-transform active:scale-95 disabled:cursor-default"
+											>
+												<span
+													className="h-7 w-7 rounded-full border-2"
+													style={{
+														borderColor: color,
+														backgroundColor:
+															isSelected || isConnected ? color : "white",
+													}}
+												/>
+											</button>
 										{/* Distractors render identically to real items — any
 										    visual distinction would give the answer away. */}
 										<span className="flex-1 text-sm">{row.value}</span>
