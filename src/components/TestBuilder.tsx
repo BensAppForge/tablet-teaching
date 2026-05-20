@@ -90,6 +90,12 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
   
   // State for questions
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [questionKeys, setQuestionKeys] = useState<string[]>([]);
+  const questionKeyCounter = React.useRef(0);
+  const makeQuestionKey = React.useCallback(
+    () => `local-question-${questionKeyCounter.current++}`,
+    []
+  );
 
   // UI state
   const [isLoading, setIsLoading] = useState(false);
@@ -144,6 +150,7 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
       
       // Set questions
       setQuestions(loadedQuestions);
+      setQuestionKeys(loadedQuestions.map((q) => q.id ?? makeQuestionKey()));
     } catch (error) {
       console.error("Error loading test:", error);
       toast.error("Fehler beim Laden des Tests");
@@ -180,6 +187,7 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
 
   const deleteQuestion = (index: number) => {
     setQuestions(questions.filter((_, i) => i !== index));
+    setQuestionKeys((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleDontAskAgainChange = (checked: boolean) => {
@@ -193,9 +201,9 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
     );
   };
 
-  // 9 MB binary cap — matches the server-side base64 length cap with
-  // a small safety margin so we reject before round-tripping bytes.
-  const AI_FILE_MAX_BYTES = 9 * 1024 * 1024;
+  // Keep the encoded callable payload under Firebase's request cap.
+  // 7 MiB binary -> ~9.4 MB base64, leaving room for JSON overhead.
+  const AI_FILE_MAX_BYTES = 7 * 1024 * 1024;
 
   const handleAiFileChange = async (
     e: React.ChangeEvent<HTMLInputElement>
@@ -224,7 +232,7 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
       toast.error(
         `Die Datei ist zu groß (${(file.size / 1024 / 1024).toFixed(
           1
-        )} MB). Maximum: 9 MB.`,
+        )} MB). Maximum: 7 MB.`,
         { duration: Infinity }
       );
       return;
@@ -298,6 +306,10 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
       }
       // Append to existing questions so the teacher can mix manual + AI.
       setQuestions((prev) => [...prev, ...res.questions]);
+      setQuestionKeys((prev) => [
+        ...prev,
+        ...res.questions.map((q) => q.id ?? makeQuestionKey()),
+      ]);
       // If the test still has the default title/description, accept the
       // AI's suggestions; otherwise keep what the teacher typed.
       setTestSettings((prev) => ({
@@ -394,6 +406,7 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
     
     // Add the new question to the questions array
     setQuestions([...questions, newQuestion]);
+    setQuestionKeys((prev) => [...prev, makeQuestionKey()]);
   };
   
   const handleSaveTest = async () => {
@@ -601,7 +614,7 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
           <AnimatePresence initial={false}>
             {questions.map((question, index) => (
               <motion.div
-                key={`question-${index}`}
+                key={question.id ?? questionKeys[index] ?? `question-${index}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}

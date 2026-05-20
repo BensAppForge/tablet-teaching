@@ -41,10 +41,9 @@ const SourceFileSchema = z.object({
 	// Optional original filename — kept for logs only.
 	name: z.string().max(255).optional(),
 	mimeType: z.enum([PDF_MIME, DOCX_MIME]),
-	// Plain base64 (no `data:` prefix). Capped at ~9 MB binary
-	// (12 MB of base64) so the whole callable request comfortably
-	// fits the 10 MB Firebase callable cap.
-	dataBase64: z.string().max(12_000_000),
+	// Plain base64 (no `data:` prefix). Capped below 10 MB even after
+	// JSON wrapping; the picker UI rejects larger binary files client-side.
+	dataBase64: z.string().max(9_500_000),
 });
 type SourceFile = z.infer<typeof SourceFileSchema>;
 
