@@ -25,6 +25,7 @@ A rolling list of pending work, scoped by priority. Each item lives here until i
 ## Ops gotchas
 
 - **New callable Functions need `allUsers/run.invoker`.** When deploying a *new* Firebase v2 onCall function for the first time, the Cloud Run service it creates sometimes doesn't get the `allUsers` invoker role automatically. Without it, the browser sees a "CORS error" (actually a 403 with no CORS headers). Fix is a single `gcloud run services add-iam-policy-binding <name> --region=europe-west1 --project=tablet-teaching --member="allUsers" --role="roles/run.invoker"` — or via Cloud Run console → Permissions → Add principal. Worth checking after every new callable deploy.
+- **If Tests/Klassen/worksheet loading still feels slow after the Firestore transport fix, instrument the shared load path.** `experimentalAutoDetectLongPolling` is now enabled in `src/lib/firebase/config.ts` to avoid WebChannel stalls on Safari/WebKit and filtered school networks. If delays remain, add temporary timing logs around `onAuthStateChanged`, `user.getIdTokenResult()`, the `teachers/{uid}` profile read, `getTeacherTests()`, `getTeacherClasses()`, quick-code lookup, and worksheet `getTest()`. If Firestore collection reads are still the bottleneck, evaluate `experimentalForceLongPolling`. Also verify the production Firestore indexes for `(teacherId ASC, createdAt DESC)` on both `tests` and `classes` are deployed.
 
 ## Tech debt to revisit (when the app stabilises)
 

@@ -1,6 +1,10 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import {
+	Firestore,
+	getFirestore,
+	initializeFirestore,
+} from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
 
@@ -29,7 +33,19 @@ if (typeof window !== "undefined" && !getApps().length) {
 	app = getApps().length ? getApp() : initializeApp(firebaseConfig); // Basic server-side fallback
 }
 
-const firestore = getFirestore(app);
+let firestore: Firestore;
+if (typeof window !== "undefined") {
+	try {
+		firestore = initializeFirestore(app, {
+			experimentalAutoDetectLongPolling: true,
+		});
+	} catch {
+		// In dev/HMR the Firestore instance may already exist.
+		firestore = getFirestore(app);
+	}
+} else {
+	firestore = getFirestore(app);
+}
 const auth = getAuth(app);
 const storage = getStorage(app);
 const functions = getFunctions(app, "europe-west1");
