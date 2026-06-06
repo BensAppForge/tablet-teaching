@@ -1,15 +1,32 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import {
+  DndContext,
+  DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Trash, Plus, GripVertical } from "lucide-react";
 import { ReorderingQuestion } from "@/lib/firebase/tests";
-import { motion, AnimatePresence, Reorder } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import SortableWord from "@/components/SortableWord";
 
 interface VerticalReorderingEditorProps {
   question: ReorderingQuestion;
@@ -17,6 +34,13 @@ interface VerticalReorderingEditorProps {
   onDelete?: () => void;
   showDelete?: boolean;
 }
+
+// Inline restrictToVerticalAxis modifier — see views for rationale.
+const restrictToVerticalAxis = ({
+  transform,
+}: {
+  transform: { x: number; y: number; scaleX: number; scaleY: number };
+}) => ({ ...transform, x: 0 });
 
 const VerticalReorderingEditor: React.FC<VerticalReorderingEditorProps> = ({
   question,
@@ -28,13 +52,23 @@ const VerticalReorderingEditor: React.FC<VerticalReorderingEditorProps> = ({
   const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, "");
 
   // Stable opaque id per row. See HorizontalReorderingEditor for the
-  // full rationale — short version: framer-motion's Reorder uses the
-  // `value` as identity, so duplicate or empty item strings collide
-  // and break drag-and-drop.
+  // full rationale — short version: dnd-kit uses the sortable id as
+  // identity, so duplicate or empty item strings would otherwise
+  // collide and break drag-and-drop.
   const idCounterRef = useRef(0);
   const makeId = () => `r${idCounterRef.current++}`;
   const [rowIds, setRowIds] = useState<string[]>(() =>
     question.items.map(() => `r${idCounterRef.current++}`)
+  );
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 120, tolerance: 6 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
   );
 
   useEffect(() => {
@@ -119,17 +153,23 @@ const VerticalReorderingEditor: React.FC<VerticalReorderingEditorProps> = ({
   const handleToggleGap = (index: number) => {
     // Initialize isGap array if it doesn't exist
     const currentIsGap = question.isGap || question.items.map(() => false);
-    
+
     const newIsGap = [...currentIsGap];
     newIsGap[index] = !newIsGap[index];
-    
+
     onChange({
       ...question,
       isGap: newIsGap
     });
   };
 
-  const handleReorder = (newRowIds: string[]) => {
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIdx = rowIds.indexOf(active.id as string);
+    const newIdx = rowIds.indexOf(over.id as string);
+    if (oldIdx < 0 || newIdx < 0) return;
+    const newRowIds = arrayMove(rowIds, oldIdx, newIdx);
     const oldIndexById = new Map<string, number>();
     rowIds.forEach((id, i) => oldIndexById.set(id, i));
     const newItems = newRowIds.map(
@@ -159,9 +199,9 @@ const VerticalReorderingEditor: React.FC<VerticalReorderingEditorProps> = ({
         <CardHeader className="bg-red-50 dark:bg-red-950/20 flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-md font-medium">Vertikale Reihenfolge</CardTitle>
           {showDelete && onDelete && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={onDelete}
               className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
             >
@@ -180,7 +220,7 @@ const VerticalReorderingEditor: React.FC<VerticalReorderingEditorProps> = ({
                 placeholder="Geben Sie hier Ihre Frage ein..."
               />
             </div>
-            
+
             <div>
               <div className="flex items-center justify-between mb-2">
                 <Label>Elemente (in korrekter Reihenfolge)</Label>
@@ -194,70 +234,75 @@ const VerticalReorderingEditor: React.FC<VerticalReorderingEditorProps> = ({
                   Element hinzufügen
                 </Button>
               </div>
-              
-              <div className="space-y-2">
-                <AnimatePresence initial={false}>
-                  <Reorder.Group
-                    axis="y"
-                    values={rowIds}
-                    onReorder={handleReorder}
-                    className="space-y-2"
-                  >
+
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                modifiers={[restrictToVerticalAxis]}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={rowIds}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <div className="space-y-2">
                     {rowIds.map((rowId, idx) => (
-                      <Reorder.Item
-                        key={rowId}
-                        value={rowId}
-                        className="touch-none"
-                      >
-                        <motion.div
-                          className="flex items-center gap-2"
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -20 }}
-                          transition={{ duration: 0.2 }}
-                          layout
-                        >
-                          <div className="cursor-grab touch-none">
-                            <GripVertical className="h-5 w-5 text-muted-foreground" />
-                          </div>
-                          <Badge variant="outline" className="shrink-0">
-                            {idx + 1}
-                          </Badge>
-                          <Input
-                            value={question.items[idx] ?? ""}
-                            onChange={(e) => handleItemChange(idx, e.target.value)}
-                            placeholder={`Element ${idx + 1}`}
-                            className="flex-1"
-                          />
+                      <SortableWord key={rowId} id={rowId}>
+                        {({ attributes, listeners }) => (
                           <div className="flex items-center gap-2">
-                            <div className="flex items-center space-x-2">
-                              <Switch
-                                id={`${uid}-gap-switch-${idx}`}
-                                checked={(question.isGap || [])[idx] || false}
-                                onCheckedChange={() => handleToggleGap(idx)}
-                              />
-                              <Label htmlFor={`${uid}-gap-switch-${idx}`} className="text-xs">
-                                Lücke
-                              </Label>
+                            <button
+                              type="button"
+                              {...attributes}
+                              {...listeners}
+                              aria-label="Element verschieben"
+                              className="cursor-grab touch-none p-1 -m-1 text-muted-foreground hover:text-foreground"
+                            >
+                              <GripVertical className="h-5 w-5" />
+                            </button>
+                            <Badge variant="outline" className="shrink-0">
+                              {idx + 1}
+                            </Badge>
+                            <Input
+                              value={question.items[idx] ?? ""}
+                              onChange={(e) =>
+                                handleItemChange(idx, e.target.value)
+                              }
+                              placeholder={`Element ${idx + 1}`}
+                              className="flex-1"
+                            />
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center space-x-2">
+                                <Switch
+                                  id={`${uid}-gap-switch-${idx}`}
+                                  checked={(question.isGap || [])[idx] || false}
+                                  onCheckedChange={() => handleToggleGap(idx)}
+                                />
+                                <Label
+                                  htmlFor={`${uid}-gap-switch-${idx}`}
+                                  className="text-xs"
+                                >
+                                  Lücke
+                                </Label>
+                              </div>
+                              {question.items.length > 2 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleRemoveItem(idx)}
+                                  aria-label="Element entfernen"
+                                >
+                                  <Trash className="h-4 w-4 text-destructive" />
+                                </Button>
+                              )}
                             </div>
-                            {question.items.length > 2 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleRemoveItem(idx)}
-                                aria-label="Element entfernen"
-                              >
-                                <Trash className="h-4 w-4 text-destructive" />
-                              </Button>
-                            )}
                           </div>
-                        </motion.div>
-                      </Reorder.Item>
+                        )}
+                      </SortableWord>
                     ))}
-                  </Reorder.Group>
-                </AnimatePresence>
-              </div>
+                  </div>
+                </SortableContext>
+              </DndContext>
             </div>
 
             {/* Distraktoren — see HorizontalReorderingEditor for rationale. */}
@@ -337,11 +382,11 @@ const VerticalReorderingEditor: React.FC<VerticalReorderingEditorProps> = ({
               <div className="text-sm font-medium mb-2">Vorschau (Schüleransicht)</div>
               <div className="flex flex-col gap-2">
                 {question.items.map((item, idx) => (
-                  <div 
+                  <div
                     key={`preview-${idx}`}
                     className={`px-3 py-1.5 rounded-md border ${
-                      (question.isGap || [])[idx] 
-                        ? "border-dashed border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20" 
+                      (question.isGap || [])[idx]
+                        ? "border-dashed border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20"
                         : "bg-white dark:bg-gray-800"
                     }`}
                   >
