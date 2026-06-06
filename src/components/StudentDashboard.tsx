@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { useAuth } from "@/context/AuthContext";
 import { getClass, Class } from "@/lib/firebase/classes";
-import { getTestsForStudent, Test } from "@/lib/firebase/tests";
+import { subscribeToTestsForStudent, Test } from "@/lib/firebase/tests";
 import { Card, CardContent } from "@/components/ui/card";
 
 const StudentDashboard: React.FC = () => {
@@ -20,28 +20,39 @@ const StudentDashboard: React.FC = () => {
 	useEffect(() => {
 		if (!studentData) return;
 		let cancelled = false;
-		(async () => {
-			setLoading(true);
-			try {
-				const [klass, list] = await Promise.all([
-					getClass(studentData.classId),
-					getTestsForStudent(
-						studentData.teacherId,
-						studentData.classId
-					),
-				]);
-				if (cancelled) return;
-				setCls(klass);
-				setTests(list);
-			} catch (err) {
+		setLoading(true);
+
+		// Class name is one-shot — it doesn't change while the dashboard
+		// is open. Tests use a live subscription so a newly assigned test
+		// appears without the student refreshing.
+		getClass(studentData.classId)
+			.then((klass) => {
+				if (!cancelled) setCls(klass);
+			})
+			.catch((err) => {
 				console.error(err);
-				toast.error("Fehler beim Laden des Arbeitsbereichs");
-			} finally {
-				if (!cancelled) setLoading(false);
+				if (!cancelled) toast.error("Fehler beim Laden der Klasse");
+			});
+
+		const unsubscribe = subscribeToTestsForStudent(
+			studentData.teacherId,
+			studentData.classId,
+			(list) => {
+				if (cancelled) return;
+				setTests(list);
+				setLoading(false);
+			},
+			(err) => {
+				console.error(err);
+				if (cancelled) return;
+				toast.error("Fehler beim Laden der Arbeitsblätter");
+				setLoading(false);
 			}
-		})();
+		);
+
 		return () => {
 			cancelled = true;
+			unsubscribe();
 		};
 	}, [studentData]);
 

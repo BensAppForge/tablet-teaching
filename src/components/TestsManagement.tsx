@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { getTeacherTests, Test, deleteTest } from "@/lib/firebase/tests";
+import { subscribeToTeacherTests, Test, deleteTest } from "@/lib/firebase/tests";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -59,25 +59,22 @@ const TestsManagement: React.FC = () => {
 	};
 
 	useEffect(() => {
-		if (currentUser) {
-			loadTests();
-		}
-	}, [currentUser]);
-
-	const loadTests = async () => {
 		if (!currentUser) return;
-
 		setLoading(true);
-		try {
-			const fetchedTests = await getTeacherTests(currentUser.uid);
-			setTests(fetchedTests);
-		} catch (error) {
-			console.error("Error loading tests:", error);
-			toast.error("Fehler beim Laden der Tests");
-		} finally {
-			setLoading(false);
-		}
-	};
+		const unsubscribe = subscribeToTeacherTests(
+			currentUser.uid,
+			(list) => {
+				setTests(list);
+				setLoading(false);
+			},
+			(error) => {
+				console.error("Error loading tests:", error);
+				toast.error("Fehler beim Laden der Tests");
+				setLoading(false);
+			}
+		);
+		return () => unsubscribe();
+	}, [currentUser]);
 
 	const handleEditTest = (testId: string) => {
 		router.push(`/edit-test?id=${testId}`);

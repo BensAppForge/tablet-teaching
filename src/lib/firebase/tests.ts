@@ -6,10 +6,12 @@ import {
 	deleteDoc,
 	getDoc,
 	getDocs,
+	onSnapshot,
 	query,
 	where,
 	orderBy,
 	Timestamp,
+	Unsubscribe,
 	serverTimestamp,
 	writeBatch,
 } from "firebase/firestore";
@@ -473,6 +475,65 @@ export const getTestsForStudent = async (
 	);
 	const snap = await getDocs(q);
 	return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Test));
+};
+
+/**
+ * Live subscription variant of getTestsForStudent. Used by the student
+ * dashboard so a newly assigned test appears without the kid having to
+ * refresh. Caller MUST invoke the returned Unsubscribe on cleanup —
+ * otherwise the listener leaks across navigation.
+ */
+export const subscribeToTestsForStudent = (
+	teacherId: string,
+	classId: string,
+	onTests: (tests: Test[]) => void,
+	onError?: (err: Error) => void
+): Unsubscribe => {
+	const testsRef = collection(firestore, "tests");
+	const q = query(
+		testsRef,
+		where("teacherId", "==", teacherId),
+		where("assignedClassIds", "array-contains", classId),
+		orderBy("createdAt", "desc")
+	);
+	return onSnapshot(
+		q,
+		(snap) => {
+			const tests = snap.docs.map(
+				(d) => ({ id: d.id, ...d.data() } as Test)
+			);
+			onTests(tests);
+		},
+		(err) => onError?.(err)
+	);
+};
+
+/**
+ * Live subscription variant of getTeacherTests. Keeps the teacher's
+ * own list in sync across tabs and (later) reflects server-side
+ * mutations from background jobs without a manual reload.
+ */
+export const subscribeToTeacherTests = (
+	teacherId: string,
+	onTests: (tests: Test[]) => void,
+	onError?: (err: Error) => void
+): Unsubscribe => {
+	const testsRef = collection(firestore, "tests");
+	const q = query(
+		testsRef,
+		where("teacherId", "==", teacherId),
+		orderBy("createdAt", "desc")
+	);
+	return onSnapshot(
+		q,
+		(snap) => {
+			const tests = snap.docs.map(
+				(d) => ({ id: d.id, ...d.data() } as Test)
+			);
+			onTests(tests);
+		},
+		(err) => onError?.(err)
+	);
 };
 
 /**
