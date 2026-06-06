@@ -396,7 +396,7 @@ const ShareTestManagement: React.FC = () => {
 							Sie haben noch keine Klassen angelegt.{" "}
 							<button
 								type="button"
-								className="text-primary hover:underline"
+								className="text-accent hover:underline"
 								onClick={() => router.push("/classes")}
 							>
 								Klasse anlegen

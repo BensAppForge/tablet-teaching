@@ -236,7 +236,7 @@ const TeacherSignupPage: React.FC = () => {
 								/>
 								<button
 									type="button"
-									className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-primary focus:outline-none"
+									className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-accent focus:outline-none"
 									onClick={() => setShowPassword(!showPassword)}
 									tabIndex={-1}
 									aria-label={
@@ -301,7 +301,7 @@ const TeacherSignupPage: React.FC = () => {
 								/>
 								<button
 									type="button"
-									className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-primary focus:outline-none"
+									className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-accent focus:outline-none"
 									onClick={() => setShowPasswordConfirm(!showPasswordConfirm)}
 									tabIndex={-1}
 									aria-label={
@@ -336,7 +336,7 @@ const TeacherSignupPage: React.FC = () => {
 							Bereits ein Konto?{" "}
 							<Link
 								href="/auth/teacher-login"
-								className="text-primary hover:underline"
+								className="text-accent hover:underline"
 							>
 								Anmelden
 							</Link>

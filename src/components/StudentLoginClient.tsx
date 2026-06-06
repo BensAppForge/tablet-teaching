@@ -110,7 +110,7 @@ const StudentLoginClient: React.FC = () => {
 								/>
 								<button
 									type="button"
-									className="absolute right-2.5 top-3.5 text-muted-foreground hover:text-primary focus:outline-none"
+									className="absolute right-2.5 top-3.5 text-muted-foreground hover:text-accent focus:outline-none"
 									onClick={() => setShowPassword((v) => !v)}
 									tabIndex={-1}
 									aria-label={
@@ -135,7 +135,7 @@ const StudentLoginClient: React.FC = () => {
 							Kein Zugang? Mit{" "}
 							<Link
 								href="/student/quick"
-								className="text-primary hover:underline"
+								className="text-accent hover:underline"
 							>
 								Schnellzugang
 							</Link>{" "}
@@ -145,7 +145,7 @@ const StudentLoginClient: React.FC = () => {
 							Sie sind Lehrkraft?{" "}
 							<Link
 								href="/auth/teacher-login"
-								className="text-primary hover:underline"
+								className="text-accent hover:underline"
 							>
 								Hier anmelden
 							</Link>

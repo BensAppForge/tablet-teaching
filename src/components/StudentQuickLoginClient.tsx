@@ -174,7 +174,7 @@ const StudentQuickLoginClient: React.FC = () => {
 							Du hast eigene Zugangsdaten?{" "}
 							<Link
 								href="/student/login"
-								className="text-primary hover:underline"
+								className="text-accent hover:underline"
 							>
 								Hier anmelden
 							</Link>

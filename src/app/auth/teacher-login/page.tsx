@@ -72,7 +72,7 @@ const TeacherLoginForm: React.FC = () => {
 							<Label htmlFor="email">Email</Label>
 							<div className="relative">
 								<Mail
-									className={`absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground peer-focus:text-primary`}
+									className={`absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground peer-focus:text-accent`}
 								/>
 								<Input
 									type="email"
@@ -90,7 +90,7 @@ const TeacherLoginForm: React.FC = () => {
 							<Label htmlFor="password">Passwort</Label>
 							<div className="relative">
 								<Lock
-									className={`absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground peer-focus:text-primary`}
+									className={`absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground peer-focus:text-accent`}
 								/>
 								<Input
 									type={showPassword ? "text" : "password"}
@@ -104,7 +104,7 @@ const TeacherLoginForm: React.FC = () => {
 								/>
 								<button
 									type="button"
-									className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-primary focus:outline-none"
+									className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-accent focus:outline-none"
 									onClick={togglePasswordVisibility}
 									tabIndex={-1}
 									aria-label={
@@ -129,7 +129,7 @@ const TeacherLoginForm: React.FC = () => {
 							Noch kein Konto?{" "}
 							<Link
 								href="/auth/teacher-signup"
-								className="text-primary hover:underline"
+								className="text-accent hover:underline"
 							>
 								Registrieren
 							</Link>
@@ -138,7 +138,7 @@ const TeacherLoginForm: React.FC = () => {
 							Du bist Schüler:in?{" "}
 							<Link
 								href="/student/login"
-								className="text-primary hover:underline"
+								className="text-accent hover:underline"
 							>
 								Hier anmelden
 							</Link>
