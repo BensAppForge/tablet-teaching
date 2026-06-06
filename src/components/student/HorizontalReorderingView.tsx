@@ -229,10 +229,16 @@ const HorizontalReorderingView: React.FC<Props> = ({
 												</span>
 											)}
 											{review && positionRight && !gapWrong && (
-												<Check className="h-4 w-4 text-green-600" />
+												<>
+													<Check className="h-4 w-4 text-green-600" aria-hidden="true" />
+													<span className="sr-only">richtig</span>
+												</>
 											)}
 											{review && (positionWrong || gapWrong) && (
-												<X className="h-4 w-4 text-destructive" />
+												<>
+													<X className="h-4 w-4 text-destructive" aria-hidden="true" />
+													<span className="sr-only">falsch</span>
+												</>
 											)}
 										</div>
 									)}

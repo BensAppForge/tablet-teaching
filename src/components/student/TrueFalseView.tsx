@@ -48,10 +48,16 @@ const TrueFalseView: React.FC<Props> = ({
 			>
 				<span className="font-medium">{label}</span>
 				{review && isCorrect && (
-					<Check className="h-5 w-5 text-green-600" />
+					<>
+						<Check className="h-5 w-5 text-green-600" aria-hidden="true" />
+						<span className="sr-only">richtig</span>
+					</>
 				)}
 				{review && isWrongSelected && (
-					<X className="h-5 w-5 text-destructive" />
+					<>
+						<X className="h-5 w-5 text-destructive" aria-hidden="true" />
+						<span className="sr-only">falsch</span>
+					</>
 				)}
 			</button>
 		);

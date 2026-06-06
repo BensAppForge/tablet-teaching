@@ -32,6 +32,7 @@ import {
 } from "@/lib/firebase/students";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -466,9 +467,24 @@ const ClassDetailManagement: React.FC = () => {
 			</div>
 
 			{loading ? (
-				<div className="flex justify-center items-center py-12">
-					<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-				</div>
+				<Card>
+					<CardContent className="p-5 space-y-3">
+						<div className="flex items-center justify-between gap-3 mb-3">
+							<Skeleton className="h-5 w-40" />
+							<Skeleton className="h-9 w-32" />
+						</div>
+						{[0, 1, 2, 3, 4].map((i) => (
+							<div key={i} className="flex items-center gap-3 py-2">
+								<div className="flex-1 space-y-1.5">
+									<Skeleton className="h-4 w-32" />
+									<Skeleton className="h-3 w-48" />
+								</div>
+								<Skeleton className="h-8 w-8 rounded-md" />
+								<Skeleton className="h-8 w-8 rounded-md" />
+							</div>
+						))}
+					</CardContent>
+				</Card>
 			) : (
 				<Card>
 					<CardContent className="p-5">

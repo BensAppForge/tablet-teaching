@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Pencil,
 	Trash2,
@@ -173,8 +174,32 @@ const TestsManagement: React.FC = () => {
 			</div>
 
 			{loading ? (
-				<div className="flex justify-center items-center py-12">
-					<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+				<div className="space-y-4">
+					{[0, 1, 2].map((i) => (
+						<Card key={i} className="overflow-hidden">
+							<div className="grid grid-cols-1 md:grid-cols-6 gap-4">
+								<div className="md:col-span-4 p-6 space-y-3">
+									<div className="flex items-start justify-between gap-3">
+										<Skeleton className="h-6 w-1/2" />
+										<Skeleton className="h-5 w-10 rounded-full" />
+									</div>
+									<Skeleton className="h-4 w-full" />
+									<Skeleton className="h-4 w-2/3" />
+									<div className="flex gap-4 pt-2">
+										<Skeleton className="h-3 w-16" />
+										<Skeleton className="h-3 w-16" />
+										<Skeleton className="h-3 w-20" />
+									</div>
+								</div>
+								<div className="md:col-span-2 bg-muted/20 flex flex-row flex-wrap md:flex-col gap-2 p-4 md:p-5">
+									<Skeleton className="h-9 w-full" />
+									<Skeleton className="h-9 w-full" />
+									<Skeleton className="h-9 w-full" />
+									<Skeleton className="h-9 w-full" />
+								</div>
+							</div>
+						</Card>
+					))}
 				</div>
 			) : tests.length === 0 ? (
 				<Card>

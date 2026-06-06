@@ -69,10 +69,16 @@ const MultipleChoiceView: React.FC<Props> = ({
 									{opt || <em className="text-muted-foreground">leer</em>}
 								</span>
 								{review && isCorrect && (
-									<Check className="h-5 w-5 text-green-600 shrink-0" />
+									<>
+										<Check className="h-5 w-5 text-green-600 shrink-0" aria-hidden="true" />
+										<span className="sr-only">richtig</span>
+									</>
 								)}
 								{review && isWrongSelected && (
-									<X className="h-5 w-5 text-destructive shrink-0" />
+									<>
+										<X className="h-5 w-5 text-destructive shrink-0" aria-hidden="true" />
+										<span className="sr-only">falsch</span>
+									</>
 								)}
 							</button>
 						</li>

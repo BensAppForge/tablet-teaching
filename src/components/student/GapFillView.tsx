@@ -141,11 +141,15 @@ const GapFillView: React.FC<Props> = ({
 								style={{ width: `${Math.max(value.length, correct.length || 6) + 2}ch` }}
 							/>
 							{review && isCorrect && (
-								<Check className="h-4 w-4 text-green-600 ml-1" />
+								<>
+									<Check className="h-4 w-4 text-green-600 ml-1" aria-hidden="true" />
+									<span className="sr-only">richtig</span>
+								</>
 							)}
 							{review && isWrong && (
 								<>
-									<X className="h-4 w-4 text-destructive ml-1" />
+									<X className="h-4 w-4 text-destructive ml-1" aria-hidden="true" />
+									<span className="sr-only">falsch.</span>
 									<span className="ml-1 text-xs text-muted-foreground">
 										({strings.correctAnswerInline}:{" "}
 										<strong>{correct}</strong>)

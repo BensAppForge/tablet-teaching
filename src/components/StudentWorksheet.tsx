@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { motion } from "framer-motion";
 import { ArrowLeft, CheckCircle2, Download, Loader2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
@@ -445,7 +446,15 @@ const StudentWorksheet: React.FC = () => {
 			) : (
 				<>
 					{submitted ? (
-							<Card className="mb-6 border-primary/30 bg-primary/5">
+							<motion.div
+								initial={{ opacity: 0, scale: 0.96 }}
+								animate={{ opacity: 1, scale: 1 }}
+								transition={{ duration: 0.4, ease: "easeOut" }}
+							>
+							<Card
+								className="mb-6 border-primary/30 bg-primary/5"
+								aria-live="polite"
+							>
 								<CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
 									<CheckCircle2 className="h-10 w-10 text-primary shrink-0" />
 									<div className="flex-1">
@@ -490,6 +499,7 @@ const StudentWorksheet: React.FC = () => {
 								</div>
 							</CardContent>
 						</Card>
+							</motion.div>
 						) : (
 							<div className="sticky top-14 z-30 mb-5 rounded-lg border bg-background/95 p-3 shadow-sm backdrop-blur">
 								<div className="mb-2 flex items-center justify-between gap-3 text-sm">
