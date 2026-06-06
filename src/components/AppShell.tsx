@@ -11,6 +11,7 @@ import FooterAuthButton from "@/components/FooterAuthButton";
 import FooterInfo from "@/components/FooterInfo";
 import { ModeToggle } from "@/components/ModeToggle";
 import UserProfile from "@/components/UserProfile";
+import { APP_VERSION } from "@/lib/version";
 import { cn } from "@/lib/utils";
 
 interface AppShellProps {
@@ -91,11 +92,22 @@ function DefaultHeader() {
 function StudentFooter() {
 	const { footerInfo } = useFooterInfo();
 
-	if (!footerInfo) return null;
+	if (!footerInfo) {
+		// No info banner — still surface the version subtly so a kid can
+		// read it off the screen if asked.
+		return (
+			<div className="fixed bottom-0 right-0 z-40 px-2 py-1 text-[10px] text-muted-foreground/70 ipad-safe-bottom ipad-safe-x">
+				v{APP_VERSION}
+			</div>
+		);
+	}
 
 	return (
 		<div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-background/95 px-4 py-2 text-center text-sm text-muted-foreground shadow-sm backdrop-blur ipad-safe-bottom ipad-safe-x">
-			{footerInfo}
+			<span>{footerInfo}</span>
+			<span className="ml-2 text-[10px] opacity-70">
+				v{APP_VERSION}
+			</span>
 		</div>
 	);
 }
@@ -104,7 +116,12 @@ function DefaultFooter() {
 	return (
 		<footer className="sticky bottom-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
 			<div className="flex h-16 items-center justify-between gap-3 px-4 py-2 ipad-safe-x ipad-safe-bottom">
-				<div className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} Bensappforge</div>
+				<div className="text-sm text-muted-foreground">
+					&copy; {new Date().getFullYear()} Bensappforge
+					<span className="ml-2 text-xs opacity-70">
+						v{APP_VERSION}
+					</span>
+				</div>
 				<div className="hidden min-w-0 flex-1 justify-center md:flex">
 					<FooterInfo />
 				</div>

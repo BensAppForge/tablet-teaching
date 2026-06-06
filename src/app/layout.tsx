@@ -7,6 +7,7 @@ import { FooterInfoProvider } from "@/context/FooterInfoContext";
 import { Toaster } from "sonner";
 import AppShell from "@/components/AppShell";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import VersionGuard from "@/components/VersionGuard";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -62,6 +63,7 @@ export default function RootLayout({
 						<FooterInfoProvider>
 							<AppShell>{children}</AppShell>
 							<Toaster richColors closeButton position="top-center" />
+							<VersionGuard />
 						</FooterInfoProvider>
 					</AuthProvider>
 				</ThemeProvider>
