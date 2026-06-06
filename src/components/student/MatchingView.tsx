@@ -34,16 +34,42 @@ interface RightRow {
 	code: number; // numeric encoding stored in MatchingAnswer.connections
 }
 
-// Forces Xarrow to remeasure on mount and once after layout settles —
-// same trick as in the editor.
+// Forces Xarrow to remeasure on mount, once after layout settles, and
+// on any subsequent reflow that would move the dots without firing a
+// React re-render — iPad rotation, the iOS soft keyboard sliding in
+// (visualViewport), font load, sticky header collapse, etc. Without
+// these, the SVG lines drift away from the dots until the next user
+// interaction.
 const ArrowSyncer: React.FC = () => {
 	const updateXarrow = useXarrow();
 	useEffect(() => {
 		const raf = requestAnimationFrame(updateXarrow);
 		const t = window.setTimeout(updateXarrow, 200);
+
+		const handler = () => updateXarrow();
+		window.addEventListener("resize", handler);
+		window.addEventListener("orientationchange", handler);
+		const vv = window.visualViewport;
+		vv?.addEventListener("resize", handler);
+		vv?.addEventListener("scroll", handler);
+
+		// ResizeObserver on document.body catches general layout reflows
+		// (collapsing dialogs, image/font loads, dynamic content above
+		// the matching block) that don't fire a window resize.
+		let ro: ResizeObserver | null = null;
+		if (typeof ResizeObserver !== "undefined" && document.body) {
+			ro = new ResizeObserver(() => updateXarrow());
+			ro.observe(document.body);
+		}
+
 		return () => {
 			cancelAnimationFrame(raf);
 			clearTimeout(t);
+			window.removeEventListener("resize", handler);
+			window.removeEventListener("orientationchange", handler);
+			vv?.removeEventListener("resize", handler);
+			vv?.removeEventListener("scroll", handler);
+			ro?.disconnect();
 		};
 	}, [updateXarrow]);
 	return null;
