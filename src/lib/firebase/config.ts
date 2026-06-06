@@ -36,8 +36,14 @@ if (typeof window !== "undefined" && !getApps().length) {
 let firestore: Firestore;
 if (typeof window !== "undefined") {
 	try {
+		// Force long-polling instead of WebSockets. WebKit (Safari, iPad PWA)
+		// can leave WebSocket handshakes in a half-open state without ever
+		// signalling failure, so experimentalAutoDetectLongPolling's fallback
+		// never triggers and queries stall until manual refresh. Long polling
+		// is marginally slower steady-state but reliable across school
+		// networks, captive portals, and bfcache returns.
 		firestore = initializeFirestore(app, {
-			experimentalAutoDetectLongPolling: true,
+			experimentalForceLongPolling: true,
 		});
 	} catch {
 		// In dev/HMR the Firestore instance may already exist.

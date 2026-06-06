@@ -19,7 +19,7 @@ export function ModeToggle() {
       variant="ghost"
       size="icon"
       aria-label="Darstellung wechseln"
-      className="border border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground hover:bg-primary-foreground/20 hover:text-primary-foreground disabled:opacity-60"
+      className="disabled:opacity-60"
       onClick={() => {
         setTheme(resolvedTheme === "dark" ? "light" : "dark");
       }}

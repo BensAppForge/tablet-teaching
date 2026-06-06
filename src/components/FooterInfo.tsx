@@ -28,7 +28,7 @@ const FooterInfo: React.FC = () => {
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 0.5 }}
 						exit={{ opacity: 0 }}
-						className="text-sm flex items-center space-x-2 text-primary-foreground/50"
+						className="text-sm flex items-center space-x-2 text-muted-foreground"
 					>
 						<Info className="h-4 w-4" />
 						<span>Wichtige Infos</span>

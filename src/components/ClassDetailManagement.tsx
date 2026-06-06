@@ -196,6 +196,7 @@ const ClassDetailManagement: React.FC = () => {
 	// Bulk import
 	const [roster, setRoster] = useState("");
 	const [importing, setImporting] = useState(false);
+	const [importOpen, setImportOpen] = useState(false);
 	const [resultOpen, setResultOpen] = useState(false);
 	const [result, setResult] = useState<BulkImportResponse | null>(null);
 
@@ -288,6 +289,7 @@ const ClassDetailManagement: React.FC = () => {
 			const res = await promise;
 			setResult(res);
 			setResultOpen(true);
+			setImportOpen(false);
 			setRoster("");
 			await reloadStudents();
 		} catch (err) {
@@ -468,140 +470,157 @@ const ClassDetailManagement: React.FC = () => {
 					<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
 				</div>
 			) : (
-				<div className="grid gap-6 lg:grid-cols-2">
-					{/* Existing students */}
-					<Card>
-						<CardContent className="p-5">
-							<h2 className="text-lg font-semibold mb-3">
+				<Card>
+					<CardContent className="p-5">
+						<div className="flex items-center justify-between gap-3 mb-3">
+							<h2 className="text-lg font-semibold">
 								Schüler:innen ({students.length})
 							</h2>
-							{students.length === 0 ? (
-								<p className="text-sm text-muted-foreground">
-									Noch keine Schüler:innen in dieser Klasse.
-								</p>
-							) : (
-								<ul className="divide-y">
-									{students.map((s) => (
-										<li
-											key={s.id}
-											className="py-2 flex items-center gap-3"
-										>
-											<div className="flex-1 min-w-0">
-												<div className="font-medium truncate">
-													{s.firstName} {s.lastInitial}
-												</div>
-												<div className="text-xs text-muted-foreground font-mono truncate">
-													{s.synthEmail}
-												</div>
+							<Button
+								onClick={() => setImportOpen(true)}
+								className="gap-2"
+							>
+								<UserPlus className="h-4 w-4" />
+								Importieren
+							</Button>
+						</div>
+						{students.length === 0 ? (
+							<p className="text-sm text-muted-foreground py-6 text-center">
+								Noch keine Schüler:innen in dieser Klasse. Klicke auf
+								„Importieren", um Zugänge anzulegen.
+							</p>
+						) : (
+							<ul className="divide-y">
+								{students.map((s) => (
+									<li
+										key={s.id}
+										className="py-2 flex items-center gap-3"
+									>
+										<div className="flex-1 min-w-0">
+											<div className="font-medium truncate">
+												{s.firstName} {s.lastInitial}
 											</div>
-											<div className="flex items-center gap-1 shrink-0">
-												<Button
-													variant="ghost"
-													size="icon"
-													className="h-8 w-8"
-													onClick={() => openEditStudent(s)}
-													aria-label="Bearbeiten"
-												>
-													<Pencil className="h-4 w-4" />
-												</Button>
-												<Button
-													variant="ghost"
-													size="icon"
-													className="h-8 w-8 text-destructive"
-													onClick={() => setDeleteStudentTarget(s)}
-													aria-label="Löschen"
-												>
-													<Trash2 className="h-4 w-4" />
-												</Button>
+											<div className="text-xs text-muted-foreground font-mono truncate">
+												{s.synthEmail}
 											</div>
+										</div>
+										<div className="flex items-center gap-1 shrink-0">
+											<Button
+												variant="ghost"
+												size="icon"
+												className="h-8 w-8"
+												onClick={() => openEditStudent(s)}
+												aria-label="Bearbeiten"
+											>
+												<Pencil className="h-4 w-4" />
+											</Button>
+											<Button
+												variant="ghost"
+												size="icon"
+												className="h-8 w-8 text-destructive"
+												onClick={() => setDeleteStudentTarget(s)}
+												aria-label="Löschen"
+											>
+												<Trash2 className="h-4 w-4" />
+											</Button>
+										</div>
+									</li>
+								))}
+							</ul>
+						)}
+					</CardContent>
+				</Card>
+			)}
+
+			{/* Bulk import dialog */}
+			<Dialog
+				open={importOpen}
+				onOpenChange={(open) => {
+					if (!importing) setImportOpen(open);
+				}}
+			>
+				<DialogContent className="max-w-2xl">
+					<DialogHeader>
+						<DialogTitle>Schüler:innen importieren</DialogTitle>
+						<DialogDescription>
+							Eine Schüler:in pro Zeile: <strong>Vorname</strong>, dann
+							Leerzeichen, dann <strong>Initial des Nachnamens</strong>.
+							Mehrteilige Vornamen sind erlaubt — das letzte Wort gilt
+							immer als Initial. Komma, Semikolon oder Tab funktionieren
+							auch (z. B. aus Excel).
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="grid gap-2 py-1">
+						<Label htmlFor="roster" className="sr-only">
+							Schülerliste
+						</Label>
+						<Textarea
+							id="roster"
+							value={roster}
+							onChange={(e) => setRoster(e.target.value)}
+							placeholder={"Anna B\nMax M\nLea S"}
+							rows={10}
+							className="font-mono text-sm"
+							disabled={importing}
+						/>
+
+						{parsed.length > 0 && (
+							<div className="text-xs text-muted-foreground">
+								{validParsed.length} gültig
+								{hasErrors && (
+									<span className="text-destructive ml-2">
+										· {parsed.length - validParsed.length} fehlerhaft
+									</span>
+								)}
+							</div>
+						)}
+
+						{hasErrors && (
+							<ul className="text-xs text-destructive space-y-1 max-h-24 overflow-y-auto">
+								{parsed
+									.filter((p) => p.error)
+									.map((p, i) => (
+										<li key={i}>
+											<span className="font-mono">„{p.raw}"</span>:{" "}
+											{p.error}
 										</li>
 									))}
-								</ul>
+							</ul>
+						)}
+					</div>
+
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setImportOpen(false)}
+							disabled={importing}
+						>
+							Abbrechen
+						</Button>
+						<Button
+							onClick={handleImport}
+							disabled={
+								importing || validParsed.length === 0 || hasErrors
+							}
+						>
+							{importing ? (
+								<>
+									<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+									Erstelle…
+								</>
+							) : (
+								<>
+									<UserPlus className="h-4 w-4 mr-2" />
+									{validParsed.length > 0
+										? `${validParsed.length} importieren`
+										: "Importieren"}
+								</>
 							)}
-						</CardContent>
-					</Card>
-
-					{/* Bulk import */}
-					<Card>
-						<CardContent className="p-5">
-							<h2 className="text-lg font-semibold mb-1">
-								Schüler:innen importieren
-							</h2>
-							<p className="text-sm text-muted-foreground mb-3">
-								Eine Schüler:in pro Zeile: <strong>Vorname</strong>, dann
-								Leerzeichen, dann <strong>Initial des Nachnamens</strong>.
-								Mehrteilige Vornamen sind erlaubt — das letzte Wort gilt
-								immer als Initial. Komma, Semikolon oder Tab funktionieren
-								auch (z. B. aus Excel).
-								<br />
-								<code className="text-xs">Anna B</code>,{" "}
-								<code className="text-xs">Anna Maria S</code>,{" "}
-								<code className="text-xs">Max von M</code>
-							</p>
-
-							<Label htmlFor="roster" className="sr-only">
-								Schülerliste
-							</Label>
-							<Textarea
-								id="roster"
-								value={roster}
-								onChange={(e) => setRoster(e.target.value)}
-								placeholder={"Anna B\nMax M\nLea S"}
-								rows={10}
-								className="font-mono text-sm"
-								disabled={importing}
-							/>
-
-							{parsed.length > 0 && (
-								<div className="text-xs text-muted-foreground mt-2">
-									{validParsed.length} gültig
-									{hasErrors && (
-										<span className="text-destructive ml-2">
-											· {parsed.length - validParsed.length} fehlerhaft
-										</span>
-									)}
-								</div>
-							)}
-
-							{hasErrors && (
-								<ul className="text-xs text-destructive mt-2 space-y-1">
-									{parsed
-										.filter((p) => p.error)
-										.map((p, i) => (
-											<li key={i}>
-												<span className="font-mono">„{p.raw}"</span>:{" "}
-												{p.error}
-											</li>
-										))}
-								</ul>
-							)}
-
-							<div className="flex justify-end mt-4">
-								<Button
-									onClick={handleImport}
-									disabled={
-										importing || validParsed.length === 0 || hasErrors
-									}
-								>
-									{importing ? (
-										<>
-											<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-											Erstelle…
-										</>
-									) : (
-										<>
-											<UserPlus className="h-4 w-4 mr-2" />
-											{validParsed.length > 0
-												? `${validParsed.length} importieren`
-												: "Importieren"}
-										</>
-									)}
-								</Button>
-							</div>
-						</CardContent>
-					</Card>
-				</div>
-			)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 
 			{/* Result modal */}
 			<Dialog open={resultOpen} onOpenChange={setResultOpen}>

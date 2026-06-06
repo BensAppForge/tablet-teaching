@@ -454,7 +454,7 @@ const StudentWorksheet: React.FC = () => {
 					</div>
 
 						{!submitted && (
-							<div className="sticky bottom-0 z-30 mt-8 border-t bg-background/95 py-3 backdrop-blur ipad-safe-bottom">
+							<div className="sticky bottom-0 z-50 mt-8 border-t bg-background/95 py-3 backdrop-blur ipad-safe-bottom">
 								<Button
 									size="lg"
 									onClick={() => setConfirmOpen(true)}

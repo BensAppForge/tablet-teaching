@@ -36,7 +36,7 @@ function FocusHeader() {
 
 	return (
 		<header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-			<div className="mx-auto flex min-h-14 max-w-5xl items-center justify-between gap-3 px-4 py-2 ipad-safe-x">
+			<div className="mx-auto flex h-14 max-w-5xl items-center justify-between gap-3 px-4 py-2 ipad-safe-x">
 				<div className="flex min-w-0 items-center gap-2">
 					<BookOpen className="h-5 w-5 text-primary" aria-hidden="true" />
 					<div className="min-w-0">
@@ -71,10 +71,10 @@ function FocusHeader() {
 
 function DefaultHeader() {
 	return (
-		<header className="sticky top-0 z-50 border-b bg-primary text-primary-foreground shadow-sm">
-			<div className="flex min-h-16 items-center justify-between gap-3 px-4 py-2 ipad-safe-x">
+		<header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+			<div className="flex h-16 items-center justify-between gap-3 px-4 py-2 ipad-safe-x">
 				<div className="flex min-w-0 items-center gap-2 font-semibold tracking-wide">
-					<GraduationCap className="h-7 w-7 shrink-0" aria-hidden="true" />
+					<GraduationCap className="h-7 w-7 shrink-0 text-primary" aria-hidden="true" />
 					<span className="truncate">TABLET TEACHING</span>
 				</div>
 				<div className="flex min-w-0 items-center gap-2 sm:gap-3">
@@ -102,9 +102,9 @@ function StudentFooter() {
 
 function DefaultFooter() {
 	return (
-		<footer className="sticky bottom-0 z-50 border-t bg-primary text-primary-foreground">
-			<div className="flex min-h-16 items-center justify-between gap-3 px-4 py-2 ipad-safe-x ipad-safe-bottom">
-				<div className="text-sm">&copy; {new Date().getFullYear()} Bensappforge</div>
+		<footer className="sticky bottom-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+			<div className="flex h-16 items-center justify-between gap-3 px-4 py-2 ipad-safe-x ipad-safe-bottom">
+				<div className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} Bensappforge</div>
 				<div className="hidden min-w-0 flex-1 justify-center md:flex">
 					<FooterInfo />
 				</div>
