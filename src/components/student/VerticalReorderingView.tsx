@@ -105,11 +105,11 @@ const VerticalReorderingView: React.FC<Props> = ({
 					<p className="text-xs text-muted-foreground mb-1">
 						{strings.wordBank}
 					</p>
-					<div className="flex flex-wrap gap-2">
+					<div className="flex flex-wrap gap-1.5">
 						{wordBank.map((w, i) => (
 							<span
 								key={i}
-								className="text-sm px-2.5 py-1 rounded border bg-muted/40"
+								className="text-sm px-2 py-0.5 rounded bg-muted text-muted-foreground"
 							>
 								{w}
 							</span>

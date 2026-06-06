@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	Eye,
 	Settings,
@@ -47,7 +47,7 @@ const DashboardTile: React.FC<DashboardTileProps> = ({
 		>
 			<Card
 				className={cn(
-					"flex min-h-40 flex-col border bg-card transition-colors group-hover:border-primary/40 group-hover:bg-muted/30"
+					"flex min-h-36 flex-col border bg-card transition-colors group-hover:border-primary/40 group-hover:bg-muted/30"
 				)}
 			>
 				<CardContent className="flex flex-1 flex-col gap-4 p-5">
@@ -70,9 +70,6 @@ const DashboardTile: React.FC<DashboardTileProps> = ({
 						</p>
 					</div>
 				</CardContent>
-				<CardFooter className="px-5 pb-5 pt-0 text-sm font-medium text-primary">
-					Öffnen
-				</CardFooter>
 			</Card>
 		</Link>
 	);

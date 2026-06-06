@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
 	ArrowLeft,
+	Copy,
 	Download,
 	Loader2,
 	Pencil,
@@ -62,11 +63,14 @@ interface ParsedLine {
 
 function parseRoster(text: string): ParsedLine[] {
 	return text
-		.split("\n")
+		.split(/\r?\n/)
 		.map((raw) => raw.trim())
 		.filter((raw) => raw.length > 0)
 		.map((raw) => {
-			const parts = raw.split(/\s+/);
+			// Accept comma- and tab-separated input (e.g. pasted from Excel)
+			// by normalising any of those to whitespace before splitting.
+			const normalised = raw.replace(/[,\t;]+/g, " ").trim();
+			const parts = normalised.split(/\s+/);
 			if (parts.length < 2) {
 				return {
 					raw,
@@ -101,6 +105,28 @@ function credentialsCsv(rows: BulkImportResponse["created"]): string {
 		)
 		.join("\n");
 	return header + body + "\n";
+}
+
+async function copyToClipboard(text: string): Promise<boolean> {
+	try {
+		if (navigator.clipboard && window.isSecureContext) {
+			await navigator.clipboard.writeText(text);
+			return true;
+		}
+		// Fallback for non-secure contexts (e.g. local IP testing on iPad).
+		const ta = document.createElement("textarea");
+		ta.value = text;
+		ta.style.position = "fixed";
+		ta.style.opacity = "0";
+		document.body.appendChild(ta);
+		ta.focus();
+		ta.select();
+		const ok = document.execCommand("copy");
+		document.body.removeChild(ta);
+		return ok;
+	} catch {
+		return false;
+	}
 }
 
 function downloadCsv(filename: string, content: string) {
@@ -505,7 +531,8 @@ const ClassDetailManagement: React.FC = () => {
 								Eine Schüler:in pro Zeile: <strong>Vorname</strong>, dann
 								Leerzeichen, dann <strong>Initial des Nachnamens</strong>.
 								Mehrteilige Vornamen sind erlaubt — das letzte Wort gilt
-								immer als Initial.
+								immer als Initial. Komma, Semikolon oder Tab funktionieren
+								auch (z. B. aus Excel).
 								<br />
 								<code className="text-xs">Anna B</code>,{" "}
 								<code className="text-xs">Anna Maria S</code>,{" "}
@@ -597,6 +624,7 @@ const ClassDetailManagement: React.FC = () => {
 												<th className="text-left p-2">Name</th>
 												<th className="text-left p-2">E-Mail</th>
 												<th className="text-left p-2">Passwort</th>
+												<th className="w-10 p-2 sr-only">Kopieren</th>
 											</tr>
 										</thead>
 										<tbody>
@@ -607,6 +635,26 @@ const ClassDetailManagement: React.FC = () => {
 													</td>
 													<td className="p-2 font-mono text-xs">{r.email}</td>
 													<td className="p-2 font-mono">{r.password}</td>
+													<td className="p-1 text-right">
+														<Button
+															variant="ghost"
+															size="icon"
+															className="h-8 w-8"
+															onClick={async () => {
+																const ok = await copyToClipboard(r.password);
+																if (ok) {
+																	toast.success(
+																		`Passwort für ${r.firstName} kopiert`
+																	);
+																} else {
+																	toast.error("Kopieren fehlgeschlagen");
+																}
+															}}
+															aria-label={`Passwort für ${r.firstName} ${r.lastInitial} kopieren`}
+														>
+															<Copy className="h-4 w-4" />
+														</Button>
+													</td>
 												</tr>
 											))}
 										</tbody>

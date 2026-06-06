@@ -78,14 +78,14 @@ const StudentLoginClient: React.FC = () => {
 						<div className="grid gap-2">
 							<Label htmlFor="student-email">E-Mail</Label>
 							<div className="relative">
-								<Mail className="absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground" />
+								<Mail className="absolute left-2.5 top-3.5 h-5 w-5 text-muted-foreground" />
 								<Input
 									id="student-email"
 									type="email"
 									inputMode="email"
 									autoComplete="username"
 									placeholder="z. B. anna-b@tablet-teaching.app"
-									className="pl-10"
+									className="h-12 pl-10 text-base"
 									value={email}
 									onChange={(e) => setEmail(e.target.value)}
 									required
@@ -96,13 +96,13 @@ const StudentLoginClient: React.FC = () => {
 						<div className="grid gap-2">
 							<Label htmlFor="student-password">Passwort</Label>
 							<div className="relative">
-								<Lock className="absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground" />
+								<Lock className="absolute left-2.5 top-3.5 h-5 w-5 text-muted-foreground" />
 								<Input
 									id="student-password"
 									type={showPassword ? "text" : "password"}
 									autoComplete="current-password"
 									placeholder="z. B. katzeblau47"
-									className="pl-10 pr-10"
+									className="h-12 pl-10 pr-10 text-base"
 									value={password}
 									onChange={(e) => setPassword(e.target.value)}
 									required
@@ -110,7 +110,7 @@ const StudentLoginClient: React.FC = () => {
 								/>
 								<button
 									type="button"
-									className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-primary focus:outline-none"
+									className="absolute right-2.5 top-3.5 text-muted-foreground hover:text-primary focus:outline-none"
 									onClick={() => setShowPassword((v) => !v)}
 									tabIndex={-1}
 									aria-label={
@@ -128,7 +128,7 @@ const StudentLoginClient: React.FC = () => {
 						{error && (
 							<p className="text-sm font-medium text-destructive">{error}</p>
 						)}
-						<Button type="submit" disabled={isLoading} className="w-full">
+						<Button type="submit" disabled={isLoading} className="h-12 w-full text-base">
 							{isLoading ? "Anmelden…" : "Anmelden"}
 						</Button>
 						<div className="text-center text-sm text-muted-foreground">

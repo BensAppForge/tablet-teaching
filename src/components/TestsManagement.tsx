@@ -11,7 +11,6 @@ import {
 	Pencil,
 	Trash2,
 	Share2,
-	ChevronRight,
 	Loader2,
 	Tag,
 	Book,
@@ -48,14 +47,15 @@ const TestsManagement: React.FC = () => {
 	const [dontShowAgain, setDontShowAgain] = useState(false);
 	const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
 
-	// CEFR Level Badge color mapping
+	// CEFR badges use a single-hue slate ramp so A1→C2 reads as a scale,
+	// not a rainbow, and doesn't fight the brand primary.
 	const cefrColors: Record<string, string> = {
-		A1: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-		A2: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-		B1: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
-		B2: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
-		C1: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-		C2: "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
+		A1: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
+		A2: "bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-100",
+		B1: "bg-slate-300 text-slate-900 dark:bg-slate-600 dark:text-slate-50",
+		B2: "bg-slate-500 text-white dark:bg-slate-500 dark:text-white",
+		C1: "bg-slate-700 text-white dark:bg-slate-400 dark:text-slate-900",
+		C2: "bg-slate-900 text-white dark:bg-slate-200 dark:text-slate-900",
 	};
 
 	useEffect(() => {
@@ -147,21 +147,20 @@ const TestsManagement: React.FC = () => {
 				</Button>
 			</div>
 
-			<div className="border-b mb-6">
+			<div className="border-b mb-6 flex items-center justify-between gap-3">
 				<h1 className="text-2xl font-semibold py-2 text-gray-700 dark:text-gray-200">
 					Tests verwalten
 				</h1>
-			</div>
-			<div className="flex justify-between items-center mb-8">
 				<Button
-					variant="outline"
+					variant="ghost"
 					size="icon"
 					onClick={() => setSettingsDialogOpen(true)}
 					aria-label="Einstellungen"
 				>
 					<Settings className="h-4 w-4" />
 				</Button>
-
+			</div>
+			<div className="flex justify-end items-center mb-8">
 				<Button
 					variant="default"
 					className="gap-2"
@@ -243,44 +242,33 @@ const TestsManagement: React.FC = () => {
 								</div>
 
 								{/* Actions */}
-								<div className="md:col-span-2 bg-muted/30 flex flex-row md:flex-col justify-between items-center p-6">
-									<div className="flex md:flex-col gap-2 w-full">
-										<Button
-											variant="outline"
-											className="w-full justify-between"
-											onClick={() => handleEditTest(test.id!)}
-										>
-											<span className="flex items-center">
-												<Pencil className="mr-2 h-4 w-4" />
-												Bearbeiten
-											</span>
-											<ChevronRight className="h-4 w-4" />
-										</Button>
+								<div className="md:col-span-2 bg-muted/20 flex flex-row md:flex-col justify-center items-stretch gap-2 p-4 md:p-5">
+									<Button
+										variant="default"
+										className="w-full justify-start"
+										onClick={() => handleEditTest(test.id!)}
+									>
+										<Pencil className="mr-2 h-4 w-4" />
+										Bearbeiten
+									</Button>
 
-										<Button
-											variant="outline"
-											className="w-full justify-between"
-											onClick={() => handleShareTest(test.id!)}
-										>
-											<span className="flex items-center">
-												<Share2 className="mr-2 h-4 w-4" />
-												Teilen
-											</span>
-											<ChevronRight className="h-4 w-4" />
-										</Button>
+									<Button
+										variant="outline"
+										className="w-full justify-start"
+										onClick={() => handleShareTest(test.id!)}
+									>
+										<Share2 className="mr-2 h-4 w-4" />
+										Teilen
+									</Button>
 
-										<Button
-											variant="outline"
-											className="w-full justify-between"
-											onClick={() => confirmDelete(test.id!)}
-										>
-											<span className="flex items-center">
-												<Trash2 className="mr-2 h-4 w-4 text-destructive" />
-												Löschen
-											</span>
-											<ChevronRight className="h-4 w-4" />
-										</Button>
-									</div>
+									<Button
+										variant="ghost"
+										className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+										onClick={() => confirmDelete(test.id!)}
+									>
+										<Trash2 className="mr-2 h-4 w-4" />
+										Löschen
+									</Button>
 								</div>
 							</div>
 						</Card>
