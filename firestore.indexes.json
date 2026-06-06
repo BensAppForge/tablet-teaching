@@ -63,6 +63,20 @@
 					"order": "ASCENDING"
 				}
 			]
+		},
+		{
+			"collectionGroup": "submissions",
+			"queryScope": "COLLECTION",
+			"fields": [
+				{
+					"fieldPath": "studentId",
+					"order": "ASCENDING"
+				},
+				{
+					"fieldPath": "submittedAt",
+					"order": "DESCENDING"
+				}
+			]
 		}
 	],
 	"fieldOverrides": []

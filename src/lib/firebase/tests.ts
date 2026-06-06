@@ -793,23 +793,32 @@ export const deleteQuestion = async (
 };
 
 /**
- * Deletes a test and all its questions
+ * Deletes a test and all its questions and submissions.
  * @param testId - The ID of the test to delete
  * @returns Promise that resolves when the deletion is complete
  */
 export const deleteTest = async (testId: string): Promise<void> => {
 	try {
-		// Get all questions in the test
+		// Get all questions AND submissions in the test so we cascade
+		// the delete and don't leave orphan docs that would still incur
+		// read costs and clutter the console.
 		const questionsRef = collection(firestore, `tests/${testId}/questions`);
-		const querySnapshot = await getDocs(questionsRef);
+		const submissionsRef = collection(
+			firestore,
+			`tests/${testId}/submissions`
+		);
+		const [questionsSnap, submissionsSnap] = await Promise.all([
+			getDocs(questionsRef),
+			getDocs(submissionsRef),
+		]);
 
-		// Use a batch to delete all questions and the test
+		// Use a batch to delete everything atomically. Firestore batches
+		// cap at 500 ops; for v1 the combined questions + submissions
+		// count stays well under that.
 		const batch = writeBatch(firestore);
 
-		// Add all question documents to the batch for deletion
-		querySnapshot.docs.forEach((doc) => {
-			batch.delete(doc.ref);
-		});
+		questionsSnap.docs.forEach((d) => batch.delete(d.ref));
+		submissionsSnap.docs.forEach((d) => batch.delete(d.ref));
 
 		// Add the test document to the batch for deletion
 		const testRef = doc(firestore, "tests", testId);

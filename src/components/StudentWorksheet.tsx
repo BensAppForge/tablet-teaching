@@ -33,6 +33,10 @@ import {
 	saveAttempt,
 	SubmissionResult,
 } from "@/lib/student/storage";
+import {
+	createSubmission,
+	getLatestStudentSubmission,
+} from "@/lib/firebase/submissions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -196,7 +200,51 @@ const StudentWorksheet: React.FC = () => {
 				setQuestions(questions);
 				setCls(klass);
 				const stored = loadAttempt(currentUser.uid, testId);
-				if (stored) {
+
+				// For managed students, Firestore is the source of truth for
+				// "did I submit this test?". If the teacher deleted the
+				// student's previous result, we want the worksheet to come
+				// back in fresh-take mode rather than showing the stale
+				// localStorage review. Schnellzugang skips this check —
+				// their submissions aren't persisted server-side by design.
+				if (!isAnon && currentUser && !cancelled) {
+					try {
+						const remote = await getLatestStudentSubmission(
+							testId,
+							currentUser.uid
+						);
+						if (cancelled) return;
+						if (remote) {
+							setAnswers(stored?.answers || {});
+							setSubmitted({
+								submittedAt:
+									remote.submittedAt?.toMillis() ?? Date.now(),
+								totalEarned: remote.totalEarned,
+								totalPossible: remote.totalPossible,
+								perQuestion: remote.perQuestion,
+							});
+						} else if (stored?.submitted) {
+							// Local says submitted, server says no — teacher
+							// wiped the result. Clear local entirely so the
+							// student gets a true fresh start.
+							clearAttempt(currentUser.uid, testId);
+							setAnswers({});
+							setSubmitted(null);
+						} else if (stored) {
+							setAnswers(stored.answers || {});
+							setSubmitted(null);
+						}
+					} catch (err) {
+						// Fall back to localStorage-only behaviour if the
+						// Firestore read fails (rules, offline, etc.) — the
+						// student still gets a working worksheet.
+						console.error("Latest-submission lookup failed:", err);
+						if (stored) {
+							setAnswers(stored.answers || {});
+							setSubmitted(stored.submitted ?? null);
+						}
+					}
+				} else if (stored) {
 					setAnswers(stored.answers || {});
 					setSubmitted(stored.submitted ?? null);
 				}
@@ -247,6 +295,24 @@ const StudentWorksheet: React.FC = () => {
 		// Scroll to the top of the results so the kid sees the score.
 		if (typeof window !== "undefined") {
 			window.scrollTo({ top: 0, behavior: "smooth" });
+		}
+
+		// Persist the submission to Firestore so the teacher can review
+		// it. Managed students only — Schnellzugang kids stay local-only
+		// by design. Fire-and-forget: the local result is already saved,
+		// so a server-side failure shouldn't block the UI or alarm the
+		// student.
+		if (role === "student" && studentData && currentUser) {
+			createSubmission(testId, {
+				studentId: currentUser.uid,
+				studentName: `${studentData.firstName} ${studentData.lastInitial}`,
+				classId: studentData.classId,
+				totalEarned: submission.totalEarned,
+				totalPossible: submission.totalPossible,
+				perQuestion: submission.perQuestion,
+			}).catch((err) => {
+				console.error("Failed to persist submission to Firestore:", err);
+			});
 		}
 	};
 

@@ -18,7 +18,9 @@ import {
 	ArrowLeft,
 	Settings,
 	Sparkles,
+	BarChart3,
 } from "lucide-react";
+import TestResultsDialog from "@/components/TestResultsDialog";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
@@ -46,6 +48,7 @@ const TestsManagement: React.FC = () => {
 	const [testToDelete, setTestToDelete] = useState<string | null>(null);
 	const [dontShowAgain, setDontShowAgain] = useState(false);
 	const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+	const [resultsTest, setResultsTest] = useState<Test | null>(null);
 
 	// CEFR badges use a single-hue slate ramp so A1→C2 reads as a scale,
 	// not a rainbow, and doesn't fight the brand primary.
@@ -239,7 +242,7 @@ const TestsManagement: React.FC = () => {
 								</div>
 
 								{/* Actions */}
-								<div className="md:col-span-2 bg-muted/20 flex flex-row md:flex-col justify-center items-stretch gap-2 p-4 md:p-5">
+								<div className="md:col-span-2 bg-muted/20 flex flex-row flex-wrap md:flex-col justify-center items-stretch gap-2 p-4 md:p-5">
 									<Button
 										variant="default"
 										className="w-full justify-start"
@@ -247,6 +250,15 @@ const TestsManagement: React.FC = () => {
 									>
 										<Pencil className="mr-2 h-4 w-4" />
 										Bearbeiten
+									</Button>
+
+									<Button
+										variant="outline"
+										className="w-full justify-start"
+										onClick={() => setResultsTest(test)}
+									>
+										<BarChart3 className="mr-2 h-4 w-4" />
+										Ergebnisse
 									</Button>
 
 									<Button
@@ -308,6 +320,15 @@ const TestsManagement: React.FC = () => {
 				</AlertDialogContent>
 			</AlertDialog>
 			
+			{/* Per-test results dialog */}
+			<TestResultsDialog
+				open={!!resultsTest}
+				onOpenChange={(o) => {
+					if (!o) setResultsTest(null);
+				}}
+				test={resultsTest}
+			/>
+
 			{/* Settings Dialog for Resetting Preferences */}
 			<AlertDialog open={settingsDialogOpen} onOpenChange={setSettingsDialogOpen}>
 				<AlertDialogContent>

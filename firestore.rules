@@ -41,6 +41,34 @@ service cloud.firestore {
       allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/tests/$(testId)).data.teacherId == request.auth.uid;
     }
 
+    // Student submissions, subcollection of each test.
+    //   - Managed students (role == 'student') can create a submission
+    //     for themselves, but only on a test that is assigned to their
+    //     class. Schnellzugang (anonymous) submissions are NOT persisted
+    //     — kids using a quick code don't have a class claim, so the
+    //     create rule rejects them by design.
+    //   - The owning teacher can read all submissions and delete any.
+    //   - A student can read their own submission(s) — needed so the
+    //     worksheet treats Firestore as source of truth: if the teacher
+    //     deletes a result, the student's review state clears on next
+    //     load. Queries must include where("studentId", "==", uid) for
+    //     the rule to allow listing.
+    //   - Submissions are write-once: no updates.
+    match /tests/{testId}/submissions/{submissionId} {
+      allow create: if request.auth != null
+        && request.auth.token.role == 'student'
+        && request.resource.data.studentId == request.auth.uid
+        && request.resource.data.classId == request.auth.token.classId
+        && get(/databases/$(database)/documents/tests/$(testId)).data.assignedClassIds.hasAny([request.auth.token.classId]);
+      allow read: if request.auth != null && (
+        get(/databases/$(database)/documents/tests/$(testId)).data.teacherId == request.auth.uid
+        || resource.data.studentId == request.auth.uid
+      );
+      allow delete: if request.auth != null
+        && get(/databases/$(database)/documents/tests/$(testId)).data.teacherId == request.auth.uid;
+      allow update: if false;
+    }
+
     // Classes: teacher-owned grouping of students.
     // Reads allowed for the owning teacher OR for a student whose
     // custom-claim classId matches this doc (so a student can render
