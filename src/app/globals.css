@@ -19,15 +19,23 @@ body {
     --card-foreground: 222.2 47.4% 11.2%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
+    /* Brand orange. Reserved for primary CTAs and success/result
+       highlights (worksheet score card, "Test erstellen", "Abgeben"). */
     --primary: 26.8 83.3% 56.9%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
-    --accent: 26.8 83.3% 56.9%;
+    /* Cool slate-blue secondary accent. Used for hover states on
+       outline/ghost buttons, dropdown/popover hovers, and any
+       interactive emphasis that isn't the main CTA — gives a clear
+       visual counterpoint to brand orange. */
+    --accent: 213 75% 52%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --ring: 26.8 83.3% 56.9%;
+    /* Focus ring matches accent so the ring is highly visible on an
+       orange primary button (was orange-on-orange = invisible). */
+    --ring: 213 75% 52%;
     --radius: 0.5rem;
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -50,15 +58,20 @@ body {
     --card-foreground: 213 31% 91%;
     --border: 216 34% 17%;
     --input: 216 34% 17%;
-    --primary: 26.8 83.3% 56.9%;
+    /* Slightly desaturated brand orange for dark mode so the colour
+       doesn't glare against the deep navy background in dim
+       classroom lighting. Same hue, lowered saturation 83 → 72. */
+    --primary: 26.8 72% 55%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 14.9%;
     --secondary-foreground: 210 40% 98%;
-    --accent: 26.8 83.3% 56.9%;
+    /* Brighter blue in dark mode so accent tints stay visible when
+       composited over the navy background at low alpha. */
+    --accent: 213 60% 60%;
     --accent-foreground: 210 40% 98%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-    --ring: 26.8 83.3% 56.9%;
+    --ring: 213 60% 60%;
     --radius: 0.5rem;
         --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
