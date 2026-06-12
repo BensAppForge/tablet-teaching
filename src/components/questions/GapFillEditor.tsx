@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Trash, Highlighter, Plus } from "lucide-react";
+import { Trash, Hand, Plus } from "lucide-react";
 import { GapFillQuestion } from "@/lib/firebase/tests";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,16 +18,62 @@ interface GapFillEditorProps {
   showDelete?: boolean;
 }
 
-// Enhanced Gap interface with position information
+// Gap with position information. Offsets index into the raw text and are
+// the single source of truth — the student renderer slices the text at
+// exactly these positions, so they must stay in sync with every edit.
 interface Gap {
   text: string;
   startIndex: number;
   endIndex: number;
 }
 
-// Enhanced GapFillQuestion interface to store position information
-interface EnhancedGapFillQuestion extends GapFillQuestion {
-  gapPositions?: { start: number; end: number }[];
+// Word tokenizer for the tap-to-gap preview. Unicode-aware so umlauts,
+// accents and apostrophes stay inside one word ("läuft", "doesn't",
+// "Müller-Lüdenscheidt"); punctuation stays outside the gap.
+const WORD_RE = /[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu;
+
+/**
+ * Shift gap offsets across a text edit instead of keeping stale ones.
+ * Strategy: find the single changed region via common prefix/suffix
+ * (keystrokes and pastes are always one contiguous edit), then:
+ *   - gaps entirely before it are untouched,
+ *   - gaps entirely after it shift by the length delta,
+ *   - gaps overlapping it are dropped — the gapped word itself changed,
+ *     which the teacher sees immediately in the preview.
+ */
+function remapGaps(oldText: string, newText: string, gaps: Gap[]): Gap[] {
+  if (oldText === newText) return gaps;
+
+  let prefix = 0;
+  const maxPrefix = Math.min(oldText.length, newText.length);
+  while (prefix < maxPrefix && oldText[prefix] === newText[prefix]) prefix++;
+
+  let suffix = 0;
+  const maxSuffix = Math.min(oldText.length, newText.length) - prefix;
+  while (
+    suffix < maxSuffix &&
+    oldText[oldText.length - 1 - suffix] === newText[newText.length - 1 - suffix]
+  ) {
+    suffix++;
+  }
+
+  const oldEditEnd = oldText.length - suffix;
+  const delta = newText.length - oldText.length;
+
+  const kept: Gap[] = [];
+  for (const gap of gaps) {
+    if (gap.endIndex <= prefix) {
+      kept.push(gap);
+    } else if (gap.startIndex >= oldEditEnd) {
+      kept.push({
+        text: newText.slice(gap.startIndex + delta, gap.endIndex + delta),
+        startIndex: gap.startIndex + delta,
+        endIndex: gap.endIndex + delta,
+      });
+    }
+    // Overlapping the edit region: dropped.
+  }
+  return kept;
 }
 
 const GapFillEditor: React.FC<GapFillEditorProps> = ({
@@ -36,281 +82,187 @@ const GapFillEditor: React.FC<GapFillEditorProps> = ({
   onDelete,
   showDelete = false,
 }) => {
-  // Per-instance id prefix — see MultipleChoiceEditor for rationale.
-  const uid = React.useId().replace(/[^a-zA-Z0-9_-]/g, "");
-
-  // References
-  const previewRef = useRef<HTMLDivElement>(null);
-  
   // State for the raw text and gaps
   const [rawText, setRawText] = useState(question.text || "");
   const [gaps, setGaps] = useState<Gap[]>([]);
 
   // Initialize gaps from question on mount
   useEffect(() => {
-    // Initialize the raw text
     setRawText(question.text || "");
 
-    // Initialize gaps
-    const enhancedQuestion = question as EnhancedGapFillQuestion;
-    
-    if (enhancedQuestion.gapPositions && enhancedQuestion.gapPositions.length > 0) {
+    if (question.gapPositions && question.gapPositions.length > 0) {
       // If we have position information, use it directly
-      const restoredGaps = enhancedQuestion.gapPositions.map((pos, index) => ({
+      const restoredGaps = question.gapPositions.map((pos, index) => ({
         text: question.gaps[index] || "",
         startIndex: pos.start,
-        endIndex: pos.end
+        endIndex: pos.end,
       }));
       setGaps(restoredGaps);
     } else if (question.gaps && question.gaps.length > 0) {
-      // If we don't have position info but have gaps, try to find them in the text
+      // Legacy question without position info: locate each gap text in
+      // the question text, skipping positions already taken so duplicate
+      // words don't all collapse onto the first occurrence.
       extractGapsFromQuestion();
     } else {
-      // No gaps, initialize with empty array
       setGaps([]);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on mount
-  
+
   // Extract gaps from an existing question by searching for them in the text
   const extractGapsFromQuestion = () => {
     const extractedGaps: Gap[] = [];
     const text = question.text || "";
-    
-    // For each gap in the question, try to find its position in the text
+
     if (question.gaps) {
-      // We need to limit the number of gaps to match exactly what's in the question
-      // This prevents duplicate words from all becoming gaps
-      const gapCount = question.gaps.length;
-      let gapsFound = 0;
-      
-      for (let i = 0; i < gapCount; i++) {
-        const gapText = question.gaps[i];
+      for (const gapText of question.gaps) {
         if (!gapText) continue;
-        
-        // Find the position of this gap in the text
-        // We'll use the first occurrence that doesn't overlap with an existing gap
+
         let startPos = 0;
         let foundPos = -1;
         let found = false;
-        
-        // Try to find a position for this gap that doesn't overlap with existing gaps
+
+        // First occurrence that doesn't overlap an already-placed gap
         while (!found && (foundPos = text.indexOf(gapText, startPos)) !== -1) {
-          // Check if this position overlaps with any existing gap
-          const overlaps = extractedGaps.some(gap => 
-            (foundPos >= gap.startIndex && foundPos < gap.endIndex) ||
-            (foundPos + gapText.length > gap.startIndex && foundPos + gapText.length <= gap.endIndex)
+          const overlaps = extractedGaps.some(
+            (gap) =>
+              (foundPos >= gap.startIndex && foundPos < gap.endIndex) ||
+              (foundPos + gapText.length > gap.startIndex &&
+                foundPos + gapText.length <= gap.endIndex)
           );
-          
+
           if (!overlaps) {
             extractedGaps.push({
               text: gapText,
               startIndex: foundPos,
-              endIndex: foundPos + gapText.length
+              endIndex: foundPos + gapText.length,
             });
             found = true;
-            gapsFound++;
           }
-          
-          startPos = foundPos + 1; // Move past this occurrence
+
+          startPos = foundPos + 1;
         }
       }
     }
-    
-    // Sort gaps by position and set them
+
     setGaps(extractedGaps.sort((a, b) => a.startIndex - b.startIndex));
   };
-  
-  // Handle raw text change
-  const handleRawTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setRawText(e.target.value);
-    
-    // When text changes, we need to update the question
-    // but preserve any existing gaps
-    updateQuestionWithCurrentState(e.target.value, gaps);
-  };
-  
-  // Handle text selection for creating a gap
-  const handleTextSelection = () => {
-    // Get the current selection
-    const selection = window.getSelection();
-    if (!selection || selection.isCollapsed) return;
-    
-    // Make sure we have the preview element
-    const previewElement = previewRef.current;
-    if (!previewElement) return;
-    
-    // Check if selection is within the preview
-    if (!isSelectionWithinElement(selection, previewElement)) return;
-    
-    try {
-      // Get the selected text without any artifacts
-      const selectedText = selection.toString().trim();
-      if (!selectedText) return;
-      
-      // Get the range information
-      const range = selection.getRangeAt(0);
-      
-      // Create a temporary element to hold the raw text content
-      const tempElement = document.createElement('div');
-      tempElement.textContent = rawText;
-      document.body.appendChild(tempElement);
-      
-      // Create a new range to work with the raw text
-      const tempRange = document.createRange();
-      tempRange.selectNodeContents(tempElement);
-      
-      // Find the position in the raw text by comparing the selected text
-      let startIndex = rawText.indexOf(selectedText);
-      let endIndex = startIndex + selectedText.length;
-      
-      // If we found a valid position
-      if (startIndex >= 0) {
-        // Create a new gap with the correct position
-        const newGap: Gap = {
-          text: selectedText,
-          startIndex: startIndex,
-          endIndex: endIndex
-        };
-        
-        // Check if this selection overlaps with an existing gap
-        const overlappingGapIndex = gaps.findIndex(gap => 
-          (newGap.startIndex >= gap.startIndex && newGap.startIndex < gap.endIndex) ||
-          (newGap.endIndex > gap.startIndex && newGap.endIndex <= gap.endIndex) ||
-          (newGap.startIndex <= gap.startIndex && newGap.endIndex >= gap.endIndex)
-        );
-        
-        if (overlappingGapIndex >= 0) {
-          // If it overlaps, remove the existing gap
-          handleRemoveGap(gaps[overlappingGapIndex]);
-        } else {
-          // Otherwise, add the new gap
-          const updatedGaps = [...gaps, newGap];
-          setGaps(updatedGaps);
-          updateQuestionWithCurrentState(rawText, updatedGaps);
-        }
-      }
-      
-      // Clean up the temporary element
-      document.body.removeChild(tempElement);
-    } catch (error) {
-      console.error("Error processing text selection:", error);
-    } finally {
-      // Clear the selection
-      selection.removeAllRanges();
-    }
-  };
-  
-  // Check if a selection is within a specific element
-  const isSelectionWithinElement = (selection: Selection, element: HTMLElement) => {
-    if (selection.rangeCount === 0) return false;
-    
-    const range = selection.getRangeAt(0);
-    return element.contains(range.commonAncestorContainer);
-  };
-  
-  // Helper function to get plain text content from HTML
-  const getPlainTextFromHTML = (html: string): string => {
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-    return tempDiv.textContent || '';  
-  };
-  
-  // Add a new gap
-  const handleAddGap = (newGap: Gap) => {
-    // Add the new gap
-    const updatedGaps = [...gaps, newGap];
-    
-    // Update state
-    setGaps(updatedGaps);
-    
-    // Update the question
-    updateQuestionWithCurrentState(rawText, updatedGaps);
-  };
-  
-  // Remove a gap
-  const handleRemoveGap = (gapToRemove: Gap) => {
-    // Remove the gap
-    const updatedGaps = gaps.filter(gap => 
-      gap.startIndex !== gapToRemove.startIndex || gap.endIndex !== gapToRemove.endIndex
-    );
-    
-    // Update state
-    setGaps(updatedGaps);
-    
-    // Update the question
-    updateQuestionWithCurrentState(rawText, updatedGaps);
-  };
-  
-  // Update the question with current state
+
+  // Push the current state into the question. Gaps and their positions
+  // are persisted sorted by position so `gaps[i]` and `gapPositions[i]`
+  // always describe the same gap, in document order.
   const updateQuestionWithCurrentState = (text: string, currentGaps: Gap[]) => {
-    // Sort gaps by position in text
-    const sortedGaps = [...currentGaps].sort((a, b) => a.startIndex - b.startIndex);
-    
-    // Extract gap texts in the correct order
-    const gapTexts = sortedGaps.map(gap => gap.text);
-    
-    // Store position information to handle duplicate gap texts
-    const gapPositions = sortedGaps.map(gap => ({
-      start: gap.startIndex,
-      end: gap.endIndex
-    }));
-    
-    // Update the question with enhanced position information
+    const sortedGaps = [...currentGaps].sort(
+      (a, b) => a.startIndex - b.startIndex
+    );
+
     onChange({
       ...question,
       text: text,
-      gaps: gapTexts,
-      gapPositions: gapPositions
-    } as EnhancedGapFillQuestion);
-  };
-  
-  // Render the preview text with gaps highlighted
-  const renderPreviewText = () => {
-    if (!rawText) return "";
-    
-    // Create a safe copy of the text to work with
-    const safeText = rawText;
-    let html = "";
-    let lastIndex = 0;
-    
-    // Sort gaps by position (ascending)
-    const sortedGaps = [...gaps].sort((a, b) => a.startIndex - b.startIndex);
-    
-    // Process each gap
-    sortedGaps.forEach((gap, index) => {
-      // Add text before the gap (safely escaped)
-      const textBeforeGap = safeText.substring(lastIndex, gap.startIndex);
-      html += escapeHtml(textBeforeGap);
-      
-      // Add the gap with highlighting and numbering (safely escaped)
-      const gapText = safeText.substring(gap.startIndex, gap.endIndex);
-      html += `<span 
-        class="bg-yellow-200 dark:bg-yellow-800 px-1 rounded cursor-pointer" 
-        data-gap-index="${index}"
-        data-start="${gap.startIndex}"
-        data-end="${gap.endIndex}"
-      >${escapeHtml(gapText)}<sub>${index + 1}</sub></span>`;
-      
-      // Update lastIndex
-      lastIndex = gap.endIndex;
+      gaps: sortedGaps.map((gap) => gap.text),
+      gapPositions: sortedGaps.map((gap) => ({
+        start: gap.startIndex,
+        end: gap.endIndex,
+      })),
     });
-    
-    // Add any remaining text (safely escaped)
-    const textAfterGaps = safeText.substring(lastIndex);
-    html += escapeHtml(textAfterGaps);
-    
-    return html;
   };
-  
-  // Helper function to escape HTML special characters
-  const escapeHtml = (text: string): string => {
-    return text
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+
+  // Text edits remap the gap offsets (see remapGaps) — previously the
+  // old offsets were kept verbatim, so any edit before a gap silently
+  // shifted every gap into the middle of the wrong word.
+  const handleRawTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newText = e.target.value;
+    const remapped = remapGaps(rawText, newText, gaps);
+    setRawText(newText);
+    setGaps(remapped);
+    updateQuestionWithCurrentState(newText, remapped);
+  };
+
+  const handleAddGap = (start: number, end: number, text: string) => {
+    const updatedGaps = [...gaps, { text, startIndex: start, endIndex: end }];
+    setGaps(updatedGaps);
+    updateQuestionWithCurrentState(rawText, updatedGaps);
+  };
+
+  const handleRemoveGap = (gapToRemove: Gap) => {
+    const updatedGaps = gaps.filter(
+      (gap) =>
+        gap.startIndex !== gapToRemove.startIndex ||
+        gap.endIndex !== gapToRemove.endIndex
+    );
+    setGaps(updatedGaps);
+    updateQuestionWithCurrentState(rawText, updatedGaps);
+  };
+
+  // Tap-to-gap preview. Words are buttons (tap = create gap), existing
+  // gaps are highlighted buttons (tap = remove gap). Offsets come from
+  // the tokenizer, never from string search — tapping the second "Mann"
+  // in "Der Mann sieht den Mann" gaps exactly that occurrence. This
+  // replaced a selection-based flow that resolved positions via
+  // indexOf(selectedText) and fought the iOS text-selection callout.
+  const renderPreview = () => {
+    if (!rawText) {
+      return (
+        <span className="text-sm text-muted-foreground italic">
+          Geben Sie zuerst oben einen Text ein.
+        </span>
+      );
+    }
+
+    const sortedGaps = [...gaps].sort((a, b) => a.startIndex - b.startIndex);
+    const nodes: React.ReactNode[] = [];
+
+    const pushWords = (segStart: number, segEnd: number) => {
+      const segment = rawText.slice(segStart, segEnd);
+      let last = 0;
+      WORD_RE.lastIndex = 0;
+      let match: RegExpExecArray | null;
+      while ((match = WORD_RE.exec(segment)) !== null) {
+        if (match.index > last) {
+          nodes.push(segment.slice(last, match.index));
+        }
+        const wordStart = segStart + match.index;
+        const wordEnd = wordStart + match[0].length;
+        const word = match[0];
+        nodes.push(
+          <button
+            type="button"
+            key={`w-${wordStart}`}
+            onClick={() => handleAddGap(wordStart, wordEnd, word)}
+            aria-label={`Lücke erstellen: ${word}`}
+            className="inline rounded px-0.5 -mx-0.5 py-0.5 hover:bg-yellow-100 dark:hover:bg-yellow-900/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {word}
+          </button>
+        );
+        last = match.index + match[0].length;
+      }
+      if (last < segment.length) {
+        nodes.push(segment.slice(last));
+      }
+    };
+
+    let cursor = 0;
+    sortedGaps.forEach((gap, index) => {
+      if (gap.startIndex > cursor) pushWords(cursor, gap.startIndex);
+      const gapText = rawText.slice(gap.startIndex, gap.endIndex);
+      nodes.push(
+        <button
+          type="button"
+          key={`g-${gap.startIndex}`}
+          onClick={() => handleRemoveGap(gap)}
+          aria-label={`Lücke entfernen: ${gapText}`}
+          className="inline rounded px-1 py-0.5 bg-yellow-200 dark:bg-yellow-800 hover:bg-yellow-300 dark:hover:bg-yellow-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {gapText}
+          <sub>{index + 1}</sub>
+        </button>
+      );
+      cursor = gap.endIndex;
+    });
+    if (cursor < rawText.length) pushWords(cursor, rawText.length);
+
+    return nodes;
   };
 
   return (
@@ -325,9 +277,9 @@ const GapFillEditor: React.FC<GapFillEditorProps> = ({
         <CardHeader className="bg-yellow-50 dark:bg-yellow-950/20 flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-md font-medium">Lückentext</CardTitle>
           {showDelete && onDelete && (
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={onDelete}
               className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
             >
@@ -349,37 +301,21 @@ const GapFillEditor: React.FC<GapFillEditorProps> = ({
                 className="min-h-[100px]"
               />
             </div>
-            
-            {/* Step 2: Select text to create gaps */}
+
+            {/* Step 2: Tap words to create gaps */}
             <div>
               <div className="flex items-center space-x-2 mb-1">
                 <Label>Schritt 2: Lücken erstellen</Label>
                 <div className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-md">
-                  <Highlighter className="h-3 w-3 inline mr-1" />
-                  Text markieren, um eine Lücke zu erstellen oder zu entfernen
+                  <Hand className="h-3 w-3 inline mr-1" />
+                  Wort antippen für eine Lücke, Lücke antippen zum Entfernen
                 </div>
               </div>
-              <div
-                id={`${uid}-gap-preview`}
-                ref={previewRef}
-                className="p-3 border rounded-md bg-background min-h-[100px] cursor-text"
-                dangerouslySetInnerHTML={{ __html: renderPreviewText() }}
-                onMouseUp={handleTextSelection}
-                onClick={(e) => {
-                  // Check if we clicked on a gap
-                  const target = e.target as HTMLElement;
-                  if (target.hasAttribute('data-gap-index')) {
-                    // Get the gap index
-                    const gapIndex = parseInt(target.getAttribute('data-gap-index') || '0');
-                    // Remove the gap
-                    if (gapIndex >= 0 && gapIndex < gaps.length) {
-                      handleRemoveGap(gaps.sort((a, b) => a.startIndex - b.startIndex)[gapIndex]);
-                    }
-                  }
-                }}
-              />
+              <div className="p-3 border rounded-md bg-background min-h-[100px] whitespace-pre-wrap leading-8">
+                {renderPreview()}
+              </div>
             </div>
-            
+
             {/* Distractors — optional extra words shown in the student's
                 word bank alongside the gap answers, to make filling the
                 gaps harder. Updates question.distractors directly so the
@@ -462,46 +398,43 @@ const GapFillEditor: React.FC<GapFillEditorProps> = ({
               <AnimatePresence initial={false}>
                 {gaps.length === 0 ? (
                   <div className="text-sm text-muted-foreground mt-2 italic">
-                    Markieren Sie Text in der Vorschau oben, um Lücken zu erstellen.
+                    Tippen Sie oben auf ein Wort, um eine Lücke zu erstellen.
                   </div>
                 ) : (
-                  gaps.sort((a, b) => a.startIndex - b.startIndex).map((gap, idx) => (
-                    <motion.div
-                      key={`gap-${gap.startIndex}-${gap.endIndex}`}
-                      className="flex items-center gap-2 mt-2"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      transition={{ 
-                        type: "spring", 
-                        stiffness: 400, 
-                        damping: 25 
-                      }}
-                    >
-                      <Badge variant="outline" className="shrink-0">
-                        Lücke {idx + 1}
-                      </Badge>
-                      <div className="flex-1 relative">
+                  [...gaps]
+                    .sort((a, b) => a.startIndex - b.startIndex)
+                    .map((gap, idx) => (
+                      <motion.div
+                        key={`gap-${gap.startIndex}-${gap.endIndex}`}
+                        className="flex items-center gap-2 mt-2"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 400,
+                          damping: 25
+                        }}
+                      >
+                        <Badge variant="outline" className="shrink-0">
+                          Lücke {idx + 1}
+                        </Badge>
                         <Input
                           value={gap.text}
                           readOnly
-                          className="flex-1 bg-muted pr-16"
+                          className="flex-1 bg-muted"
                         />
-                        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-muted-foreground">
-                          Pos: {gap.startIndex}
-                        </div>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemoveGap(gap)}
-                        aria-label="Lücke entfernen"
-                      >
-                        <Trash className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </motion.div>
-                  ))
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleRemoveGap(gap)}
+                          aria-label="Lücke entfernen"
+                        >
+                          <Trash className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </motion.div>
+                    ))
                 )}
               </AnimatePresence>
             </div>
