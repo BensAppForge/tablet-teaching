@@ -1,6 +1,6 @@
 {
 	"name": "tablet-teaching",
-	"version": "0.5.4-beta",
+	"version": "0.5.5-beta",
 	"private": true,
 	"scripts": {
 		"predev": "node scripts/sync-version.mjs",
@@ -12,7 +12,7 @@
 		"firebase:emulators:clear": "kill-port 9098 5002 8081 5004 9198 4001 || true",
 		"dev:clean": "kill-port 9002 && npm run dev",
 		"fetch-test-ids": "tsx src/scripts/fetch-test-ids.ts",
-		"deploy": "next build && firebase deploy --only hosting",
+		"deploy": "tsc --noEmit && next build && firebase deploy --only hosting",
 		"start": "next start",
 		"lint": "next lint",
 		"typecheck": "tsc --noEmit",

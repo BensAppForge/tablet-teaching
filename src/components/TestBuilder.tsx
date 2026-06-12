@@ -100,6 +100,43 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
   // UI state
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // Unsaved-changes tracking: baseline holds the serialized state as of
+  // load / last save; anything diverging from it counts as dirty. JSON
+  // comparison is cheap enough here (runs on leave attempts, not renders).
+  const baselineRef = React.useRef<string | null>(null);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const snapshotState = React.useCallback(
+    (settings: TestGeneralSettings, qs: Question[]) =>
+      JSON.stringify({ settings, qs }),
+    []
+  );
+  const isDirty = React.useCallback(
+    () =>
+      baselineRef.current !== null &&
+      snapshotState(testSettings, questions) !== baselineRef.current,
+    [snapshotState, testSettings, questions]
+  );
+
+  // New-test mode: the pristine baseline is the initial defaults.
+  // Edit mode: loadTest overwrites it once the data arrives.
+  useEffect(() => {
+    if (baselineRef.current === null && !testId) {
+      baselineRef.current = snapshotState(testSettings, questions);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Warn before the tab/PWA closes or hard-navigates with unsaved work.
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty()) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDirty]);
   // Track whether the AI-generation panel is open, plus its fields.
   const [aiOpen, setAiOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
@@ -151,6 +188,16 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
       // Set questions
       setQuestions(loadedQuestions);
       setQuestionKeys(loadedQuestions.map((q) => q.id ?? makeQuestionKey()));
+      baselineRef.current = snapshotState(
+        {
+          title: test.title,
+          description: test.description || "",
+          targetLanguage: test.targetLanguage,
+          cefrLevel: test.cefrLevel,
+          defaultCreditPoints: test.defaultCreditPoints,
+        },
+        loadedQuestions
+      );
     } catch (error) {
       console.error("Error loading test:", error);
       toast.error("Fehler beim Laden des Tests");
@@ -439,10 +486,20 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
       };
 
       if (testId) {
-        await updateTest(testId, testData, questions);
+        const savedIds = await updateTest(testId, testData, questions);
+        // Apply the Firestore ids to local state — without this, a second
+        // save in the same session re-inserts every new question as a
+        // duplicate (the local copies would still be id-less).
+        const savedQuestions = questions.map((q, i) =>
+          savedIds[i] ? { ...q, id: savedIds[i] } : q
+        );
+        setQuestions(savedQuestions);
+        baselineRef.current = snapshotState(testSettings, savedQuestions);
         toast.success("Test erfolgreich aktualisiert");
       } else {
         await createTest(testData, questions);
+        // Mark pristine before navigating so no stale unload warning fires.
+        baselineRef.current = snapshotState(testSettings, questions);
         toast.success("Test erfolgreich erstellt");
         router.push("/tests");
       }
@@ -543,12 +600,24 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
         showDontAskAgain={true}
         onDontAskAgainChange={handleDontAskAgainChange}
       />
+      {/* Unsaved-changes guard for "Zurück zur Übersicht" */}
+      <ConfirmationDialog
+        open={leaveDialogOpen}
+        onOpenChange={setLeaveDialogOpen}
+        title="Ungespeicherte Änderungen"
+        description="Dieser Test hat ungespeicherte Änderungen. Wenn Sie zur Übersicht zurückkehren, gehen sie verloren."
+        confirmLabel="Änderungen verwerfen"
+        cancelLabel="Weiter bearbeiten"
+        onConfirm={() => router.push("/tests")}
+      />
       <div className="flex items-center gap-2 mb-4">
         <Button
           variant="outline"
           size="sm"
           className="gap-1 text-muted-foreground"
-          onClick={() => router.push("/tests")}
+          onClick={() =>
+            isDirty() ? setLeaveDialogOpen(true) : router.push("/tests")
+          }
         >
           <ArrowLeft className="h-4 w-4" />
           <span>Zurück zur Übersicht</span>

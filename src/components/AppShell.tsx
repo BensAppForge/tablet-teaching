@@ -2,6 +2,7 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { BookOpen, GraduationCap, LogOut, Loader2 } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
@@ -120,6 +121,21 @@ function DefaultFooter() {
 					&copy; {new Date().getFullYear()} Bensappforge
 					<span className="ml-2 text-xs opacity-70">
 						v{APP_VERSION}
+					</span>
+					<span className="ml-3 text-xs">
+						<Link
+							href="/impressum"
+							className="hover:text-foreground underline-offset-4 hover:underline"
+						>
+							Impressum
+						</Link>
+						<span className="mx-1.5 opacity-50">·</span>
+						<Link
+							href="/datenschutz"
+							className="hover:text-foreground underline-offset-4 hover:underline"
+						>
+							Datenschutz
+						</Link>
 					</span>
 				</div>
 				<div className="hidden min-w-0 flex-1 justify-center md:flex">

@@ -190,8 +190,6 @@ export const getTest = async (
 	testId: string
 ): Promise<{ test: Test; questions: Question[] }> => {
 	try {
-		console.log("getTest() - Fetching test with ID:", testId);
-
 		// Validate test ID format
 		if (!testId) {
 			console.error("getTest() - Test ID is empty or null");
@@ -200,15 +198,8 @@ export const getTest = async (
 
 		// Check if test ID has unexpected characters that might indicate encoding issues
 		if (testId.includes("%") || testId.includes(" ")) {
-			console.warn(
-				"getTest() - Test ID contains URL encoding characters:",
-				testId
-			);
-			// Decode if it appears to be URL encoded
 			const decodedId = decodeURIComponent(testId);
-			console.log("getTest() - Decoded test ID:", decodedId);
 			if (decodedId !== testId) {
-				console.warn("getTest() - Using decoded test ID instead");
 				testId = decodedId;
 			}
 		}
@@ -223,19 +214,11 @@ export const getTest = async (
 		}
 
 		const test = { id: testDoc.id, ...testDoc.data() } as Test;
-		console.log(
-			"getTest() - Test document retrieved successfully:",
-			test.title
-		);
 
-		// Get the questions
-		console.log("getTest() - Fetching questions for test:", testId);
-		const questionsPath = `tests/${testId}/questions`;
-		console.log("getTest() - Questions collection path:", questionsPath);
-		const questionsRef = collection(firestore, questionsPath);
-
-		// Log all available collection references
-		console.log("getTest() - Collection reference created:", questionsRef.path);
+		// Get the questions. No payload logging here: this runs on every
+		// student worksheet load, and question docs contain the correct
+		// answers — dumping them hands kids a cheat sheet in the console.
+		const questionsRef = collection(firestore, `tests/${testId}/questions`);
 
 		// Fetch questions ordered by their explicit `order` field. Every
 		// write path (createTest, updateTest, addQuestionToTest,
@@ -245,60 +228,17 @@ export const getTest = async (
 			query(questionsRef, orderBy("order", "asc"))
 		);
 
-		console.log(
-			"getTest() - Raw questions query result size:",
-			querySnapshot.size
-		);
-		console.log("getTest() - Raw questions query empty:", querySnapshot.empty);
-
-		// Log each document
-		querySnapshot.docs.forEach((doc, index) => {
-			console.log(`getTest() - Ordered document ${index + 1}:`, doc.id);
-			console.log(`getTest() - Document ${index + 1} data:`, doc.data());
-		});
-
-		// Try a simple document-to-question conversion first
-		const simpleQuestions = querySnapshot.docs.map((doc) => {
-			return {
-				id: doc.id,
-				...doc.data(),
-			};
-		});
-		console.log(
-			"getTest() - Simple questions conversion count:",
-			simpleQuestions.length
-		);
-		if (simpleQuestions.length > 0) {
-			console.log(
-				"getTest() - First simple question structure:",
-				JSON.stringify(simpleQuestions[0])
-			);
-		}
-
 		// Map the documents to questions with more validation
 		const questions: Question[] = [];
 		for (const doc of querySnapshot.docs) {
 			try {
 				const data = doc.data();
-				console.log(`getTest() - Processing question ${doc.id}:`, data);
 
 				// Check for required fields
 				if (!data.type) {
-					console.warn(
-						`getTest() - Document ${doc.id} missing 'type' field:`,
-						data
-					);
+					console.warn(`getTest() - Document ${doc.id} missing 'type' field`);
 					continue; // Skip this document as we can't determine question type
 				}
-
-				// Log fields present
-				console.log(`getTest() - Question ${doc.id} field checks:`, {
-					type: data.type,
-					hasText: data.text !== undefined,
-					hasOrder: data.order !== undefined,
-					hasCreatedAt: data.createdAt !== undefined,
-					otherFields: Object.keys(data),
-				});
 
 				// Create question based on type
 				let question: Question;
@@ -405,19 +345,12 @@ export const getTest = async (
 				}
 
 				questions.push(question);
-				console.log(`getTest() - Successfully processed question ${doc.id}`);
 			} catch (err) {
 				console.error(`getTest() - Error processing question ${doc.id}:`, err);
 			}
 		}
 
-		console.log(
-			"getTest() - Final processed questions count:",
-			questions.length
-		);
-		if (questions.length > 0) {
-			console.log("getTest() - First processed question:", questions[0]);
-		} else {
+		if (questions.length === 0 && !querySnapshot.empty) {
 			console.warn("getTest() - No questions were successfully processed!");
 		}
 
@@ -557,16 +490,17 @@ export const setAssignedClasses = async (
  * @param testId - The ID of the test to update
  * @param test - The updated test data
  * @param questions - Array of questions for the test (optional)
- * @returns Promise that resolves when the update is complete
+ * @returns The Firestore id of every question, in input order. Callers
+ * that keep questions in local state MUST apply these ids back —
+ * otherwise a second save re-inserts every id-less question as a
+ * duplicate.
  */
 export const updateTest = async (
 	testId: string,
 	test: Partial<Test>,
 	questions?: Question[]
-): Promise<void> => {
+): Promise<string[]> => {
 	try {
-		console.log("updateTest() - Updating test with ID:", testId);
-		console.log("updateTest() - Questions provided:", questions?.length || 0);
 
 		// Update the test document. The SDK rejects `undefined` field
 		// values outright, so translate them to deleteField() — callers
@@ -583,8 +517,8 @@ export const updateTest = async (
 		});
 
 		// If questions are provided, update them
+		const questionIds: string[] = [];
 		if (questions && questions.length > 0) {
-			console.log("updateTest() - Updating questions for test");
 
 			// Get existing questions to compare
 			const questionsRef = collection(firestore, `tests/${testId}/questions`);
@@ -594,8 +528,6 @@ export const updateTest = async (
 				...doc.data()
 			}));
 
-			console.log("updateTest() - Existing questions:", existingQuestions.length);
-			console.log("updateTest() - New questions:", questions.length);
 
 			// Create a batch for efficient updates
 			const batch = writeBatch(firestore);
@@ -603,25 +535,31 @@ export const updateTest = async (
 			// Process each question
 			for (let i = 0; i < questions.length; i++) {
 				const question = questions[i];
-				
+
 				// Clean the question object to remove undefined values
 				const cleanQuestion: Record<string, any> = { ...question };
-				
+
 				// Remove undefined values to prevent Firestore errors
 				Object.keys(cleanQuestion).forEach(key => {
 					if (cleanQuestion[key] === undefined) {
 						delete cleanQuestion[key];
 					}
 				});
-				
+
+				// The doc id is the document's name, not part of its data —
+				// don't write it into the document body.
+				const existingId: string | undefined = cleanQuestion.id;
+				delete cleanQuestion.id;
+
 				// If the question has an ID, update it
-				if (cleanQuestion.id) {
-					const questionRef = doc(questionsRef, cleanQuestion.id);
+				if (existingId) {
+					const questionRef = doc(questionsRef, existingId);
 					batch.update(questionRef, {
 						...cleanQuestion,
 						order: i,
 						updatedAt: serverTimestamp()
 					});
+					questionIds.push(existingId);
 				} else {
 					// If it's a new question, add it
 					const newQuestionRef = doc(questionsRef);
@@ -630,6 +568,7 @@ export const updateTest = async (
 						order: i,
 						createdAt: serverTimestamp()
 					});
+					questionIds.push(newQuestionRef.id);
 				}
 			}
 
@@ -642,14 +581,13 @@ export const updateTest = async (
 				if (id && !newIds.has(id)) {
 					const questionRef = doc(questionsRef, id);
 					batch.delete(questionRef);
-					console.log("updateTest() - Deleting question:", id);
 				}
 			});
 
 			// Commit all the changes
 			await batch.commit();
-			console.log("updateTest() - Batch committed successfully");
 		}
+		return questionIds;
 	} catch (error) {
 		console.error("Error updating test:", error);
 		throw error;
@@ -717,20 +655,13 @@ export const addQuestionToTest = async (
 	question: Question
 ): Promise<string> => {
 	try {
-		console.log("addQuestionToTest() - Adding question to test:", testId);
-		console.log("addQuestionToTest() - Question type:", question.type);
 
 		// Get the current count of questions to determine the order
 		const questionsPath = `tests/${testId}/questions`;
-		console.log(
-			"addQuestionToTest() - Questions collection path:",
-			questionsPath
-		);
 
 		const questionsRef = collection(firestore, questionsPath);
 		const querySnapshot = await getDocs(questionsRef);
 		const currentCount = querySnapshot.size;
-		console.log("addQuestionToTest() - Current question count:", currentCount);
 
 		// Prepare question data with order and timestamp
 		const questionData = {
@@ -738,20 +669,14 @@ export const addQuestionToTest = async (
 			order: currentCount,
 			createdAt: serverTimestamp(),
 		};
-		console.log(
-			"addQuestionToTest() - Prepared question data:",
-			JSON.stringify(questionData, null, 2)
-		);
 
 		// Add the new question with the next order value
 		const docRef = await addDoc(questionsRef, questionData);
-		console.log("addQuestionToTest() - Question added with ID:", docRef.id);
 
 		// Update the test's updatedAt timestamp
 		await updateDoc(doc(firestore, "tests", testId), {
 			updatedAt: serverTimestamp(),
 		});
-		console.log("addQuestionToTest() - Test updatedAt timestamp updated");
 
 		return docRef.id;
 	} catch (error) {
@@ -809,15 +734,20 @@ export const deleteTest = async (testId: string): Promise<void> => {
 	try {
 		// Get all questions AND submissions in the test so we cascade
 		// the delete and don't leave orphan docs that would still incur
-		// read costs and clutter the console.
+		// read costs and clutter the console. The test doc itself is also
+		// read: if it has an active quickCode, the quickCodes/{code} doc
+		// must go too — an orphaned code would still resolve at login and
+		// then dead-end the student on a deleted test.
 		const questionsRef = collection(firestore, `tests/${testId}/questions`);
 		const submissionsRef = collection(
 			firestore,
 			`tests/${testId}/submissions`
 		);
-		const [questionsSnap, submissionsSnap] = await Promise.all([
+		const testRef = doc(firestore, "tests", testId);
+		const [questionsSnap, submissionsSnap, testSnap] = await Promise.all([
 			getDocs(questionsRef),
 			getDocs(submissionsRef),
+			getDoc(testRef),
 		]);
 
 		// Use a batch to delete everything atomically. Firestore batches
@@ -828,8 +758,12 @@ export const deleteTest = async (testId: string): Promise<void> => {
 		questionsSnap.docs.forEach((d) => batch.delete(d.ref));
 		submissionsSnap.docs.forEach((d) => batch.delete(d.ref));
 
+		const quickCode = testSnap.data()?.quickCode;
+		if (typeof quickCode === "string" && quickCode) {
+			batch.delete(doc(firestore, "quickCodes", quickCode));
+		}
+
 		// Add the test document to the batch for deletion
-		const testRef = doc(firestore, "tests", testId);
 		batch.delete(testRef);
 
 		// Commit the batch

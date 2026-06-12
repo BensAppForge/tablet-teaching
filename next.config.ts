@@ -10,10 +10,10 @@ const pkg = JSON.parse(
 );
 
 const nextConfig: NextConfig = {
-	/* config options here */
-	typescript: {
-		ignoreBuildErrors: true,
-	},
+	// Type errors fail the build (tsc is clean — keep it that way).
+	// ESLint stays out of the build for now: the backlog of style-level
+	// findings (unused imports, no-explicit-any) would block deploys
+	// without making them safer. Run `next lint` manually.
 	eslint: {
 		ignoreDuringBuilds: true,
 	},

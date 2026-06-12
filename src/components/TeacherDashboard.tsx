@@ -4,7 +4,6 @@ import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import {
 	Eye,
-	Settings,
 	HelpCircle,
 	ClipboardList,
 	BadgeCheck,
@@ -124,25 +123,18 @@ const TeacherDashboard: React.FC = () => {
 							colorIndex={3}
 						/>
 
-						{/* Einstellungen */}
-						<DashboardTile
-							title="Einstellungen"
-							description="Konto und App-Einstellungen anpassen"
-							icon={<Settings />}
-							href="/settings"
-							colorIndex={4}
-						/>
+						{/* Einstellungen entfernt: es gibt (noch) keine Settings-
+						    Seite — Präferenzen leben im Zahnrad der Test-Übersicht.
+						    Tile wieder aufnehmen, sobald /settings existiert. */}
 
 						{/* Impressum */}
 						<DashboardTile
 							title="Impressum"
-							description="Rechtliche Informationen"
+							description="Rechtliche Informationen und Datenschutz"
 							icon={<Eye />}
 							href="/impressum"
 							colorIndex={5}
 						/>
-
-						{/* Datenschutz moved to footer only */}
 					</div>
 			</div>
 		</div>
