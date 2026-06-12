@@ -250,6 +250,11 @@ const TestResultsDialog: React.FC<Props> = ({ open, onOpenChange, test }) => {
 							<p className="text-sm text-muted-foreground">
 								Noch keine Ergebnisse für diesen Test.
 							</p>
+							<p className="text-xs text-muted-foreground mt-2 max-w-xs">
+								Hinweis: Nur Abgaben von Schüler:innen mit eigenem
+								Zugang werden gespeichert. Ergebnisse aus dem
+								Schnellzugang erscheinen hier nicht.
+							</p>
 						</div>
 					) : (
 						<div className="space-y-2 max-h-[60vh] overflow-y-auto">

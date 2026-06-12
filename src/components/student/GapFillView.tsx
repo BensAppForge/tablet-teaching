@@ -129,6 +129,12 @@ const GapFillView: React.FC<Props> = ({
 								value={value}
 								onChange={(e) => updateGap(seg.gapIndex, e.target.value)}
 								disabled={review}
+								// iOS would otherwise auto-capitalize and autocorrect
+								// foreign-language answers into German words the kid
+								// never typed — fatal in a language-learning app.
+								autoCorrect="off"
+								autoCapitalize="none"
+								spellCheck={false}
 								aria-label={`Lücke ${seg.gapIndex + 1}`}
 								className={[
 										"inline-block h-11 min-w-[6ch] w-auto px-2 text-base",

@@ -219,6 +219,9 @@ const VerticalReorderingView: React.FC<Props> = ({
 													onPointerDown={(e) => e.stopPropagation()}
 													onKeyDown={(e) => e.stopPropagation()}
 													disabled={review}
+													autoCorrect="off"
+													autoCapitalize="none"
+													spellCheck={false}
 													aria-label={`Lückentext an Position ${displayIndex + 1}`}
 													className={[
 														"h-11 px-2 text-sm flex-1",

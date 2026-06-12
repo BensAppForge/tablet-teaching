@@ -255,7 +255,10 @@ const ShareTestManagement: React.FC = () => {
 				<CardContent className="space-y-4">
 					<p className="text-sm text-muted-foreground">
 						Schüler:innen melden sich anonym mit Namen und Code an. Der
-						Zugang verfällt nach 24 Stunden automatisch.
+						Zugang verfällt nach 24 Stunden automatisch. Ergebnisse aus
+						dem Schnellzugang werden nicht gespeichert und erscheinen
+						nicht unter „Ergebnisse" — dafür braucht es Schülerzugänge
+						über eine Klasse.
 					</p>
 					<div className="flex items-center gap-3">
 						<Switch
