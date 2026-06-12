@@ -28,7 +28,8 @@ import { Label } from "@/components/ui/label";
 const StudentQuickLoginClient: React.FC = () => {
 	const router = useRouter();
 	const params = useSearchParams();
-	const { currentUser, role, anonAttempt, loading } = useAuth();
+	const { currentUser, role, anonAttempt, refreshAnonAttempt, loading } =
+		useAuth();
 	// Prefill the code from the URL (?code=...) so a kid arriving via the
 	// teacher-shared QR / link only has to type their name.
 	const initialCode = (params.get("code") ?? "").trim().toLowerCase();
@@ -91,6 +92,11 @@ const StudentQuickLoginClient: React.FC = () => {
 				teacherId: lookup.teacherId,
 				displayName: name,
 			});
+			// The auth listener already fetched quickAttempts/{uid} when
+			// signInAnonymously fired — BEFORE the doc existed — so the
+			// context is holding anonAttempt = null and the worksheet would
+			// wait forever. Refresh it now that the attempt is written.
+			await refreshAnonAttempt();
 			router.push(`/student/worksheet?id=${lookup.testId}`);
 		} catch (err: any) {
 			console.error("Quick login error:", err);

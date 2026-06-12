@@ -84,14 +84,17 @@ const TestsManagement: React.FC = () => {
 		router.push(`/edit-test?id=${testId}`);
 	};
 
-	const handleDeleteTest = async () => {
-		if (!testToDelete) return;
+	// Takes the id as a parameter: confirmDelete may call this in the same
+	// tick as setTestToDelete, before the state commit, so reading
+	// testToDelete here would see the previous value (null on first use).
+	const handleDeleteTest = async (testId: string | null) => {
+		if (!testId) return;
 
 		try {
-			await deleteTest(testToDelete);
-			setTests(tests.filter((test) => test.id !== testToDelete));
+			await deleteTest(testId);
+			// No local setTests needed — the onSnapshot subscription removes it.
 			toast.success("Test wurde erfolgreich gelöscht");
-			
+
 			// Save the "don't show again" preference if checked
 			if (dontShowAgain) {
 				updatePreference("confirmations", "deleteTest", false);
@@ -108,13 +111,13 @@ const TestsManagement: React.FC = () => {
 
 	const confirmDelete = (testId: string) => {
 		setTestToDelete(testId);
-		
+
 		// Check if we should show the confirmation dialog
 		if (preferences.confirmations.deleteTest) {
 			setDeleteDialogOpen(true);
 		} else {
 			// If confirmation is disabled, delete immediately
-			handleDeleteTest();
+			handleDeleteTest(testId);
 		}
 	};
 
@@ -337,7 +340,7 @@ const TestsManagement: React.FC = () => {
 						<AlertDialogCancel>Abbrechen</AlertDialogCancel>
 						<AlertDialogAction
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-							onClick={handleDeleteTest}
+							onClick={() => handleDeleteTest(testToDelete)}
 						>
 							Löschen
 						</AlertDialogAction>

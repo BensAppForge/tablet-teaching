@@ -117,8 +117,12 @@ const ShareTestManagement: React.FC = () => {
 		if (!test || !quickCode) return;
 		setBusy(true);
 		try {
-			await deleteQuickCode(quickCode);
+			// Test doc first, code doc second: if the second step fails, the
+			// UI correctly shows "deactivated" and a retry can clean up the
+			// code doc. The reverse order would leave the toggle claiming an
+			// active code that no longer resolves.
 			await updateTest(test.id!, { quickCode: undefined });
+			await deleteQuickCode(quickCode);
 			setTest({ ...test, quickCode: undefined });
 			toast.success("Schnellzugang deaktiviert");
 		} catch (err) {

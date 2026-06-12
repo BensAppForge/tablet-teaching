@@ -54,6 +54,7 @@ interface AuthContextType {
 	teacherData: TeacherData | null; // The teacher's Firestore data or null if not available
 	studentData: StudentData | null; // The student's Firestore data or null if not available
 	anonAttempt: QuickAttempt | null; // The Schnellzugang attempt for anonymous students
+	refreshAnonAttempt: () => Promise<void>; // Re-fetch quickAttempts/{uid} (see quick-login flow)
 	loading: boolean; // Flag to indicate if the auth state is still being determined
 	logout: () => Promise<void>; // Function to handle user logout
 	isPremiumActive: boolean; // Computed property to check if premium is active
@@ -131,6 +132,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 		};
 	}, [isPremiumActive]);
 
+	// Applies the shared expiry policy: attempts past their expiresAt are
+	// treated as logged-out client-side even before the cleanup Function runs.
+	const applyAnonAttempt = (attempt: QuickAttempt | null) => {
+		if (attempt) {
+			const expiresMs = attempt.expiresAt?.toMillis?.() ?? 0;
+			setAnonAttempt(expiresMs && expiresMs < Date.now() ? null : attempt);
+		} else {
+			setAnonAttempt(null);
+		}
+	};
+
+	// Re-fetches quickAttempts/{uid} for the current anonymous user.
+	// Needed by the quick-login flow: onAuthStateChanged fires (and reads
+	// the attempt doc) immediately after signInAnonymously — usually BEFORE
+	// createQuickAttempt has written it — so the initial load settles with
+	// anonAttempt = null and the worksheet would spin forever. The login
+	// page awaits this after creating the attempt, before navigating.
+	const refreshAnonAttempt = async () => {
+		const user = auth.currentUser;
+		if (!user || !user.isAnonymous) return;
+		try {
+			applyAnonAttempt(await getQuickAttempt(user.uid));
+		} catch (err) {
+			console.error("Error refreshing quick attempt:", err);
+		}
+	};
+
 	useEffect(() => {
 		// onAuthStateChanged fires immediately with the current state and
 		// again whenever auth changes. We branch on the `role` custom claim
@@ -156,20 +184,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 					setRole("anonymous");
 					setTeacherData(null);
 					setStudentData(null);
-					const attempt = await getQuickAttempt(user.uid);
-					// Drop attempts that have expired since the user's last visit
-					// (the cleanup Function may not have run yet, but we treat
-					// expired attempts as logged-out from the client side).
-					if (attempt) {
-						const expiresMs = attempt.expiresAt?.toMillis?.() ?? 0;
-						if (expiresMs && expiresMs < Date.now()) {
-							setAnonAttempt(null);
-						} else {
-							setAnonAttempt(attempt);
-						}
-					} else {
-						setAnonAttempt(null);
-					}
+					applyAnonAttempt(await getQuickAttempt(user.uid));
 				} else {
 					setAnonAttempt(null);
 					const tokenResult = await user.getIdTokenResult();
@@ -234,6 +249,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 		teacherData,
 		studentData,
 		anonAttempt,
+		refreshAnonAttempt,
 		loading,
 		logout,
 		isPremiumActive,

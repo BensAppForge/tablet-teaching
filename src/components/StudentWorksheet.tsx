@@ -162,6 +162,18 @@ const StudentWorksheet: React.FC = () => {
 	const [confirmOpen, setConfirmOpen] = useState(false);
 	const [retakeOpen, setRetakeOpen] = useState(false);
 	const [generatingPdf, setGeneratingPdf] = useState(false);
+	// Sync bookkeeping (managed students only — Schnellzugang stays
+	// local-only). `synced` tracks whether the current result reached
+	// Firestore; `remoteSubmissionId` is the latest known remote doc;
+	// `ignoreSubmissionId` marks a remote result superseded by a local
+	// "Neu starten" so it doesn't resurrect on reload.
+	const [synced, setSynced] = useState(true);
+	const [remoteSubmissionId, setRemoteSubmissionId] = useState<string | null>(
+		null
+	);
+	const [ignoreSubmissionId, setIgnoreSubmissionId] = useState<string | null>(
+		null
+	);
 
 	// Load test + restore any saved attempt for this (user, test). Two
 	// identity paths: managed students fetch their class; Schnellzugang
@@ -215,7 +227,12 @@ const StudentWorksheet: React.FC = () => {
 							currentUser.uid
 						);
 						if (cancelled) return;
-						if (remote) {
+						// A remote result the student superseded with a local
+						// "Neu starten" must not resurrect — stay in take mode
+						// while the latest remote doc is still that one.
+						const retakeActive =
+							!!remote?.id && stored?.ignoreSubmissionId === remote.id;
+						if (remote && !retakeActive) {
 							setAnswers(stored?.answers || {});
 							setSubmitted({
 								submittedAt:
@@ -224,13 +241,51 @@ const StudentWorksheet: React.FC = () => {
 								totalPossible: remote.totalPossible,
 								perQuestion: remote.perQuestion,
 							});
+							setSynced(true);
+							setRemoteSubmissionId(remote.id ?? null);
+							setIgnoreSubmissionId(null);
+						} else if (retakeActive) {
+							setAnswers(stored?.answers || {});
+							setSubmitted(null);
+							setRemoteSubmissionId(remote?.id ?? null);
+							setIgnoreSubmissionId(stored?.ignoreSubmissionId ?? null);
+						} else if (stored?.submitted && stored.synced === false) {
+							// The upload never reached the server (offline iPad,
+							// rules hiccup). Keep the local result — clearing it
+							// here would destroy the student's work — and retry
+							// the upload now. Safe from duplicates: we only get
+							// here when the server has no submission.
+							setAnswers(stored.answers || {});
+							setSubmitted(stored.submitted);
+							setSynced(false);
+							if (studentData) {
+								createSubmission(testId, {
+									studentId: currentUser.uid,
+									studentName: `${studentData.firstName} ${studentData.lastInitial}`,
+									classId: studentData.classId,
+									totalEarned: stored.submitted.totalEarned,
+									totalPossible: stored.submitted.totalPossible,
+									perQuestion: stored.submitted.perQuestion,
+								})
+									.then((id) => {
+										if (!cancelled) {
+											setSynced(true);
+											setRemoteSubmissionId(id);
+										}
+									})
+									.catch((err) =>
+										console.error("Submission retry failed:", err)
+									);
+							}
 						} else if (stored?.submitted) {
-							// Local says submitted, server says no — teacher
-							// wiped the result. Clear local entirely so the
-							// student gets a true fresh start.
+							// Local says submitted AND synced, server says no —
+							// teacher wiped the result. Clear local entirely so
+							// the student gets a true fresh start.
 							clearAttempt(currentUser.uid, testId);
 							setAnswers({});
 							setSubmitted(null);
+							setSynced(true);
+							setIgnoreSubmissionId(null);
 						} else if (stored) {
 							setAnswers(stored.answers || {});
 							setSubmitted(null);
@@ -243,6 +298,8 @@ const StudentWorksheet: React.FC = () => {
 						if (stored) {
 							setAnswers(stored.answers || {});
 							setSubmitted(stored.submitted ?? null);
+							setSynced(stored.synced !== false);
+							setIgnoreSubmissionId(stored.ignoreSubmissionId ?? null);
 						}
 					}
 				} else if (stored) {
@@ -267,8 +324,18 @@ const StudentWorksheet: React.FC = () => {
 		saveAttempt(currentUser.uid, testId, {
 			answers,
 			submitted: submitted ?? undefined,
+			synced: submitted ? synced : undefined,
+			ignoreSubmissionId: ignoreSubmissionId ?? undefined,
 		});
-	}, [answers, submitted, currentUser, testId, loading]);
+	}, [
+		answers,
+		submitted,
+		synced,
+		ignoreSubmissionId,
+		currentUser,
+		testId,
+		loading,
+	]);
 
 	const setAnswerFor = useCallback(
 		(qId: string) => (a: unknown) => {
@@ -300,10 +367,12 @@ const StudentWorksheet: React.FC = () => {
 
 		// Persist the submission to Firestore so the teacher can review
 		// it. Managed students only — Schnellzugang kids stay local-only
-		// by design. Fire-and-forget: the local result is already saved,
-		// so a server-side failure shouldn't block the UI or alarm the
-		// student.
+		// by design. The UI doesn't block on the write, but the synced
+		// flag records the outcome: an unsynced result is retried on the
+		// next load instead of being mistaken for a teacher delete.
 		if (role === "student" && studentData && currentUser) {
+			setSynced(false);
+			setIgnoreSubmissionId(null);
 			createSubmission(testId, {
 				studentId: currentUser.uid,
 				studentName: `${studentData.firstName} ${studentData.lastInitial}`,
@@ -311,9 +380,17 @@ const StudentWorksheet: React.FC = () => {
 				totalEarned: submission.totalEarned,
 				totalPossible: submission.totalPossible,
 				perQuestion: submission.perQuestion,
-			}).catch((err) => {
-				console.error("Failed to persist submission to Firestore:", err);
-			});
+			})
+				.then((id) => {
+					setSynced(true);
+					setRemoteSubmissionId(id);
+				})
+				.catch((err) => {
+					console.error("Failed to persist submission to Firestore:", err);
+					toast.info(
+						"Dein Ergebnis ist gespeichert und wird beim nächsten Öffnen automatisch übertragen."
+					);
+				});
 		}
 	};
 
@@ -322,6 +399,12 @@ const StudentWorksheet: React.FC = () => {
 		clearAttempt(currentUser.uid, testId);
 		setAnswers({});
 		setSubmitted(null);
+		setSynced(true);
+		// Students can't delete their remote submission (teacher-only by
+		// rules), so mark it superseded instead — the load logic keeps the
+		// worksheet in take mode while the latest remote doc is this one.
+		// The next submit creates a newer submission, which wins naturally.
+		setIgnoreSubmissionId(remoteSubmissionId);
 		setRetakeOpen(false);
 	};
 

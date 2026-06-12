@@ -14,6 +14,7 @@ import {
 	Unsubscribe,
 	serverTimestamp,
 	writeBatch,
+	deleteField,
 } from "firebase/firestore";
 import { firestore } from "./config";
 import { canCreateTest } from "./teachers";
@@ -567,10 +568,17 @@ export const updateTest = async (
 		console.log("updateTest() - Updating test with ID:", testId);
 		console.log("updateTest() - Questions provided:", questions?.length || 0);
 
-		// Update the test document
+		// Update the test document. The SDK rejects `undefined` field
+		// values outright, so translate them to deleteField() — callers
+		// pass e.g. { quickCode: undefined } to mean "remove the field"
+		// (ShareTestManagement does this when disabling Schnellzugang).
+		const testUpdate: Record<string, unknown> = {};
+		for (const [key, value] of Object.entries(test)) {
+			testUpdate[key] = value === undefined ? deleteField() : value;
+		}
 		const testRef = doc(firestore, "tests", testId);
 		await updateDoc(testRef, {
-			...test,
+			...testUpdate,
 			updatedAt: serverTimestamp(),
 		});
 

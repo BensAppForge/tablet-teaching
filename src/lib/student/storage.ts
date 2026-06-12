@@ -8,6 +8,21 @@
 export interface StoredAttempt {
 	answers: Record<string, unknown>;
 	submitted?: SubmissionResult;
+	/**
+	 * False while a managed student's submission has not (yet) reached
+	 * Firestore — the worksheet retries the upload on next load instead
+	 * of treating the missing remote doc as a teacher delete. Missing or
+	 * true means "assume it's on the server": legacy entries predate this
+	 * flag and must keep clear-on-missing semantics, otherwise results a
+	 * teacher already deleted would re-upload themselves.
+	 */
+	synced?: boolean;
+	/**
+	 * Remote submission id superseded by a local "Neu starten". While the
+	 * latest remote submission still has this id, the worksheet stays in
+	 * fresh-take mode instead of resurrecting the old result on reload.
+	 */
+	ignoreSubmissionId?: string;
 }
 
 export interface SubmissionResult {
