@@ -15,13 +15,12 @@ export default function ImpressumPage() {
 					<h2 className="text-base font-semibold mb-2">
 						Angaben gemäß § 5 DDG
 					</h2>
-					<p>
-						Antonio Bentivoglio (Bensappforge)
-						<br />
-						{/* TODO: Anschrift vor Veröffentlichung eintragen */}
-						[Straße und Hausnummer]
-						<br />
-						[PLZ und Ort]
+					<p>Antonio Bentivoglio (Bensappforge)</p>
+					<p className="mt-2 text-muted-foreground">
+						Tablet Teaching befindet sich derzeit in einer geschlossenen
+						Beta-Phase und ist nicht öffentlich verfügbar. Die
+						vollständigen Anbieterangaben werden vor der Veröffentlichung
+						ergänzt.
 					</p>
 				</div>
 
