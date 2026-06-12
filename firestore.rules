@@ -2,9 +2,21 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Teachers can read/write their own teacher profile
+    // Teachers can read their own profile and maintain its plain fields.
+    // The privilege flags (isPremium, isBetaTester, premiumExpiresOn) are
+    // server-managed: the Cloud Functions AI quota trusts them, so they
+    // must never be client-writable. Signup may create the doc only with
+    // both flags false; updates must not touch them (Admin SDK only).
     match /teachers/{teacherId} {
-      allow read, write: if request.auth != null && request.auth.uid == teacherId;
+      allow read: if request.auth != null && request.auth.uid == teacherId;
+      allow create: if request.auth != null && request.auth.uid == teacherId
+        && request.resource.data.get('isPremium', false) == false
+        && request.resource.data.get('isBetaTester', false) == false
+        && !request.resource.data.keys().hasAny(['premiumExpiresOn']);
+      allow update: if request.auth != null && request.auth.uid == teacherId
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['isPremium', 'isBetaTester', 'premiumExpiresOn']);
+      allow delete: if false;
     }
 
     // Tests collection. Reads are scoped:
@@ -14,30 +26,59 @@ service cloud.firestore {
     //     the test's assignedClassIds list). Their list query MUST
     //     include `where("assignedClassIds", "array-contains", classId)`
     //     for the rule to be satisfiable.
-    //   - Anonymous Schnellzugang users can read any test — they
-    //     arrived via a quickCodes/{code} lookup that bound them to a
-    //     specific test, and the worksheet itself re-checks testId
-    //     against their quickAttempts doc.
+    //   - Anonymous Schnellzugang users can `get` only the single test
+    //     their quickAttempts/{uid} doc binds them to. They must never
+    //     satisfy `list` — a resource-independent anonymous clause would
+    //     let any signInAnonymously() caller dump every teacher's tests.
     match /tests/{testId} {
-      allow read: if request.auth != null && (
+      allow get: if request.auth != null && (
         resource.data.teacherId == request.auth.uid ||
         (
           request.auth.token.role == 'student' &&
           resource.data.get('assignedClassIds', []).hasAny([request.auth.token.classId])
         ) ||
-        request.auth.token.firebase.sign_in_provider == 'anonymous'
+        (
+          request.auth.token.firebase.sign_in_provider == 'anonymous' &&
+          get(/databases/$(database)/documents/quickAttempts/$(request.auth.uid)).data.testId == testId
+        )
       );
-      allow create, update: if request.auth != null && request.resource.data.teacherId == request.auth.uid;
-      allow delete: if request.auth != null && get(/databases/$(database)/documents/tests/$(testId)).data.teacherId == request.auth.uid;
+      allow list: if request.auth != null && (
+        resource.data.teacherId == request.auth.uid ||
+        (
+          request.auth.token.role == 'student' &&
+          resource.data.get('assignedClassIds', []).hasAny([request.auth.token.classId])
+        )
+      );
+      // Only real teachers (doc in /teachers) may create, only as themselves.
+      // Without the exists() check a managed student could create a test
+      // owned by their own uid and assign it to their class.
+      allow create: if request.auth != null
+        && request.resource.data.teacherId == request.auth.uid
+        && exists(/databases/$(database)/documents/teachers/$(request.auth.uid));
+      // Update requires CURRENT ownership and teacherId is immutable.
+      // Checking request.resource.data alone would let any teacher hijack
+      // a test by writing their own uid into teacherId.
+      allow update: if request.auth != null
+        && resource.data.teacherId == request.auth.uid
+        && request.resource.data.teacherId == resource.data.teacherId;
+      allow delete: if request.auth != null && resource.data.teacherId == request.auth.uid;
     }
 
-    // Questions are subcollections of tests.
-    // Reads are open to any signed-in user so students can render the
-    // worksheet. TODO: tighten with class-assignment rules once
-    // tests get an `assignedClassIds` field — for now any authenticated
-    // user (teacher or student) can read any test's questions.
+    // Questions are subcollections of tests and contain the correct
+    // answers, so reads are gated exactly like the parent test: owner,
+    // class-assigned student, or the bound Schnellzugang user.
     match /tests/{testId}/questions/{questionId} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null && (
+        get(/databases/$(database)/documents/tests/$(testId)).data.teacherId == request.auth.uid ||
+        (
+          request.auth.token.role == 'student' &&
+          get(/databases/$(database)/documents/tests/$(testId)).data.get('assignedClassIds', []).hasAny([request.auth.token.classId])
+        ) ||
+        (
+          request.auth.token.firebase.sign_in_provider == 'anonymous' &&
+          get(/databases/$(database)/documents/quickAttempts/$(request.auth.uid)).data.testId == testId
+        )
+      );
       allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/tests/$(testId)).data.teacherId == request.auth.uid;
     }
 
@@ -47,6 +88,9 @@ service cloud.firestore {
     //     class. Schnellzugang (anonymous) submissions are NOT persisted
     //     — kids using a quick code don't have a class claim, so the
     //     create rule rejects them by design.
+    //   - Scores are graded client-side, so the rule at least enforces
+    //     shape and range (earned within [0, possible]); teachers should
+    //     still treat scores as student-asserted.
     //   - The owning teacher can read all submissions and delete any.
     //   - A student can read their own submission(s) — needed so the
     //     worksheet treats Firestore as source of truth: if the teacher
@@ -59,7 +103,14 @@ service cloud.firestore {
         && request.auth.token.role == 'student'
         && request.resource.data.studentId == request.auth.uid
         && request.resource.data.classId == request.auth.token.classId
-        && get(/databases/$(database)/documents/tests/$(testId)).data.assignedClassIds.hasAny([request.auth.token.classId]);
+        && get(/databases/$(database)/documents/tests/$(testId)).data.assignedClassIds.hasAny([request.auth.token.classId])
+        && request.resource.data.studentName is string
+        && request.resource.data.studentName.size() <= 80
+        && request.resource.data.totalEarned is number
+        && request.resource.data.totalPossible is number
+        && request.resource.data.totalEarned >= 0
+        && request.resource.data.totalEarned <= request.resource.data.totalPossible
+        && request.resource.data.perQuestion is map;
       allow read: if request.auth != null && (
         get(/databases/$(database)/documents/tests/$(testId)).data.teacherId == request.auth.uid
         || resource.data.studentId == request.auth.uid
@@ -105,11 +156,14 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Schnellzugang code → test lookup. Reads open to any signed-in
-    // user (so anonymous students can resolve a code to a testId);
-    // writes restricted to the owning teacher.
+    // Schnellzugang code → test lookup. Point lookups (`get`) open to any
+    // signed-in user so anonymous students can resolve a code to a testId.
+    // `list` stays closed — the client only ever does getDoc(code), and a
+    // read rule covering list would let any signed-in user enumerate every
+    // active code together with its testId.
     match /quickCodes/{code} {
-      allow read: if request.auth != null;
+      allow get: if request.auth != null;
+      allow list: if false;
       allow create: if request.auth != null && request.resource.data.teacherId == request.auth.uid;
       allow delete: if request.auth != null && resource.data.teacherId == request.auth.uid;
     }
