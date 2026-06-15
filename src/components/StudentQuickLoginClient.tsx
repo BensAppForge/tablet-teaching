@@ -40,6 +40,12 @@ const StudentQuickLoginClient: React.FC = () => {
 
 	// If already a signed-in real student or teacher, route them away —
 	// quick-access is for kids without managed accounts.
+	//
+	// Anonymous users are deliberately NOT redirected here, even when they
+	// already have an attempt: this form is the only place to enter a code,
+	// so bouncing them to their current test would trap them on the old one
+	// when a teacher hands out a second code mid-lesson (they'd have to log
+	// out to escape). Resume-on-reopen still works via the /student root.
 	useEffect(() => {
 		if (loading || !currentUser) return;
 		if (role === "teacher") {
@@ -50,10 +56,17 @@ const StudentQuickLoginClient: React.FC = () => {
 			router.push("/student/dashboard");
 			return;
 		}
-		if (role === "anonymous" && anonAttempt?.testId) {
-			router.push(`/student/worksheet?id=${anonAttempt.testId}`);
+	}, [currentUser, role, loading, router]);
+
+	// Returning kid with an existing attempt: prefill their saved name once
+	// so switching to a new code is just "type code → Loslegen".
+	const namePrefilled = React.useRef(false);
+	useEffect(() => {
+		if (!namePrefilled.current && anonAttempt?.displayName) {
+			setDisplayName((cur) => cur || anonAttempt.displayName);
+			namePrefilled.current = true;
 		}
-	}, [currentUser, role, anonAttempt, loading, router]);
+	}, [anonAttempt]);
 
 	const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -123,6 +136,28 @@ const StudentQuickLoginClient: React.FC = () => {
 						</CardDescription>
 					</CardHeader>
 					<CardContent>
+						{role === "anonymous" && anonAttempt?.testId && (
+							<div className="mb-5 rounded-md border border-primary/30 bg-primary/5 px-3 py-3 text-sm">
+								<p className="text-muted-foreground">
+									Du arbeitest gerade an einem Test. Gib einen neuen
+									Code ein, um zu einem anderen Test zu wechseln.
+								</p>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									className="mt-2 w-full sm:w-auto"
+									onClick={() =>
+										router.push(
+											`/student/worksheet?id=${anonAttempt.testId}`
+										)
+									}
+									disabled={isLoading}
+								>
+									Weiter mit dem aktuellen Test
+								</Button>
+							</div>
+						)}
 						<form onSubmit={handleSubmit} className="grid gap-5">
 							<div className="grid gap-2">
 								<Label htmlFor="quick-name" className="text-base">
