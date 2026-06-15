@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
   Card,
@@ -59,6 +59,12 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ConfirmationDialog } from "@/components/ui/confirmation-dialog";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
 import TestGeneralSettingsForm, { TestGeneralSettings } from "@/components/TestGeneralSettingsForm";
+import CollectionPicker from "@/components/CollectionPicker";
+import {
+  subscribeToTeacherCollections,
+  setTestCollection,
+  TestCollection,
+} from "@/lib/firebase/collections";
 import {
   MultipleChoiceEditor,
   TrueFalseEditor,
@@ -113,8 +119,9 @@ const AI_MAX_IMAGES = 6;
 
 const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { currentUser } = useAuth();
-  
+
   // State for general test settings with safe default values
   const [testSettings, setTestSettings] = useState<TestGeneralSettings>({
     title: "Neuer Test",
@@ -123,6 +130,16 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
     cefrLevel: "B1",
     defaultCreditPoints: 1,
   });
+
+  // Collection (virtual folder) this test belongs to. In create mode it's
+  // held locally and written by createTest; in edit mode the picker writes
+  // it immediately (a move action, like the test card's), so it's not part
+  // of the unsaved-changes baseline. Defaults from ?collection= when the
+  // teacher creates a test from inside a folder.
+  const [collections, setCollections] = useState<TestCollection[]>([]);
+  const [collectionId, setCollectionId] = useState<string | null>(
+    () => (!testId ? searchParams.get("collection") : null)
+  );
   
   // State for questions
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -210,6 +227,17 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
       loadTest();
     }
   }, [testId, currentUser]);
+
+  // Keep the teacher's collection list in sync for the picker.
+  useEffect(() => {
+    if (!currentUser) return;
+    const unsub = subscribeToTeacherCollections(
+      currentUser.uid,
+      setCollections,
+      (err) => console.error("Error loading collections:", err)
+    );
+    return () => unsub();
+  }, [currentUser]);
   
   const loadTest = async () => {
     if (!testId) return;
@@ -227,6 +255,9 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
         defaultCreditPoints: test.defaultCreditPoints,
       });
       
+      // Collection membership (edit mode reflects the stored value).
+      setCollectionId(test.collectionId ?? null);
+
       // Set questions
       setQuestions(loadedQuestions);
       setQuestionKeys(loadedQuestions.map((q) => q.id ?? makeQuestionKey()));
@@ -250,6 +281,21 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
   
   const handleTestSettingsChange = (settings: TestGeneralSettings) => {
     setTestSettings(settings);
+  };
+
+  // In edit mode the collection change is a move action — persist it
+  // right away (matching the test card). In create mode there's no doc
+  // yet, so just hold it until the test is saved.
+  const handleCollectionChange = async (id: string | null) => {
+    setCollectionId(id);
+    if (testId) {
+      try {
+        await setTestCollection(testId, id);
+      } catch (err) {
+        console.error(err);
+        toast.error("Sammlung konnte nicht geändert werden");
+      }
+    }
   };
   
   const handleQuestionChange = (index: number, updatedQuestion: Question) => {
@@ -584,7 +630,13 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
       };
 
       if (testId) {
-        const savedIds = await updateTest(testId, testData, questions);
+        // Pass collectionId explicitly (null → undefined) so updateTest
+        // removes the field when the test is moved to "Ohne Sammlung".
+        const savedIds = await updateTest(
+          testId,
+          { ...testData, collectionId: collectionId ?? undefined },
+          questions
+        );
         // Apply the Firestore ids to local state — without this, a second
         // save in the same session re-inserts every new question as a
         // duplicate (the local copies would still be id-less).
@@ -595,7 +647,12 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
         baselineRef.current = snapshotState(testSettings, savedQuestions);
         toast.success("Test erfolgreich aktualisiert");
       } else {
-        await createTest(testData, questions);
+        // Only attach collectionId when set — createTest doesn't strip
+        // undefined from the test object and Firestore rejects undefined.
+        await createTest(
+          collectionId ? { ...testData, collectionId } : testData,
+          questions
+        );
         // Mark pristine before navigating so no stale unload warning fires.
         baselineRef.current = snapshotState(testSettings, questions);
         toast.success("Test erfolgreich erstellt");
@@ -766,6 +823,19 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
             onChange={handleTestSettingsChange}
             mode={testId ? "edit" : "create"}
           />
+          <div className="mt-6 max-w-sm">
+            <Label htmlFor="collection-picker">Sammlung</Label>
+            <div className="mt-1">
+              <CollectionPicker
+                collections={collections}
+                value={collectionId}
+                onChange={handleCollectionChange}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Optionaler Ordner zur Organisation deiner Tests.
+            </p>
+          </div>
         </CardContent>
       </Card>
 

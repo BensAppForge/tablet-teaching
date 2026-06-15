@@ -122,6 +122,12 @@ export interface Test {
 	// student sees the test until the teacher assigns it.
 	// Schnellzugang students bypass this list entirely.
 	assignedClassIds?: string[];
+	// Optional id of the teacher's collection (virtual folder) this test
+	// belongs to; doc lives at collections/{collectionId}. Missing — or
+	// pointing at a deleted collection — means "Ohne Sammlung". The UI
+	// resolves unknown ids to the uncategorised bucket, so a dangling id
+	// is harmless.
+	collectionId?: string;
 	createdAt?: Timestamp;
 	updatedAt?: Timestamp;
 }

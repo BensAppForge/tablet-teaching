@@ -47,6 +47,20 @@
 			]
 		},
 		{
+			"collectionGroup": "tests",
+			"queryScope": "COLLECTION",
+			"fields": [
+				{
+					"fieldPath": "teacherId",
+					"order": "ASCENDING"
+				},
+				{
+					"fieldPath": "collectionId",
+					"order": "ASCENDING"
+				}
+			]
+		},
+		{
 			"collectionGroup": "students",
 			"queryScope": "COLLECTION",
 			"fields": [

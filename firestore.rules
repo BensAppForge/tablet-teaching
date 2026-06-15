@@ -120,6 +120,27 @@ service cloud.firestore {
       allow update: if false;
     }
 
+    // Collections: teacher-owned virtual folders for organising tests.
+    // Pure display metadata (name); the test↔collection link lives on the
+    // test's `collectionId` field, governed by the /tests update rule.
+    // Strictly owner-only — no student ever reads these.
+    match /collections/{collectionId} {
+      allow read: if request.auth != null && resource.data.teacherId == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.teacherId == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 60;
+      // teacherId is immutable; name stays bounded on rename.
+      allow update: if request.auth != null
+        && resource.data.teacherId == request.auth.uid
+        && request.resource.data.teacherId == resource.data.teacherId
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 60;
+      allow delete: if request.auth != null && resource.data.teacherId == request.auth.uid;
+    }
+
     // Classes: teacher-owned grouping of students.
     // Reads allowed for the owning teacher OR for a student whose
     // custom-claim classId matches this doc (so a student can render
