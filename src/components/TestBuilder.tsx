@@ -23,6 +23,7 @@ import {
   Paperclip,
   X,
   FileText,
+  ImageIcon,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -32,8 +33,11 @@ import {
   AiQuestionType,
   AiSourceFile,
   AiSourceFileMime,
+  AiSourceImage,
+  AiSourceImageMime,
   AI_SOURCE_DOCX_MIME,
   AI_SOURCE_PDF_MIME,
+  AI_SOURCE_IMAGE_MIMES,
   generateTestQuestions,
 } from "@/lib/firebase/ai";
 import {
@@ -74,6 +78,38 @@ import {
 interface TestBuilderProps {
   testId?: string; // Optional - if provided, we're editing an existing test
 }
+
+// Read a File into plain base64 (no "data:<mime>;base64," prefix), the
+// shape the callable expects for both documents and images.
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      const comma = result.indexOf(",");
+      if (comma < 0) reject(new Error("FileReader payload missing"));
+      else resolve(result.slice(comma + 1));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("read failed"));
+    reader.readAsDataURL(file);
+  });
+}
+
+// Resolve an accepted image MIME from a File. iOS sometimes reports an
+// empty file.type for HEIC, so fall back to the extension.
+function imageMimeFor(file: File): AiSourceImageMime | null {
+  if ((AI_SOURCE_IMAGE_MIMES as readonly string[]).includes(file.type))
+    return file.type as AiSourceImageMime;
+  const name = file.name.toLowerCase();
+  if (name.endsWith(".png")) return "image/png";
+  if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "image/jpeg";
+  if (name.endsWith(".webp")) return "image/webp";
+  if (name.endsWith(".heic")) return "image/heic";
+  if (name.endsWith(".heif")) return "image/heif";
+  return null;
+}
+
+const AI_MAX_IMAGES = 6;
 
 const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
   const router = useRouter();
@@ -158,6 +194,12 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
     (AiSourceFile & { sizeBytes: number }) | null
   >(null);
   const aiFileInputRef = React.useRef<HTMLInputElement | null>(null);
+  // Screenshots / photos read together as one visual source. Separate
+  // from the single PDF/DOCX picker above.
+  const [aiSourceImages, setAiSourceImages] = useState<
+    (AiSourceImage & { sizeBytes: number })[]
+  >([]);
+  const aiImageInputRef = React.useRef<HTMLInputElement | null>(null);
   // We no longer need this state since we're always showing the question selector
   // const [showQuestionSelector, setShowQuestionSelector] = useState(false);
   const [selectedQuestionType, setSelectedQuestionType] = useState<QuestionType>("multiple-choice");
@@ -286,19 +328,7 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
     }
 
     try {
-      const dataBase64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const result = reader.result as string;
-          // FileReader.readAsDataURL produces "data:<mime>;base64,<payload>".
-          // We send just the payload and pass mimeType separately.
-          const comma = result.indexOf(",");
-          if (comma < 0) reject(new Error("FileReader payload missing"));
-          else resolve(result.slice(comma + 1));
-        };
-        reader.onerror = () => reject(reader.error ?? new Error("read failed"));
-        reader.readAsDataURL(file);
-      });
+      const dataBase64 = await readFileAsBase64(file);
       setAiSourceFile({
         name: file.name,
         mimeType,
@@ -309,6 +339,66 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
       console.error(err);
       toast.error("Datei konnte nicht gelesen werden.", { duration: Infinity });
     }
+  };
+
+  const handleAiImageChange = async (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = Array.from(e.target.files ?? []);
+    // Reset so picking the same files again still fires onChange.
+    e.target.value = "";
+    if (!files.length) return;
+
+    // Running totals start from what's already attached (images + any
+    // document) so the combined payload stays under the callable limit.
+    let count = aiSourceImages.length;
+    let totalBytes =
+      aiSourceImages.reduce((s, i) => s + i.sizeBytes, 0) +
+      (aiSourceFile?.sizeBytes ?? 0);
+    const accepted: (AiSourceImage & { sizeBytes: number })[] = [];
+
+    try {
+      for (const file of files) {
+        if (count + accepted.length >= AI_MAX_IMAGES) {
+          toast.error(`Maximal ${AI_MAX_IMAGES} Bilder.`, {
+            duration: Infinity,
+          });
+          break;
+        }
+        const mimeType = imageMimeFor(file);
+        if (!mimeType) {
+          toast.error(`„${file.name}" ist kein unterstütztes Bildformat.`, {
+            duration: Infinity,
+          });
+          continue;
+        }
+        if (totalBytes + file.size > AI_FILE_MAX_BYTES) {
+          toast.error(
+            "Die Bilder sind zusammen zu groß (max. 7 MB). Bitte weniger oder kleinere Bilder wählen.",
+            { duration: Infinity }
+          );
+          break;
+        }
+        const dataBase64 = await readFileAsBase64(file);
+        accepted.push({
+          name: file.name,
+          mimeType,
+          dataBase64,
+          sizeBytes: file.size,
+        });
+        totalBytes += file.size;
+      }
+      if (accepted.length) {
+        setAiSourceImages((prev) => [...prev, ...accepted]);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("Bild konnte nicht gelesen werden.", { duration: Infinity });
+    }
+  };
+
+  const removeAiImage = (index: number) => {
+    setAiSourceImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleAiGenerate = async () => {
@@ -344,6 +434,13 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
           dataBase64: aiSourceFile.dataBase64,
         };
       }
+      if (aiSourceImages.length) {
+        input.sourceImages = aiSourceImages.map((img) => ({
+          name: img.name,
+          mimeType: img.mimeType,
+          dataBase64: img.dataBase64,
+        }));
+      }
       const res = await generateTestQuestions(input);
       if (!res.questions.length) {
         toast.error("Die KI hat keine Aufgaben erzeugt. Bitte erneut versuchen.", {
@@ -371,6 +468,7 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
       setAiPrompt("");
       setAiSourceText("");
       setAiSourceFile(null);
+      setAiSourceImages([]);
       setAiOpen(false);
       toast.success(`${res.questions.length} Aufgaben generiert`);
     } catch (err: any) {
@@ -778,6 +876,65 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
                         >
                           <Paperclip className="h-4 w-4 mr-2" />
                           Datei auswählen
+                        </Button>
+                      )}
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>
+                        Bilder / Screenshots (optional, bis zu {AI_MAX_IMAGES})
+                      </Label>
+                      <input
+                        ref={aiImageInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/heic,image/heif,.png,.jpg,.jpeg,.webp,.heic,.heif"
+                        multiple
+                        className="hidden"
+                        onChange={handleAiImageChange}
+                        disabled={aiGenerating}
+                      />
+                      {aiSourceImages.length > 0 && (
+                        <div className="space-y-2">
+                          {aiSourceImages.map((img, idx) => (
+                            <div
+                              key={`${img.name ?? "bild"}-${idx}`}
+                              className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2"
+                            >
+                              <ImageIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm truncate">
+                                  {img.name ?? `Bild ${idx + 1}`}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {(img.sizeBytes / 1024).toFixed(0)} KB
+                                </div>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeAiImage(idx)}
+                                disabled={aiGenerating}
+                                aria-label="Bild entfernen"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {aiSourceImages.length < AI_MAX_IMAGES && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-fit"
+                          onClick={() => aiImageInputRef.current?.click()}
+                          disabled={aiGenerating}
+                        >
+                          <ImageIcon className="h-4 w-4 mr-2" />
+                          {aiSourceImages.length > 0
+                            ? "Weitere Bilder"
+                            : "Bilder auswählen"}
                         </Button>
                       )}
                     </div>

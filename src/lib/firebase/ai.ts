@@ -19,6 +19,18 @@ export type AiSourceFileMime =
 	| typeof AI_SOURCE_PDF_MIME
 	| typeof AI_SOURCE_DOCX_MIME;
 
+// Image MIME types accepted for the "screenshot / photo" source path.
+// Gemini 2.5 Flash reads these natively as multimodal media parts, so no
+// OCR step is needed. iPad screenshots are PNG; camera photos are HEIC.
+export const AI_SOURCE_IMAGE_MIMES = [
+	"image/png",
+	"image/jpeg",
+	"image/webp",
+	"image/heic",
+	"image/heif",
+] as const;
+export type AiSourceImageMime = (typeof AI_SOURCE_IMAGE_MIMES)[number];
+
 export interface AiSourceFile {
 	name?: string;
 	mimeType: AiSourceFileMime;
@@ -27,10 +39,19 @@ export interface AiSourceFile {
 	dataBase64: string;
 }
 
+export interface AiSourceImage {
+	name?: string;
+	mimeType: AiSourceImageMime;
+	// Plain base64 (no "data:" URL prefix), same convention as AiSourceFile.
+	dataBase64: string;
+}
+
 export interface GenerateTestQuestionsInput {
 	prompt: string;
 	sourceText?: string;
 	sourceFile?: AiSourceFile;
+	// Multiple screenshots/photos read together as one visual source.
+	sourceImages?: AiSourceImage[];
 	language: string;
 	cefrLevel: "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 	count: number;

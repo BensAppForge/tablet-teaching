@@ -37,6 +37,23 @@ const PDF_MIME = "application/pdf";
 const DOCX_MIME =
 	"application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
+// Image MIME types passed straight to Gemini as multimodal media parts —
+// it reads the text in the picture itself, so no OCR step is needed.
+// Mirrors AI_SOURCE_IMAGE_MIMES on the client.
+const IMAGE_MIMES = [
+	"image/png",
+	"image/jpeg",
+	"image/webp",
+	"image/heic",
+	"image/heif",
+] as const;
+
+// Cap the number of images and the combined binary payload so the encoded
+// callable request stays under Firebase's ~10 MB request limit even when a
+// teacher attaches several screenshots (plus a possible PDF/DOCX).
+const MAX_IMAGES = 6;
+const MAX_TOTAL_BINARY_BYTES = 7 * 1024 * 1024; // ~9.4 MB base64
+
 const SourceFileSchema = z.object({
 	// Optional original filename — kept for logs only.
 	name: z.string().max(255).optional(),
@@ -47,6 +64,13 @@ const SourceFileSchema = z.object({
 });
 type SourceFile = z.infer<typeof SourceFileSchema>;
 
+const SourceImageSchema = z.object({
+	name: z.string().max(255).optional(),
+	mimeType: z.enum(IMAGE_MIMES),
+	dataBase64: z.string().max(9_500_000),
+});
+type SourceImage = z.infer<typeof SourceImageSchema>;
+
 const InputSchema = z.object({
 	prompt: z.string().trim().min(3).max(4000),
 	// nullish() so the Firebase callable wire format (which can turn
@@ -54,6 +78,7 @@ const InputSchema = z.object({
 	// when the teacher leaves the source-text field empty.
 	sourceText: z.string().trim().max(30000).nullish(),
 	sourceFile: SourceFileSchema.nullish(),
+	sourceImages: z.array(SourceImageSchema).max(MAX_IMAGES).nullish(),
 	language: z.string().trim().min(1).max(40),
 	cefrLevel: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]),
 	count: z.number().int().min(1).max(15),
@@ -297,21 +322,29 @@ function typeLabel(t: string): string {
 function buildPrompt(
 	input: InputType,
 	effectiveSourceText: string,
-	hasPdfAttachment: boolean
+	hasPdfAttachment: boolean,
+	hasImageAttachment: boolean
 ): string {
 	const typeList = input.allowedTypes
 		.map((t) => `- ${t} (${typeLabel(t)})`)
 		.join("\n");
-	// Three cases for the source block:
-	// 1. A PDF is attached — tell the model to use the attachment as
-	//    the primary source. Any pasted text becomes a secondary hint.
-	// 2. No PDF, just text (typed or extracted from DOCX) — old behavior.
+	// Four cases for the source block:
+	// 1. A PDF and/or images are attached — tell the model to use the
+	//    attachment(s) as the primary source. Any pasted text becomes a
+	//    secondary hint.
+	// 2. No attachment, just text (typed or extracted from DOCX) — old
+	//    behavior.
 	// 3. Nothing — empty block.
 	const trimmedText = effectiveSourceText.trim();
 	let sourceBlock = "";
-	if (hasPdfAttachment) {
-		sourceBlock =
-			"\n\nDie Aufgaben sollen sich auf das BEIGEFÜGTE PDF-DOKUMENT beziehen. Lies es aufmerksam und stelle Verständnis-, Wortschatz- und Grammatikfragen auf dessen Grundlage. Zitiere nicht wörtlich, sondern formuliere die Aufgaben so um, dass sie Verständnis prüfen.";
+	if (hasPdfAttachment || hasImageAttachment) {
+		const what =
+			hasPdfAttachment && hasImageAttachment
+				? "das BEIGEFÜGTE PDF-DOKUMENT und die BEIGEFÜGTEN BILDER (Screenshots aus Lehrwerken oder digitalen Inhalten)"
+				: hasPdfAttachment
+				? "das BEIGEFÜGTE PDF-DOKUMENT"
+				: "die BEIGEFÜGTEN BILDER (Screenshots aus Lehrwerken oder digitalen Inhalten)";
+		sourceBlock = `\n\nDie Aufgaben sollen sich auf ${what} beziehen. Lies den Inhalt — bei Bildern auch den darin enthaltenen Text — aufmerksam und stelle Verständnis-, Wortschatz- und Grammatikfragen auf dessen Grundlage. Zitiere nicht wörtlich, sondern formuliere die Aufgaben so um, dass sie Verständnis prüfen.`;
 		if (trimmedText) {
 			sourceBlock += `\n\nZusätzlicher Hinweis vom Lehrer:\n---\n${trimmedText.slice(0, 5000)}\n---`;
 		}
@@ -359,10 +392,24 @@ export const generateTestQuestions = onCall(
 			);
 		}
 
+		// Guard the combined binary payload (PDF/DOCX + all images) so a
+		// teacher attaching several large screenshots can't blow past
+		// Firebase's callable request limit. base64 length ≈ 4/3 of bytes.
+		const images: SourceImage[] = input.sourceImages ?? [];
+		const totalBase64 =
+			(input.sourceFile?.dataBase64.length ?? 0) +
+			images.reduce((sum, img) => sum + img.dataBase64.length, 0);
+		if (totalBase64 > Math.ceil(MAX_TOTAL_BINARY_BYTES * 1.4)) {
+			throw new HttpsError(
+				"invalid-argument",
+				"Die angehängten Dateien sind zusammen zu groß. Bitte weniger oder kleinere Dateien wählen."
+			);
+		}
+
 		// Build the effective text source by merging any typed source
 		// text with text extracted from a DOCX attachment (if present).
-		// PDFs are NOT extracted server-side — they're attached to the
-		// Gemini call as a multimodal media part instead.
+		// PDFs and images are NOT extracted server-side — they're attached
+		// to the Gemini call as multimodal media parts instead.
 		let effectiveSourceText = (input.sourceText ?? "").trim();
 		let pdfMediaUrl: string | undefined;
 		const file: SourceFile | null | undefined = input.sourceFile ?? undefined;
@@ -393,13 +440,26 @@ export const generateTestQuestions = onCall(
 		}
 
 		const ai = buildAi(GEMINI_API_KEY.value());
-		const promptText = buildPrompt(input, effectiveSourceText, !!pdfMediaUrl);
+		const promptText = buildPrompt(
+			input,
+			effectiveSourceText,
+			!!pdfMediaUrl,
+			images.length > 0
+		);
 		const promptParts: Array<{ text: string } | { media: { url: string; contentType?: string } }> = [
 			{ text: promptText },
 		];
 		if (pdfMediaUrl) {
 			promptParts.push({
 				media: { url: pdfMediaUrl, contentType: PDF_MIME },
+			});
+		}
+		for (const img of images) {
+			promptParts.push({
+				media: {
+					url: `data:${img.mimeType};base64,${img.dataBase64}`,
+					contentType: img.mimeType,
+				},
 			});
 		}
 
@@ -415,6 +475,9 @@ export const generateTestQuestions = onCall(
 			sourceFileMime: file?.mimeType,
 			sourceFileName: file?.name,
 			sourceFileBase64Len: file?.dataBase64.length ?? 0,
+			imageCount: images.length,
+			imageMimes: images.map((i) => i.mimeType),
+			imageBase64Len: images.reduce((s, i) => s + i.dataBase64.length, 0),
 		});
 
 		let output: z.infer<typeof OutputSchema> | undefined;
