@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { QRCodeSVG } from "qrcode.react";
+import ShareQr from "@/components/ShareQr";
 import {
 	ArrowLeft,
 	Copy,
@@ -341,11 +341,14 @@ const ShareTestManagement: React.FC = () => {
 							</div>
 							{quickUrl && (
 								<div className="flex flex-col items-center gap-2 shrink-0">
-									<div className="p-3 bg-white rounded-md border">
-										<QRCodeSVG value={quickUrl} size={160} />
-									</div>
+									<ShareQr
+										value={quickUrl}
+										caption={test.title}
+										downloadFileName={test.title}
+									/>
 									<p className="text-xs text-muted-foreground text-center max-w-[12rem]">
-										Schüler:innen scannen den Code mit der iPad-Kamera.
+										Antippen zum Vergrößern – Schüler:innen scannen mit
+										der iPad-Kamera.
 									</p>
 								</div>
 							)}
