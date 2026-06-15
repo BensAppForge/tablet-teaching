@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+
 export const metadata: Metadata = {
-	title: "Klasse zuweisen - Tablet Teaching",
+	title: "Schnellzugang - Tablet Teaching",
 };
 
-import ShareTestClient from "@/components/ShareTestClient";
+import QuickAccessClient from "@/components/QuickAccessClient";
 
-export default function ShareTestPage() {
+export default function QuickAccessPage() {
 	return (
 		<Suspense fallback={<div className="p-8 text-center">Laden…</div>}>
-			<ShareTestClient />
+			<QuickAccessClient />
 		</Suspense>
 	);
 }

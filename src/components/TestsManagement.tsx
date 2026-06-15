@@ -20,7 +20,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Pencil,
 	Trash2,
-	Share2,
+	Users,
+	KeyRound,
 	Tag,
 	Book,
 	Calendar,
@@ -211,8 +212,12 @@ const TestsManagement: React.FC = () => {
 		}
 	};
 
-	const handleShareTest = (testId: string) => {
+	const handleAssignClass = (testId: string) => {
 		router.push(`/share-test?id=${testId}`);
+	};
+
+	const handleQuickAccess = (testId: string) => {
+		router.push(`/quick-access?id=${testId}`);
 	};
 
 	const handleSaveName = async () => {
@@ -337,10 +342,19 @@ const TestsManagement: React.FC = () => {
 					<Button
 						variant="outline"
 						className="w-full justify-start"
-						onClick={() => handleShareTest(test.id!)}
+						onClick={() => handleAssignClass(test.id!)}
 					>
-						<Share2 className="mr-2 h-4 w-4" />
-						Teilen
+						<Users className="mr-2 h-4 w-4" />
+						Klasse zuweisen
+					</Button>
+
+					<Button
+						variant="outline"
+						className="w-full justify-start"
+						onClick={() => handleQuickAccess(test.id!)}
+					>
+						<KeyRound className="mr-2 h-4 w-4" />
+						Schnellzugang
 					</Button>
 
 					<Button
