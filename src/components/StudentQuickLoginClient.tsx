@@ -207,6 +207,17 @@ const StudentQuickLoginClient: React.FC = () => {
 									{error}
 								</p>
 							)}
+							<p className="text-xs text-muted-foreground">
+								Hinweis: Deine Lehrkraft kann deine Ergebnisse kurzzeitig
+								(höchstens 24 Stunden) speichern. Mehr dazu in der{" "}
+								<Link
+									href="/datenschutz"
+									className="text-accent hover:underline"
+								>
+									Datenschutzerklärung
+								</Link>
+								.
+							</p>
 							<Button type="submit" disabled={isLoading} className="h-12 w-full text-base">
 								{isLoading ? "Anmelden…" : "Loslegen"}
 								{!isLoading && <ArrowRight className="h-5 w-5" />}

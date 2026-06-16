@@ -38,6 +38,8 @@ import {
 	createSubmission,
 	getLatestStudentSubmission,
 } from "@/lib/firebase/submissions";
+import { createQuickSubmission } from "@/lib/firebase/quickSubmissions";
+import type { QuickRetention } from "@/lib/firebase/tests";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -391,6 +393,26 @@ const StudentWorksheet: React.FC = () => {
 						"Dein Ergebnis ist gespeichert und wird beim nächsten Öffnen automatisch übertragen."
 					);
 				});
+		} else if (role === "anonymous" && anonAttempt && test) {
+			// Schnellzugang: persist only when the teacher enabled retention.
+			// Local storage already holds the result for the kid's own review,
+			// so this is best-effort and fire-and-forget — a failure is silent.
+			const retention = (test.quickResultsRetention ?? "off") as QuickRetention;
+			if (retention !== "off") {
+				createQuickSubmission(
+					testId,
+					{
+						displayName: anonAttempt.displayName,
+						code: anonAttempt.code,
+						totalEarned: submission.totalEarned,
+						totalPossible: submission.totalPossible,
+						perQuestion: submission.perQuestion,
+					},
+					retention
+				).catch((err) => {
+					console.error("Failed to persist quick submission:", err);
+				});
+			}
 		}
 	};
 

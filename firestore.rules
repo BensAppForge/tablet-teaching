@@ -141,6 +141,36 @@ service cloud.firestore {
       allow delete: if request.auth != null && resource.data.teacherId == request.auth.uid;
     }
 
+    // Schnellzugang (anonymous) results. Unlike managed submissions these
+    // are created by anonymous users — but ONLY when the teacher has turned
+    // on retention for the test (quickResultsRetention != 'off'), and only
+    // by the anonymous user actually bound to this test via their
+    // quickAttempts doc. expiresAt is required, must be in the future, and
+    // is capped at ~25h so a client can't request long-term storage.
+    // Self-typed names, so the teacher should treat identities as asserted.
+    match /tests/{testId}/quickSubmissions/{submissionId} {
+      allow create: if request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'anonymous'
+        && get(/databases/$(database)/documents/quickAttempts/$(request.auth.uid)).data.testId == testId
+        && get(/databases/$(database)/documents/tests/$(testId)).data.get('quickResultsRetention', 'off') != 'off'
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 80
+        && request.resource.data.totalEarned is number
+        && request.resource.data.totalPossible is number
+        && request.resource.data.totalEarned >= 0
+        && request.resource.data.totalEarned <= request.resource.data.totalPossible
+        && request.resource.data.perQuestion is map
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time
+        && request.resource.data.expiresAt < request.time + duration.value(25, 'h');
+      // Teacher-only reads/deletes; students never read quick results back
+      // (the worksheet review state is local-only for anonymous kids).
+      allow read, delete: if request.auth != null
+        && get(/databases/$(database)/documents/tests/$(testId)).data.teacherId == request.auth.uid;
+      allow update: if false;
+    }
+
     // Classes: teacher-owned grouping of students.
     // Reads allowed for the owning teacher OR for a student whose
     // custom-claim classId matches this doc (so a student can render

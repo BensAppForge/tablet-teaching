@@ -51,3 +51,42 @@ export const cleanupQuickAttempts = onSchedule(
 		});
 	}
 );
+
+/**
+ * Hourly cleanup of expired Schnellzugang results. These hold self-typed
+ * student names + scores and are only ever kept short-term (end of day or
+ * 24h), so they're reaped on a tight cadence — far tighter than the daily
+ * attempt cleanup — to honour the retention promise in the privacy policy.
+ *
+ * Uses a collectionGroup query across every test's quickSubmissions
+ * subcollection. Batches deletes in chunks to stay under the 500-op limit.
+ */
+export const cleanupQuickSubmissions = onSchedule(
+	{
+		schedule: "every 1 hours",
+		timeZone: "Europe/Berlin",
+		region: "europe-west1",
+	},
+	async () => {
+		const now = Timestamp.fromDate(new Date());
+		const snap = await db
+			.collectionGroup("quickSubmissions")
+			.where("expiresAt", "<=", now)
+			.get();
+
+		if (snap.empty) {
+			console.log("cleanupQuickSubmissions: nothing to delete");
+			return;
+		}
+
+		const docs = snap.docs;
+		for (let i = 0; i < docs.length; i += 450) {
+			const batch = db.batch();
+			docs
+				.slice(i, i + 450)
+				.forEach((d: QueryDocumentSnapshot) => batch.delete(d.ref));
+			await batch.commit();
+		}
+		console.log(`cleanupQuickSubmissions: ${snap.size} deleted`);
+	}
+);

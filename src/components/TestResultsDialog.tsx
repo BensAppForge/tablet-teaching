@@ -7,12 +7,14 @@ import {
 	Check,
 	ChevronDown,
 	ChevronRight,
+	Clock,
 	Loader2,
 	Trash2,
 	Users,
 	X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Timestamp } from "firebase/firestore";
 
 import { Test, Question, getTest } from "@/lib/firebase/tests";
 import {
@@ -20,6 +22,11 @@ import {
 	subscribeToSubmissions,
 	deleteSubmission,
 } from "@/lib/firebase/submissions";
+import {
+	QuickSubmission,
+	subscribeToQuickSubmissions,
+	deleteQuickSubmission,
+} from "@/lib/firebase/quickSubmissions";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -46,30 +53,39 @@ interface Props {
 }
 
 interface SubmissionRowProps {
-	submission: Submission;
+	name: string;
+	submittedAt: Timestamp | null;
+	totalEarned: number;
+	totalPossible: number;
+	perQuestion: Submission["perQuestion"];
 	questions: Question[];
 	onDelete: () => void;
+	// Quick results carry an expiry; shown so the teacher knows it's
+	// temporary.
+	expiresAt?: Timestamp | null;
 }
 
 const SubmissionRow: React.FC<SubmissionRowProps> = ({
-	submission,
+	name,
+	submittedAt,
+	totalEarned,
+	totalPossible,
+	perQuestion,
 	questions,
 	onDelete,
+	expiresAt,
 }) => {
 	const [expanded, setExpanded] = useState(false);
 
 	const pct =
-		submission.totalPossible > 0
-			? Math.round(
-					(submission.totalEarned / submission.totalPossible) * 100
-			  )
-			: 0;
+		totalPossible > 0 ? Math.round((totalEarned / totalPossible) * 100) : 0;
 
-	const submittedAt = submission.submittedAt
-		? format(submission.submittedAt.toDate(), "dd.MM.yyyy HH:mm", {
-				locale: de,
-		  })
+	const submittedLabel = submittedAt
+		? format(submittedAt.toDate(), "dd.MM.yyyy HH:mm", { locale: de })
 		: "—";
+	const expiresLabel = expiresAt
+		? format(expiresAt.toDate(), "dd.MM. HH:mm", { locale: de })
+		: null;
 
 	return (
 		<div className="border rounded-md">
@@ -77,9 +93,7 @@ const SubmissionRow: React.FC<SubmissionRowProps> = ({
 				<button
 					type="button"
 					onClick={() => setExpanded((e) => !e)}
-					aria-label={
-						expanded ? "Details ausblenden" : "Details einblenden"
-					}
+					aria-label={expanded ? "Details ausblenden" : "Details einblenden"}
 					className="text-muted-foreground hover:text-foreground shrink-0"
 				>
 					{expanded ? (
@@ -89,16 +103,20 @@ const SubmissionRow: React.FC<SubmissionRowProps> = ({
 					)}
 				</button>
 				<div className="flex-1 min-w-0">
-					<div className="font-medium truncate">
-						{submission.studentName}
-					</div>
-					<div className="text-xs text-muted-foreground">
-						{submittedAt}
+					<div className="font-medium truncate">{name}</div>
+					<div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+						<span>{submittedLabel}</span>
+						{expiresLabel && (
+							<span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-500">
+								<Clock className="h-3 w-3" />
+								läuft ab {expiresLabel}
+							</span>
+						)}
 					</div>
 				</div>
 				<div className="text-right shrink-0">
 					<div className="font-medium tabular-nums">
-						{submission.totalEarned} / {submission.totalPossible}
+						{totalEarned} / {totalPossible}
 					</div>
 					<div className="text-xs text-muted-foreground">{pct}%</div>
 				</div>
@@ -120,18 +138,14 @@ const SubmissionRow: React.FC<SubmissionRowProps> = ({
 						</p>
 					) : (
 						questions.map((q, idx) => {
-							const result = q.id
-								? submission.perQuestion?.[q.id]
-								: null;
+							const result = q.id ? perQuestion?.[q.id] : null;
 							if (!result) {
 								return (
 									<div
 										key={q.id ?? idx}
 										className="text-xs text-muted-foreground flex items-center gap-2"
 									>
-										<span className="w-5 text-right">
-											{idx + 1}.
-										</span>
+										<span className="w-5 text-right">{idx + 1}.</span>
 										<span>nicht beantwortet</span>
 									</div>
 								);
@@ -165,18 +179,26 @@ const SubmissionRow: React.FC<SubmissionRowProps> = ({
 	);
 };
 
+type DeleteTarget = {
+	kind: "managed" | "quick";
+	id: string;
+	name: string;
+};
+
 const TestResultsDialog: React.FC<Props> = ({ open, onOpenChange, test }) => {
 	const [submissions, setSubmissions] = useState<Submission[]>([]);
+	const [quickSubs, setQuickSubs] = useState<QuickSubmission[]>([]);
 	const [questions, setQuestions] = useState<Question[]>([]);
 	const [loading, setLoading] = useState(true);
-	const [deleteTarget, setDeleteTarget] = useState<Submission | null>(null);
+	const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
 	const [deleting, setDeleting] = useState(false);
 
-	// Subscribe + lazy-load questions when the dialog opens. Cleans up
-	// both on close so we don't leak listeners across opens.
+	// Subscribe to both managed + quick results and lazy-load questions
+	// when the dialog opens. Clean up on close to avoid leaking listeners.
 	useEffect(() => {
 		if (!open || !test?.id) {
 			setSubmissions([]);
+			setQuickSubs([]);
 			setQuestions([]);
 			setLoading(true);
 			return;
@@ -185,7 +207,7 @@ const TestResultsDialog: React.FC<Props> = ({ open, onOpenChange, test }) => {
 		const testId = test.id;
 		setLoading(true);
 
-		const unsubscribe = subscribeToSubmissions(
+		const unsubManaged = subscribeToSubmissions(
 			testId,
 			(subs) => {
 				setSubmissions(subs);
@@ -197,10 +219,12 @@ const TestResultsDialog: React.FC<Props> = ({ open, onOpenChange, test }) => {
 				setLoading(false);
 			}
 		);
+		const unsubQuick = subscribeToQuickSubmissions(
+			testId,
+			setQuickSubs,
+			(err) => console.error("Failed to load quick submissions:", err)
+		);
 
-		// Load questions for the per-question breakdown. Cheap — one
-		// getTest per dialog open. We don't subscribe because the
-		// questions array doesn't change while results are being viewed.
 		let cancelled = false;
 		getTest(testId)
 			.then(({ questions: qs }) => {
@@ -212,15 +236,20 @@ const TestResultsDialog: React.FC<Props> = ({ open, onOpenChange, test }) => {
 
 		return () => {
 			cancelled = true;
-			unsubscribe();
+			unsubManaged();
+			unsubQuick();
 		};
 	}, [open, test?.id]);
 
 	const handleDelete = async () => {
-		if (!deleteTarget?.id || !test?.id) return;
+		if (!deleteTarget || !test?.id) return;
 		setDeleting(true);
 		try {
-			await deleteSubmission(test.id, deleteTarget.id);
+			if (deleteTarget.kind === "managed") {
+				await deleteSubmission(test.id, deleteTarget.id);
+			} else {
+				await deleteQuickSubmission(test.id, deleteTarget.id);
+			}
 			toast.success("Ergebnis gelöscht");
 			setDeleteTarget(null);
 		} catch (err) {
@@ -230,6 +259,8 @@ const TestResultsDialog: React.FC<Props> = ({ open, onOpenChange, test }) => {
 			setDeleting(false);
 		}
 	};
+
+	const total = submissions.length + quickSubs.length;
 
 	return (
 		<>
@@ -244,34 +275,74 @@ const TestResultsDialog: React.FC<Props> = ({ open, onOpenChange, test }) => {
 						<div className="flex justify-center items-center py-8">
 							<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
 						</div>
-					) : submissions.length === 0 ? (
+					) : total === 0 ? (
 						<div className="flex flex-col items-center justify-center py-8 text-center">
 							<Users className="h-10 w-10 text-muted-foreground mb-3" />
 							<p className="text-sm text-muted-foreground">
 								Noch keine Ergebnisse für diesen Test.
 							</p>
 							<p className="text-xs text-muted-foreground mt-2 max-w-xs">
-								Hinweis: Nur Abgaben von Schüler:innen mit eigenem
-								Zugang werden gespeichert. Ergebnisse aus dem
-								Schnellzugang erscheinen hier nicht.
+								Schnellzugang-Ergebnisse erscheinen hier nur, wenn du im
+								Schnellzugang das Speichern aktivierst.
 							</p>
 						</div>
 					) : (
-						<div className="space-y-2 max-h-[60vh] overflow-y-auto">
-							<p className="text-xs text-muted-foreground px-1">
-								{submissions.length}{" "}
-								{submissions.length === 1
-									? "Ergebnis"
-									: "Ergebnisse"}
-							</p>
-							{submissions.map((s) => (
-								<SubmissionRow
-									key={s.id}
-									submission={s}
-									questions={questions}
-									onDelete={() => setDeleteTarget(s)}
-								/>
-							))}
+						<div className="space-y-5 max-h-[60vh] overflow-y-auto">
+							{submissions.length > 0 && (
+								<div className="space-y-2">
+									<p className="text-xs font-medium text-muted-foreground px-1">
+										Mit Zugang (Klasse) · {submissions.length}
+									</p>
+									{submissions.map((s) => (
+										<SubmissionRow
+											key={s.id}
+											name={s.studentName}
+											submittedAt={s.submittedAt}
+											totalEarned={s.totalEarned}
+											totalPossible={s.totalPossible}
+											perQuestion={s.perQuestion}
+											questions={questions}
+											onDelete={() =>
+												setDeleteTarget({
+													kind: "managed",
+													id: s.id!,
+													name: s.studentName,
+												})
+											}
+										/>
+									))}
+								</div>
+							)}
+
+							{quickSubs.length > 0 && (
+								<div className="space-y-2">
+									<p className="text-xs font-medium text-muted-foreground px-1">
+										Schnellzugang · {quickSubs.length}{" "}
+										<span className="font-normal">
+											(temporär, selbst eingegebene Namen)
+										</span>
+									</p>
+									{quickSubs.map((s) => (
+										<SubmissionRow
+											key={s.id}
+											name={s.displayName}
+											submittedAt={s.submittedAt}
+											expiresAt={s.expiresAt}
+											totalEarned={s.totalEarned}
+											totalPossible={s.totalPossible}
+											perQuestion={s.perQuestion}
+											questions={questions}
+											onDelete={() =>
+												setDeleteTarget({
+													kind: "quick",
+													id: s.id!,
+													name: s.displayName,
+												})
+											}
+										/>
+									))}
+								</div>
+							)}
 						</div>
 					)}
 				</DialogContent>
@@ -290,9 +361,9 @@ const TestResultsDialog: React.FC<Props> = ({ open, onOpenChange, test }) => {
 							{deleteTarget && (
 								<>
 									Das Ergebnis von{" "}
-									<strong>{deleteTarget.studentName}</strong> wird
-									endgültig gelöscht. Diese Aktion kann nicht
-									rückgängig gemacht werden.
+									<strong>{deleteTarget.name}</strong> wird endgültig
+									gelöscht. Diese Aktion kann nicht rückgängig gemacht
+									werden.
 								</>
 							)}
 						</AlertDialogDescription>

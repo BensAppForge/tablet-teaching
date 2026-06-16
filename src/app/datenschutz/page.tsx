@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import BackButton from "@/components/BackButton";
 
 export const metadata: Metadata = {
 	title: "Datenschutz - Tablet Teaching",
@@ -12,6 +13,9 @@ export const metadata: Metadata = {
 export default function DatenschutzPage() {
 	return (
 		<div className="container mx-auto max-w-2xl px-4 py-8">
+			<div className="mb-4">
+				<BackButton />
+			</div>
 			<h1 className="text-2xl font-semibold mb-6">Datenschutzerklärung</h1>
 
 			<section className="space-y-6 text-sm leading-relaxed">
@@ -58,9 +62,19 @@ export default function DatenschutzPage() {
 						Beim Schnellzugang per Code wird kein Konto angelegt. Der
 						selbst eingegebene Anzeigename wird einem anonymen,
 						temporären Zugang zugeordnet, der nach 24 Stunden automatisch
-						gelöscht wird. Ergebnisse aus dem Schnellzugang werden nicht
+						gelöscht wird.
+					</p>
+					<p className="mt-2">
+						Ergebnisse aus dem Schnellzugang werden standardmäßig nicht
 						auf dem Server gespeichert, sondern verbleiben ausschließlich
-						lokal auf dem verwendeten Gerät.
+						lokal auf dem verwendeten Gerät. Die Lehrkraft kann für einen
+						Test optional eine kurze Speicherung aktivieren: In diesem Fall
+						werden der selbst eingegebene Anzeigename und das Ergebnis
+						(Punktzahl sowie richtig/falsch pro Aufgabe) bis zum Ende des
+						Tages oder für höchstens 24 Stunden gespeichert und danach
+						automatisch gelöscht. Eine längere Speicherung ist nicht
+						möglich; die Lehrkraft kann Ergebnisse jederzeit vorher
+						löschen.
 					</p>
 				</div>
 

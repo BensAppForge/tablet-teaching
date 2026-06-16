@@ -30,6 +30,13 @@ export type QuestionType =
 
 export type CEFRLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
 
+// How long Schnellzugang (anonymous) results are kept, if at all.
+//   off  — not stored (default; privacy-preserving)
+//   eod  — until the end of the current day (local midnight)
+//   24h  — for 24 hours
+// A scheduled Cloud Function reaps expired quick submissions hourly.
+export type QuickRetention = "off" | "eod" | "24h";
+
 // Base interface for all question types
 export interface BaseQuestion {
 	id?: string;
@@ -117,6 +124,10 @@ export interface Test {
 	// (Schnellzugang) and take this test without a class assignment.
 	// When set, a corresponding doc lives at quickCodes/{code}.
 	quickCode?: string;
+	// Retention policy for Schnellzugang (anonymous) results. Absent =
+	// "off" (not stored). The quickSubmissions create rule reads this from
+	// the test doc, and the worksheet uses it to decide whether to persist.
+	quickResultsRetention?: QuickRetention;
 	// IDs of classes whose students can see this test on their
 	// dashboard. Missing/empty means "not assigned" — no managed
 	// student sees the test until the teacher assigns it.
@@ -749,12 +760,18 @@ export const deleteTest = async (testId: string): Promise<void> => {
 			firestore,
 			`tests/${testId}/submissions`
 		);
+		const quickSubmissionsRef = collection(
+			firestore,
+			`tests/${testId}/quickSubmissions`
+		);
 		const testRef = doc(firestore, "tests", testId);
-		const [questionsSnap, submissionsSnap, testSnap] = await Promise.all([
-			getDocs(questionsRef),
-			getDocs(submissionsRef),
-			getDoc(testRef),
-		]);
+		const [questionsSnap, submissionsSnap, quickSubsSnap, testSnap] =
+			await Promise.all([
+				getDocs(questionsRef),
+				getDocs(submissionsRef),
+				getDocs(quickSubmissionsRef),
+				getDoc(testRef),
+			]);
 
 		// Use a batch to delete everything atomically. Firestore batches
 		// cap at 500 ops; for v1 the combined questions + submissions
@@ -763,6 +780,7 @@ export const deleteTest = async (testId: string): Promise<void> => {
 
 		questionsSnap.docs.forEach((d) => batch.delete(d.ref));
 		submissionsSnap.docs.forEach((d) => batch.delete(d.ref));
+		quickSubsSnap.docs.forEach((d) => batch.delete(d.ref));
 
 		const quickCode = testSnap.data()?.quickCode;
 		if (typeof quickCode === "string" && quickCode) {

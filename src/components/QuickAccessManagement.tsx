@@ -6,7 +6,7 @@ import { ArrowLeft, Copy, KeyRound, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/context/AuthContext";
-import { getTest, updateTest, Test } from "@/lib/firebase/tests";
+import { getTest, updateTest, Test, QuickRetention } from "@/lib/firebase/tests";
 import {
 	createQuickCode,
 	deleteQuickCode,
@@ -15,9 +15,18 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import ShareQr from "@/components/ShareQr";
+
+// Slider stops, low→high. Capped at 24h for privacy (no week-long option).
+const RETENTION_ORDER: QuickRetention[] = ["off", "eod", "24h"];
+const RETENTION_DESC: Record<QuickRetention, string> = {
+	off: "Ergebnisse werden nicht gespeichert.",
+	eod: "Ergebnisse werden bis zum Ende des Tages gespeichert und erscheinen unter „Ergebnisse\".",
+	"24h": "Ergebnisse werden 24 Stunden gespeichert und erscheinen unter „Ergebnisse\".",
+};
 
 const QuickAccessManagement: React.FC = () => {
 	const router = useRouter();
@@ -140,6 +149,23 @@ const QuickAccessManagement: React.FC = () => {
 			.catch(() => toast.error("Kopieren fehlgeschlagen"));
 	};
 
+	const retention = (test?.quickResultsRetention ?? "off") as QuickRetention;
+	const retentionIndex = Math.max(0, RETENTION_ORDER.indexOf(retention));
+
+	const handleRetentionChange = async (idx: number) => {
+		if (!test) return;
+		const next = RETENTION_ORDER[idx] ?? "off";
+		const prev = test.quickResultsRetention;
+		setTest({ ...test, quickResultsRetention: next }); // optimistic
+		try {
+			await updateTest(test.id!, { quickResultsRetention: next });
+		} catch (err) {
+			console.error(err);
+			setTest({ ...test, quickResultsRetention: prev });
+			toast.error("Speicherdauer konnte nicht geändert werden");
+		}
+	};
+
 	if (loading) {
 		return (
 			<div className="flex justify-center items-center py-12">
@@ -183,10 +209,7 @@ const QuickAccessManagement: React.FC = () => {
 				<CardContent className="space-y-4">
 					<p className="text-sm text-muted-foreground">
 						Schüler:innen melden sich anonym mit Namen und Code an. Der
-						Zugang verfällt nach 24 Stunden automatisch. Ergebnisse aus dem
-						Schnellzugang werden nicht gespeichert und erscheinen nicht
-						unter „Ergebnisse" — dafür braucht es Schülerzugänge über eine
-						Klasse.
+						Zugang verfällt nach 24 Stunden automatisch.
 					</p>
 					<div className="flex items-center gap-3">
 						<Switch
@@ -207,6 +230,33 @@ const QuickAccessManagement: React.FC = () => {
 							<Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
 						)}
 					</div>
+
+					{quickCode && (
+						<div className="rounded-md border bg-muted/30 p-3 space-y-2">
+							<Label className="text-sm font-medium">
+								Ergebnisse speichern
+							</Label>
+							<Slider
+								min={0}
+								max={2}
+								step={1}
+								value={[retentionIndex]}
+								onValueChange={([v]) => handleRetentionChange(v)}
+								disabled={busy}
+								className="max-w-sm"
+							/>
+							<div className="flex justify-between max-w-sm text-xs text-muted-foreground">
+								<span>Aus</span>
+								<span>Ende des Tages</span>
+								<span>24 Stunden</span>
+							</div>
+							<p className="text-xs text-muted-foreground">
+								{RETENTION_DESC[retention]}
+								{retention !== "off" &&
+									" Sie werden danach automatisch gelöscht."}
+							</p>
+						</div>
+					)}
 
 					{quickCode && (
 						<div className="flex flex-col md:flex-row gap-6 pt-2">

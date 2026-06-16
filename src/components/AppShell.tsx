@@ -75,10 +75,14 @@ function DefaultHeader() {
 	return (
 		<header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
 			<div className="flex h-16 items-center justify-between gap-3 px-4 py-2 ipad-safe-x">
-				<div className="flex min-w-0 items-center gap-2 font-semibold tracking-wide">
+				<Link
+					href="/"
+					className="flex min-w-0 items-center gap-2 font-semibold tracking-wide transition-opacity hover:opacity-80"
+					aria-label="Zur Startseite"
+				>
 					<GraduationCap className="h-7 w-7 shrink-0 text-primary" aria-hidden="true" />
 					<span className="truncate">TABLET TEACHING</span>
-				</div>
+				</Link>
 				<div className="flex min-w-0 items-center gap-2 sm:gap-3">
 					<div className="hidden min-w-0 sm:block">
 						<UserProfile />

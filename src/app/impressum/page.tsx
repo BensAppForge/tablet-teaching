@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import BackButton from "@/components/BackButton";
 
 export const metadata: Metadata = {
 	title: "Impressum - Tablet Teaching",
@@ -8,6 +9,9 @@ export const metadata: Metadata = {
 export default function ImpressumPage() {
 	return (
 		<div className="container mx-auto max-w-2xl px-4 py-8">
+			<div className="mb-4">
+				<BackButton />
+			</div>
 			<h1 className="text-2xl font-semibold mb-6">Impressum</h1>
 
 			<section className="space-y-6 text-sm leading-relaxed">

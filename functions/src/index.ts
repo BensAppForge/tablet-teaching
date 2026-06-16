@@ -9,7 +9,7 @@ export {
 	deleteStudent,
 } from "./students";
 export { deleteClass } from "./classes";
-export { cleanupQuickAttempts } from "./quickAccess";
+export { cleanupQuickAttempts, cleanupQuickSubmissions } from "./quickAccess";
 export { generateTestQuestions } from "./aiTestGen";
 
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
