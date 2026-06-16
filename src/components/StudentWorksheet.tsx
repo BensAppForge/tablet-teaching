@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowLeft, CheckCircle2, Download, Loader2, RotateCcw } from "lucide-react";
@@ -177,6 +177,14 @@ const StudentWorksheet: React.FC = () => {
 		null
 	);
 
+	// Marks which (user, test) the answer-related state currently belongs to.
+	// Autosave is gated on this so a test switch can't persist the previous
+	// test's answers under the new test's key: when testId changes, the ref
+	// still points at the OLD test until this test's load finishes and sets
+	// it, so the save effect no-ops in between (it otherwise fires in the
+	// same commit as the testId change, before `loading` flips true).
+	const loadedKeyRef = useRef<string | null>(null);
+
 	// Load test + restore any saved attempt for this (user, test). Two
 	// identity paths: managed students fetch their class; Schnellzugang
 	// (anonymous) kids skip the class lookup and rely on anonAttempt
@@ -214,6 +222,18 @@ const StudentWorksheet: React.FC = () => {
 				setTest(test);
 				setQuestions(questions);
 				setCls(klass);
+
+				// Clear any state carried over from a previously shown test
+				// BEFORE the branches below restore this test's data. Without
+				// this, switching to a brand-new test with no saved attempt
+				// matches none of the branches and silently inherits the old
+				// test's answers.
+				setAnswers({});
+				setSubmitted(null);
+				setSynced(true);
+				setRemoteSubmissionId(null);
+				setIgnoreSubmissionId(null);
+
 				const stored = loadAttempt(currentUser.uid, testId);
 
 				// For managed students, Firestore is the source of truth for
@@ -308,6 +328,9 @@ const StudentWorksheet: React.FC = () => {
 					setAnswers(stored.answers || {});
 					setSubmitted(stored.submitted ?? null);
 				}
+
+				// State now reflects THIS test — enable autosave for it.
+				loadedKeyRef.current = `${currentUser.uid}:${testId}`;
 			} catch (err) {
 				console.error(err);
 				toast.error("Fehler beim Laden des Arbeitsblatts");
@@ -323,6 +346,11 @@ const StudentWorksheet: React.FC = () => {
 	// Auto-save on every answer or submission change.
 	useEffect(() => {
 		if (!currentUser || !testId || loading) return;
+		// Only save once the state belongs to THIS (user, test): otherwise a
+		// test switch would write the previous test's answers under the new
+		// test's key (the effect runs in the same commit as the testId
+		// change, before the load resets state / flips `loading`).
+		if (loadedKeyRef.current !== `${currentUser.uid}:${testId}`) return;
 		saveAttempt(currentUser.uid, testId, {
 			answers,
 			submitted: submitted ?? undefined,
