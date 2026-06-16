@@ -77,8 +77,11 @@ Max von M`}</pre>
 								</li>
 								<li>
 									Passwörter werden nicht gespeichert. Falls eine Schüler:in
-									das Passwort vergisst, kann ein neues generiert werden
-									(folgt in Kürze).
+									das Passwort vergisst, kannst du in der Klassenansicht über
+									das Schlüssel-Symbol{" "}
+									<span className="whitespace-nowrap">(🔑)</span> neben der
+									Schüler:in ein neues Passwort erzeugen. Es wird einmalig
+									angezeigt.
 								</li>
 							</ul>
 						</div>

@@ -27,6 +27,10 @@ const DeleteStudentSchema = z.object({
 	studentUid: z.string().min(1),
 });
 
+const ResetStudentPasswordSchema = z.object({
+	studentUid: z.string().min(1),
+});
+
 type CreatedStudent = {
 	uid: string;
 	firstName: string;
@@ -44,7 +48,12 @@ type FailedStudent = {
 async function ensureTeacherOwnsStudent(
 	studentUid: string,
 	teacherId: string
-): Promise<{ classId: string }> {
+): Promise<{
+	classId: string;
+	firstName: string;
+	lastInitial: string;
+	synthEmail: string;
+}> {
 	const snap = await db.collection("students").doc(studentUid).get();
 	if (!snap.exists) {
 		throw new HttpsError("not-found", "Student not found.");
@@ -52,7 +61,12 @@ async function ensureTeacherOwnsStudent(
 	if (snap.get("teacherId") !== teacherId) {
 		throw new HttpsError("permission-denied", "You do not own this student.");
 	}
-	return { classId: snap.get("classId") };
+	return {
+		classId: snap.get("classId"),
+		firstName: snap.get("firstName") ?? "",
+		lastInitial: snap.get("lastInitial") ?? "",
+		synthEmail: snap.get("synthEmail") ?? "",
+	};
 }
 
 async function createOneStudent(
@@ -172,7 +186,10 @@ export const updateStudent = onCall(
 			throw new HttpsError("invalid-argument", "Nothing to update.");
 		}
 
-		await ensureTeacherOwnsStudent(studentUid, teacherId);
+		// Pull the current name so a partial update (e.g. firstName only)
+		// composes the Auth displayName from the MERGED values rather than
+		// dropping the field that wasn't sent.
+		const existing = await ensureTeacherOwnsStudent(studentUid, teacherId);
 
 		const fields: Record<string, any> = {};
 		if (firstName !== undefined) fields.firstName = firstName;
@@ -180,7 +197,9 @@ export const updateStudent = onCall(
 
 		await db.collection("students").doc(studentUid).update(fields);
 
-		const displayName = `${fields.firstName ?? ""} ${fields.lastInitial ?? ""}`
+		const mergedFirst = firstName ?? existing.firstName;
+		const mergedInitial = lastInitial ?? existing.lastInitial;
+		const displayName = `${mergedFirst} ${mergedInitial}`
 			.trim()
 			.replace(/\s+/g, " ");
 		if (displayName) {
@@ -188,6 +207,39 @@ export const updateStudent = onCall(
 		}
 
 		return { ok: true };
+	}
+);
+
+// Teacher-initiated password reset. Managed students have synthetic emails
+// (…@tablet-teaching.app) that receive no mail, so Firebase's email reset
+// link is useless for them — the teacher regenerates the password here and
+// reads the new one back to the student. Owner-checked; the new password is
+// returned ONCE and never stored (same contract as the import flow).
+export const resetStudentPassword = onCall(
+	{ region: "europe-west1" },
+	async (request) => {
+		if (!request.auth) {
+			throw new HttpsError("unauthenticated", "Sign in required.");
+		}
+		const teacherId = request.auth.uid;
+
+		const parsed = ResetStudentPasswordSchema.safeParse(request.data);
+		if (!parsed.success) {
+			throw new HttpsError("invalid-argument", parsed.error.message);
+		}
+		const { studentUid } = parsed.data;
+
+		const student = await ensureTeacherOwnsStudent(studentUid, teacherId);
+
+		const password = generatePassword();
+		await auth.updateUser(studentUid, { password });
+
+		return {
+			password,
+			email: student.synthEmail,
+			firstName: student.firstName,
+			lastInitial: student.lastInitial,
+		};
 	}
 );
 

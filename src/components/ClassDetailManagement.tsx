@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
 	Copy,
 	Download,
+	KeyRound,
 	Loader2,
 	Pencil,
 	Printer,
@@ -26,6 +27,8 @@ import {
 	compareStudents,
 	deleteStudent,
 	getStudentsByClass,
+	resetStudentPassword,
+	ResetPasswordResult,
 	Student,
 	updateStudent,
 } from "@/lib/firebase/students";
@@ -216,6 +219,12 @@ const ClassDetailManagement: React.FC = () => {
 	const [deleteStudentTarget, setDeleteStudentTarget] =
 		useState<Student | null>(null);
 	const [deletingStudent, setDeletingStudent] = useState(false);
+	// Password reset: confirm target → call → show the new password once.
+	const [resetTarget, setResetTarget] = useState<Student | null>(null);
+	const [resetting, setResetting] = useState(false);
+	const [resetResult, setResetResult] = useState<ResetPasswordResult | null>(
+		null
+	);
 
 	const parsed = useMemo(() => parseRoster(roster), [roster]);
 	const validParsed = parsed.filter((p) => !p.error);
@@ -415,6 +424,21 @@ const ClassDetailManagement: React.FC = () => {
 		}
 	};
 
+	const handleResetPassword = async () => {
+		if (!resetTarget) return;
+		setResetting(true);
+		try {
+			const res = await resetStudentPassword(resetTarget.id);
+			setResetTarget(null);
+			setResetResult(res);
+		} catch (err: any) {
+			console.error(err);
+			toast.error(err?.message ?? "Passwort konnte nicht zurückgesetzt werden");
+		} finally {
+			setResetting(false);
+		}
+	};
+
 	if (!classId) {
 		return (
 			<PageShell title="Klasse" backHref="/classes" backLabel="Klassen">
@@ -517,6 +541,16 @@ const ClassDetailManagement: React.FC = () => {
 												aria-label="Bearbeiten"
 											>
 												<Pencil className="h-4 w-4" />
+											</Button>
+											<Button
+												variant="ghost"
+												size="icon"
+												className="h-8 w-8"
+												onClick={() => setResetTarget(s)}
+												aria-label="Passwort zurücksetzen"
+												title="Passwort zurücksetzen"
+											>
+												<KeyRound className="h-4 w-4" />
 											</Button>
 											<Button
 												variant="ghost"
@@ -921,6 +955,105 @@ const ClassDetailManagement: React.FC = () => {
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>
+
+			{/* Reset password confirm */}
+			<AlertDialog
+				open={!!resetTarget}
+				onOpenChange={(open) => {
+					if (!open && !resetting) setResetTarget(null);
+				}}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Passwort zurücksetzen?</AlertDialogTitle>
+						<AlertDialogDescription>
+							{resetTarget && (
+								<>
+									Für{" "}
+									<strong>
+										{resetTarget.firstName} {resetTarget.lastInitial}
+									</strong>{" "}
+									wird ein neues Passwort erzeugt. Das aktuelle Passwort wird
+									sofort ungültig. Das neue Passwort wird danach einmalig
+									angezeigt.
+								</>
+							)}
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={resetting}>
+							Abbrechen
+						</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={(e) => {
+								e.preventDefault();
+								handleResetPassword();
+							}}
+							disabled={resetting}
+						>
+							{resetting ? (
+								<>
+									<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+									Setze zurück…
+								</>
+							) : (
+								"Neues Passwort erzeugen"
+							)}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
+			{/* New password result */}
+			<Dialog
+				open={!!resetResult}
+				onOpenChange={(open) => {
+					if (!open) setResetResult(null);
+				}}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Neues Passwort</DialogTitle>
+						<DialogDescription>
+							Das Passwort wird nicht gespeichert und ist nur jetzt
+							einsehbar. Bitte notieren und an die Schüler:in weitergeben.
+						</DialogDescription>
+					</DialogHeader>
+					{resetResult && (
+						<div className="space-y-3 py-1">
+							<div className="text-sm">
+								<span className="font-medium">
+									{resetResult.firstName} {resetResult.lastInitial}
+								</span>
+								<div className="text-xs text-muted-foreground font-mono">
+									{resetResult.email}
+								</div>
+							</div>
+							<div className="flex items-center gap-2 rounded-md border bg-muted/40 p-3">
+								<code className="flex-1 font-mono text-base break-all">
+									{resetResult.password}
+								</code>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 shrink-0"
+									aria-label="Passwort kopieren"
+									onClick={async () => {
+										const ok = await copyToClipboard(resetResult.password);
+										if (ok) toast.success("Passwort kopiert");
+										else toast.error("Kopieren fehlgeschlagen");
+									}}
+								>
+									<Copy className="h-4 w-4" />
+								</Button>
+							</div>
+						</div>
+					)}
+					<DialogFooter>
+						<Button onClick={() => setResetResult(null)}>Fertig</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</PageShell>
 	);
 };

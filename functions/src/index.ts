@@ -7,6 +7,7 @@ export {
 	bulkImportStudents,
 	updateStudent,
 	deleteStudent,
+	resetStudentPassword,
 } from "./students";
 export { deleteClass } from "./classes";
 export { cleanupQuickAttempts, cleanupQuickSubmissions } from "./quickAccess";

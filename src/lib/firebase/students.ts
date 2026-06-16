@@ -57,6 +57,18 @@ const deleteStudentFn = httpsCallable<{ studentUid: string }, { ok: true }>(
 	"deleteStudent"
 );
 
+export interface ResetPasswordResult {
+	password: string;
+	email: string;
+	firstName: string;
+	lastInitial: string;
+}
+
+const resetStudentPasswordFn = httpsCallable<
+	{ studentUid: string },
+	ResetPasswordResult
+>(functions, "resetStudentPassword");
+
 export async function bulkImportStudents(
 	classId: string,
 	students: { firstName: string; lastInitial: string }[]
@@ -74,6 +86,18 @@ export async function updateStudent(
 
 export async function deleteStudent(studentUid: string): Promise<void> {
 	await deleteStudentFn({ studentUid });
+}
+
+/**
+ * Regenerate a managed student's password (teacher-initiated). Returns the
+ * new password ONCE — it is never stored, so the caller must surface it
+ * immediately for the teacher to note/print.
+ */
+export async function resetStudentPassword(
+	studentUid: string
+): Promise<ResetPasswordResult> {
+	const res = await resetStudentPasswordFn({ studentUid });
+	return res.data;
 }
 
 /**

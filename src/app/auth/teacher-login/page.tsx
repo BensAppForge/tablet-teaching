@@ -12,11 +12,23 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
 import { auth } from "@/lib/firebase/config";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import {
+	signInWithEmailAndPassword,
+	sendPasswordResetEmail,
+} from "firebase/auth";
 import Link from "next/link";
+import { toast } from "sonner";
 import AuthRedirect from "@/components/AuthRedirect";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 
 const TeacherLoginForm: React.FC = () => {
 	const [email, setEmail] = useState("");
@@ -24,7 +36,41 @@ const TeacherLoginForm: React.FC = () => {
 	const [error, setError] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [showPassword, setShowPassword] = useState(false);
+	const [resetOpen, setResetOpen] = useState(false);
+	const [resetEmail, setResetEmail] = useState("");
+	const [resetBusy, setResetBusy] = useState(false);
 	const router = useRouter();
+
+	const openReset = () => {
+		setResetEmail(email);
+		setResetOpen(true);
+	};
+
+	const handleReset = async () => {
+		const addr = resetEmail.trim();
+		if (!addr) {
+			toast.error("Bitte E-Mail-Adresse eingeben.");
+			return;
+		}
+		setResetBusy(true);
+		try {
+			await sendPasswordResetEmail(auth, addr);
+		} catch (err: any) {
+			// Don't leak which addresses exist: only a malformed address is
+			// surfaced; everything else is reported as success.
+			if (err?.code === "auth/invalid-email") {
+				toast.error("Ungültige E-Mail-Adresse.");
+				setResetBusy(false);
+				return;
+			}
+			console.error("Password reset error:", err);
+		}
+		setResetBusy(false);
+		setResetOpen(false);
+		toast.success(
+			"Falls ein Konto mit dieser E-Mail existiert, wurde eine E-Mail zum Zurücksetzen gesendet."
+		);
+	};
 
 	const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -125,6 +171,15 @@ const TeacherLoginForm: React.FC = () => {
 						<Button type="submit" disabled={isLoading} className="w-full">
 							{isLoading ? "Anmelden..." : "Anmelden"}
 						</Button>
+						<div className="text-center">
+							<button
+								type="button"
+								onClick={openReset}
+								className="text-sm text-accent hover:underline"
+							>
+								Passwort vergessen?
+							</button>
+						</div>
 						<div className="text-center text-xs text-muted-foreground">
 							Tablet Teaching ist derzeit in geschlossener Beta. Neue Konten
 							werden nur auf Einladung angelegt.
@@ -141,6 +196,55 @@ const TeacherLoginForm: React.FC = () => {
 					</form>
 				</CardContent>
 			</Card>
+
+			<Dialog open={resetOpen} onOpenChange={setResetOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Passwort zurücksetzen</DialogTitle>
+						<DialogDescription>
+							Gib deine E-Mail-Adresse ein. Wir senden dir einen Link zum
+							Zurücksetzen deines Passworts.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="grid gap-2 py-1">
+						<Label htmlFor="reset-email">E-Mail</Label>
+						<Input
+							id="reset-email"
+							type="email"
+							autoFocus
+							placeholder="name@beispiel.com"
+							value={resetEmail}
+							onChange={(e) => setResetEmail(e.target.value)}
+							onKeyDown={(e) => {
+								if (e.key === "Enter" && !resetBusy) {
+									e.preventDefault();
+									handleReset();
+								}
+							}}
+							disabled={resetBusy}
+						/>
+					</div>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setResetOpen(false)}
+							disabled={resetBusy}
+						>
+							Abbrechen
+						</Button>
+						<Button onClick={handleReset} disabled={resetBusy}>
+							{resetBusy ? (
+								<>
+									<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+									Senden…
+								</>
+							) : (
+								"Link senden"
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 };
