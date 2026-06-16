@@ -12,6 +12,7 @@ import FooterAuthButton from "@/components/FooterAuthButton";
 import FooterInfo from "@/components/FooterInfo";
 import { ModeToggle } from "@/components/ModeToggle";
 import UserProfile from "@/components/UserProfile";
+import InstallPrompt from "@/components/InstallPrompt";
 import { APP_VERSION } from "@/lib/version";
 import { cn } from "@/lib/utils";
 
@@ -165,6 +166,9 @@ export default function AppShell({ children }: AppShellProps) {
 			)}
 		>
 			{focusRoute ? <FocusHeader /> : <DefaultHeader />}
+			{/* Install hint only outside the student focus flow (no banner
+			    while a kid is taking a test). */}
+			{!focusRoute && <InstallPrompt />}
 			<main className={cn("flex flex-1 flex-col", focusRoute && "pb-6")}>
 				{children}
 			</main>
