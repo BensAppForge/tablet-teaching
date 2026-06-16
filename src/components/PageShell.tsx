@@ -62,14 +62,14 @@ const PageShell: React.FC<PageShellProps> = ({
 		}
 	};
 
+	// The back button + title row span the full container width (left edge
+	// aligned with the global header's logo at every viewport, since the
+	// header now shares this container). Only the body honours the narrow
+	// reading width, kept left-aligned so it lines up under the back button.
+	const bodyWidth = WIDTHS[maxWidth];
+
 	return (
-		<div
-			className={cn(
-				"container mx-auto px-4 py-6",
-				WIDTHS[maxWidth],
-				className
-			)}
-		>
+		<div className={cn("container mx-auto px-4 py-6", className)}>
 			<div className="mb-4 flex items-center gap-2">
 				<Button
 					variant="outline"
@@ -94,7 +94,7 @@ const PageShell: React.FC<PageShellProps> = ({
 				)}
 			</div>
 
-			{children}
+			{bodyWidth ? <div className={bodyWidth}>{children}</div> : children}
 		</div>
 	);
 };

@@ -75,7 +75,7 @@ function FocusHeader() {
 function DefaultHeader() {
 	return (
 		<header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-			<div className="flex h-16 items-center justify-between gap-3 px-4 py-2 ipad-safe-x">
+			<div className="container mx-auto flex h-16 items-center justify-between gap-3 px-4 py-2 ipad-safe-x">
 				<Link
 					href="/"
 					className="flex min-w-0 items-center gap-2 font-semibold tracking-wide transition-opacity hover:opacity-80"
@@ -121,7 +121,7 @@ function StudentFooter() {
 function DefaultFooter() {
 	return (
 		<footer className="sticky bottom-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-			<div className="flex h-16 items-center justify-between gap-3 px-4 py-2 ipad-safe-x ipad-safe-bottom">
+			<div className="container mx-auto flex h-16 items-center justify-between gap-3 px-4 py-2 ipad-safe-x ipad-safe-bottom">
 				<div className="text-sm text-muted-foreground">
 					&copy; {new Date().getFullYear()} Bensappforge
 					<span className="ml-2 text-xs opacity-70">
