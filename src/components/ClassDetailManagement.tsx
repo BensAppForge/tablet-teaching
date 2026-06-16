@@ -3,7 +3,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-	ArrowLeft,
 	Copy,
 	Download,
 	Loader2,
@@ -30,6 +29,7 @@ import {
 	Student,
 	updateStudent,
 } from "@/lib/firebase/students";
+import PageShell from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -417,32 +417,20 @@ const ClassDetailManagement: React.FC = () => {
 
 	if (!classId) {
 		return (
-			<div className="container mx-auto px-4 py-6">
+			<PageShell title="Klasse" backHref="/classes" backLabel="Klassen">
 				<p className="text-muted-foreground">Keine Klassen-ID angegeben.</p>
-			</div>
+			</PageShell>
 		);
 	}
 
 	return (
-		<div className="container mx-auto px-4 py-6">
-			<div className="flex items-center gap-2 mb-4">
-				<Button
-					variant="outline"
-					size="sm"
-					className="gap-1 text-muted-foreground"
-					onClick={() => router.push("/classes")}
-				>
-					<ArrowLeft className="h-4 w-4" />
-					<span>Klassen</span>
-				</Button>
-			</div>
-
-			<div className="border-b mb-6 flex items-center justify-between gap-3">
-				<h1 className="text-2xl font-semibold py-2 text-gray-700 dark:text-gray-200 truncate">
-					{loading ? "Laden…" : cls?.name ?? "Klasse"}
-				</h1>
-				{!loading && cls && (
-					<div className="flex items-center gap-2 shrink-0">
+		<PageShell
+			title={loading ? "Laden…" : cls?.name ?? "Klasse"}
+			backHref="/classes"
+			backLabel="Klassen"
+			actions={
+				!loading && cls ? (
+					<>
 						<Button
 							variant="outline"
 							size="sm"
@@ -462,10 +450,10 @@ const ClassDetailManagement: React.FC = () => {
 							<Trash2 className="h-4 w-4 mr-2" />
 							Löschen
 						</Button>
-					</div>
-				)}
-			</div>
-
+					</>
+				) : undefined
+			}
+		>
 			{loading ? (
 				<Card>
 					<CardContent className="p-5 space-y-3">
@@ -933,7 +921,7 @@ const ClassDetailManagement: React.FC = () => {
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>
-		</div>
+		</PageShell>
 	);
 };
 

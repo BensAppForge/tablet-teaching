@@ -20,11 +20,16 @@ import {
 	writeBatch,
 } from "firebase/firestore";
 import { firestore } from "./config";
+import {
+	CollectionColor,
+	DEFAULT_COLLECTION_COLOR,
+} from "@/lib/collectionColors";
 
 export interface TestCollection {
 	id?: string;
 	teacherId: string;
 	name: string;
+	color?: CollectionColor;
 	createdAt?: Timestamp;
 	updatedAt?: Timestamp;
 }
@@ -37,29 +42,47 @@ function cleanName(name: string): string {
 
 export const createCollection = async (
 	teacherId: string,
-	name: string
+	name: string,
+	color: CollectionColor = DEFAULT_COLLECTION_COLOR
 ): Promise<string> => {
 	const trimmed = cleanName(name);
 	if (!trimmed) throw new Error("Name darf nicht leer sein.");
 	const ref = await addDoc(collection(firestore, "collections"), {
 		teacherId,
 		name: trimmed,
+		color,
 		createdAt: serverTimestamp(),
 		updatedAt: serverTimestamp(),
 	});
 	return ref.id;
 };
 
+/**
+ * Update a collection's display metadata (name and/or colour). At least
+ * one field should be supplied; an empty patch is a no-op write of
+ * updatedAt. Kept generic so the edit dialog can save both at once.
+ */
+export const updateCollection = async (
+	id: string,
+	patch: { name?: string; color?: CollectionColor }
+): Promise<void> => {
+	let name: string | undefined;
+	if (patch.name !== undefined) {
+		name = cleanName(patch.name);
+		if (!name) throw new Error("Name darf nicht leer sein.");
+	}
+	await updateDoc(doc(firestore, "collections", id), {
+		...(name !== undefined ? { name } : {}),
+		...(patch.color !== undefined ? { color: patch.color } : {}),
+		updatedAt: serverTimestamp(),
+	});
+};
+
 export const renameCollection = async (
 	id: string,
 	name: string
 ): Promise<void> => {
-	const trimmed = cleanName(name);
-	if (!trimmed) throw new Error("Name darf nicht leer sein.");
-	await updateDoc(doc(firestore, "collections", id), {
-		name: trimmed,
-		updatedAt: serverTimestamp(),
-	});
+	await updateCollection(id, { name });
 };
 
 /**

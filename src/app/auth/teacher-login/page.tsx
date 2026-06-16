@@ -125,14 +125,9 @@ const TeacherLoginForm: React.FC = () => {
 						<Button type="submit" disabled={isLoading} className="w-full">
 							{isLoading ? "Anmelden..." : "Anmelden"}
 						</Button>
-						<div className="text-center text-sm text-muted-foreground">
-							Noch kein Konto?{" "}
-							<Link
-								href="/auth/teacher-signup"
-								className="text-accent hover:underline"
-							>
-								Registrieren
-							</Link>
+						<div className="text-center text-xs text-muted-foreground">
+							Tablet Teaching ist derzeit in geschlossener Beta. Neue Konten
+							werden nur auf Einladung angelegt.
 						</div>
 						<div className="text-center text-sm text-muted-foreground border-t pt-3">
 							Du bist Schüler:in?{" "}

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React from "react";
+import Link from "next/link";
 import {
 	Card,
 	CardHeader,
@@ -11,338 +11,46 @@ import {
 	CardFooter,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-	Mail,
-	Lock,
-	Eye,
-	EyeOff,
-	CheckCircle2,
-	XCircle,
-	User,
-} from "lucide-react";
-import { auth, firestore } from "@/lib/firebase/config";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import Link from "next/link";
+import { Lock } from "lucide-react";
 
-// Password validation requirements
-const passwordRequirements = [
-	{
-		id: "length",
-		label: "Mindestens 6 Zeichen",
-		validator: (password: string) => password.length >= 6,
-	},
-	{
-		id: "number",
-		label: "Mindestens eine Zahl",
-		validator: (password: string) => /\d/.test(password),
-	},
-	{
-		id: "special",
-		label: "Mindestens ein Sonderzeichen",
-		validator: (password: string) =>
-			/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]+/.test(password),
-	},
-];
-
+// CLOSED BETA: self-service teacher registration is disabled. The account
+// creation flow (createUserWithEmailAndPassword + teachers doc) has been
+// removed so no new teacher accounts can be created from the UI; the
+// Firestore rules also reject creating a teachers/{uid} doc. New beta
+// testers are onboarded manually. To re-open registration, restore the
+// previous version of this file from git history and flip the create rule.
 const TeacherSignupPage: React.FC = () => {
-	const [firstName, setFirstName] = useState("");
-	const [lastName, setLastName] = useState("");
-	const [email, setEmail] = useState("");
-	const [password, setPassword] = useState("");
-	const [passwordConfirm, setPasswordConfirm] = useState("");
-	const [showPassword, setShowPassword] = useState(false);
-	const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-	const [isLoading, setIsLoading] = useState(false);
-	const [validations, setValidations] = useState<{ [key: string]: boolean }>({
-		length: false,
-		number: false,
-		special: false,
-	});
-	const [passwordMatch, setPasswordMatch] = useState(true);
-	const router = useRouter();
-
-	// Check password requirements when password changes
-	useEffect(() => {
-		const newValidations = { ...validations };
-		passwordRequirements.forEach((requirement) => {
-			newValidations[requirement.id] = requirement.validator(password);
-		});
-		setValidations(newValidations);
-	}, [password]);
-
-	// Check password matching
-	useEffect(() => {
-		if (passwordConfirm) {
-			setPasswordMatch(password === passwordConfirm);
-		} else {
-			setPasswordMatch(true); // Don't show error when confirm field is empty
-		}
-	}, [password, passwordConfirm]);
-
-	const handleSignup = async (event: React.FormEvent<HTMLFormElement>) => {
-		event.preventDefault();
-		setError(null);
-
-		// Validate name fields
-		if (!firstName.trim() || !lastName.trim()) {
-			setError("Bitte geben Sie Ihren Vor- und Nachnamen ein.");
-			return;
-		}
-
-		// Check if all password requirements are met
-		const isPasswordValid = Object.values(validations).every((valid) => valid);
-		if (!isPasswordValid) {
-			setError("Das Passwort erfüllt nicht alle Anforderungen.");
-			return;
-		}
-
-		// Check if passwords match
-		if (password !== passwordConfirm) {
-			setError("Die Passwörter stimmen nicht überein.");
-			return;
-		}
-
-		setIsLoading(true);
-
-		try {
-			// Create a new user with email and password
-			const userCredential = await createUserWithEmailAndPassword(
-				auth,
-				email,
-				password
-			);
-
-			// Update the user's profile with display name
-			const displayName = `${firstName} ${lastName}`;
-			await updateProfile(userCredential.user, {
-				displayName: displayName,
-			});
-
-			// Add user data to Firestore
-			const userId = userCredential.user.uid;
-			await setDoc(doc(firestore, "teachers", userId), {
-				firstName: firstName,
-				lastName: lastName,
-				email: email,
-				createdAt: serverTimestamp(),
-				isPremium: false,
-				isBetaTester: false,
-				// premiumExpiresOn is not set initially
-			});
-
-			// Success - redirect to dashboard or login
-			router.push("/teacher/dashboard");
-		} catch (err: any) {
-			console.error("Firebase Signup Error:", err);
-
-			// Handle specific Firebase auth errors
-			let errorMessage =
-				"Registrierung fehlgeschlagen. Bitte versuchen Sie es erneut.";
-			if (err.code === "auth/email-already-in-use") {
-				errorMessage = "Diese E-Mail-Adresse wird bereits verwendet.";
-			} else if (err.code === "auth/invalid-email") {
-				errorMessage = "Ungültige E-Mail-Adresse.";
-			} else if (err.code === "auth/weak-password") {
-				errorMessage = "Das Passwort ist zu schwach.";
-			}
-
-			setError(errorMessage);
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
 	return (
 		<div className="container mx-auto p-4 flex items-center justify-center min-h-screen">
 			<Card className="w-full max-w-md">
 				<CardHeader>
-					<CardTitle>Lehrer Registrierung</CardTitle>
+					<div className="mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+						<Lock className="h-6 w-6 text-muted-foreground" />
+					</div>
+					<CardTitle>Registrierung geschlossen</CardTitle>
 					<CardDescription>
-						Erstellen Sie ein neues Lehrer-Konto.
+						Tablet Teaching befindet sich derzeit in einer geschlossenen
+						Beta-Phase.
 					</CardDescription>
 				</CardHeader>
-				<CardContent>
-					<form onSubmit={handleSignup} className="grid gap-4">
-						{/* Name fields */}
-						<div className="grid grid-cols-2 gap-4">
-							<div className="grid gap-2">
-								<Label htmlFor="firstName">Vorname</Label>
-								<div className="relative">
-									<User className="absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground" />
-									<Input
-										type="text"
-										id="firstName"
-										placeholder="Vorname"
-										className="pl-10"
-										value={firstName}
-										onChange={(e) => setFirstName(e.target.value)}
-										required
-										disabled={isLoading}
-									/>
-								</div>
-							</div>
-							<div className="grid gap-2">
-								<Label htmlFor="lastName">Nachname</Label>
-								<div className="relative">
-									<User className="absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground" />
-									<Input
-										type="text"
-										id="lastName"
-										placeholder="Nachname"
-										className="pl-10"
-										value={lastName}
-										onChange={(e) => setLastName(e.target.value)}
-										required
-										disabled={isLoading}
-									/>
-								</div>
-							</div>
-						</div>
-
-						<div className="grid gap-2">
-							<Label htmlFor="email">Email</Label>
-							<div className="relative">
-								<Mail className="absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground" />
-								<Input
-									type="email"
-									id="email"
-									placeholder="name@beispiel.com"
-									className="pl-10"
-									value={email}
-									onChange={(e) => setEmail(e.target.value)}
-									required
-									disabled={isLoading}
-								/>
-							</div>
-						</div>
-
-						<div className="grid gap-2">
-							<Label htmlFor="password">Passwort</Label>
-							<div className="relative">
-								<Lock className="absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground" />
-								<Input
-									type={showPassword ? "text" : "password"}
-									id="password"
-									placeholder="Passwort"
-									className="pl-10 pr-10"
-									value={password}
-									onChange={(e) => setPassword(e.target.value)}
-									required
-									disabled={isLoading}
-								/>
-								<button
-									type="button"
-									className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-accent focus:outline-none"
-									onClick={() => setShowPassword(!showPassword)}
-									tabIndex={-1}
-									aria-label={
-										showPassword ? "Passwort verbergen" : "Passwort anzeigen"
-									}
-								>
-									{showPassword ? (
-										<EyeOff className="h-5 w-5" />
-									) : (
-										<Eye className="h-5 w-5" />
-									)}
-								</button>
-							</div>
-
-							{/* Password requirements list */}
-							<div className="mt-2 space-y-1">
-								{passwordRequirements.map((req) => (
-									<div key={req.id} className="flex items-center text-sm">
-										{validations[req.id] ? (
-											<CheckCircle2 className="h-4 w-4 mr-2 text-green-500" />
-										) : (
-											<XCircle className="h-4 w-4 mr-2 text-red-500" />
-										)}
-										<span
-											className={
-												validations[req.id]
-													? "text-muted-foreground"
-													: "text-muted-foreground"
-											}
-										>
-											{req.label}
-										</span>
-									</div>
-								))}
-							</div>
-						</div>
-
-						<div className="grid gap-2">
-							<Label
-								htmlFor="passwordConfirm"
-								className={
-									!passwordMatch && passwordConfirm ? "text-destructive" : ""
-								}
-							>
-								Passwort bestätigen
-							</Label>
-							<div className="relative">
-								<Lock className="absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground" />
-								<Input
-									type={showPasswordConfirm ? "text" : "password"}
-									id="passwordConfirm"
-									placeholder="Passwort bestätigen"
-									className={`pl-10 pr-10 ${
-										!passwordMatch && passwordConfirm
-											? "border-destructive"
-											: ""
-									}`}
-									value={passwordConfirm}
-									onChange={(e) => setPasswordConfirm(e.target.value)}
-									required
-									disabled={isLoading}
-								/>
-								<button
-									type="button"
-									className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-accent focus:outline-none"
-									onClick={() => setShowPasswordConfirm(!showPasswordConfirm)}
-									tabIndex={-1}
-									aria-label={
-										showPasswordConfirm
-											? "Passwort verbergen"
-											: "Passwort anzeigen"
-									}
-								>
-									{showPasswordConfirm ? (
-										<EyeOff className="h-5 w-5" />
-									) : (
-										<Eye className="h-5 w-5" />
-									)}
-								</button>
-							</div>
-							{!passwordMatch && passwordConfirm && (
-								<p className="text-xs text-destructive mt-1">
-									Die Passwörter stimmen nicht überein
-								</p>
-							)}
-						</div>
-
-						{error && (
-							<p className="text-sm font-medium text-destructive">{error}</p>
-						)}
-
-						<Button type="submit" disabled={isLoading} className="w-full">
-							{isLoading ? "Registrieren..." : "Registrieren"}
-						</Button>
-
-						<div className="text-center text-sm text-muted-foreground">
-							Bereits ein Konto?{" "}
-							<Link
-								href="/auth/teacher-login"
-								className="text-accent hover:underline"
-							>
-								Anmelden
-							</Link>
-						</div>
-					</form>
+				<CardContent className="space-y-4 text-sm text-muted-foreground">
+					<p>
+						Neue Lehrer-Konten werden zurzeit nur auf Einladung angelegt. Eine
+						offene Registrierung ist noch nicht möglich.
+					</p>
+					<p>
+						Wenn du Interesse hast, die App zu testen, melde dich gern bei uns –
+						wir nehmen dich in die Beta auf, sobald wieder Plätze frei sind.
+					</p>
 				</CardContent>
+				<CardFooter className="flex-col gap-3">
+					<Button asChild className="w-full">
+						<Link href="/auth/teacher-login">Zur Anmeldung</Link>
+					</Button>
+					<Button asChild variant="ghost" className="w-full">
+						<Link href="/">Zur Startseite</Link>
+					</Button>
+				</CardFooter>
 			</Card>
 		</div>
 	);

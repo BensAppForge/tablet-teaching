@@ -9,10 +9,15 @@ service cloud.firestore {
     // both flags false; updates must not touch them (Admin SDK only).
     match /teachers/{teacherId} {
       allow read: if request.auth != null && request.auth.uid == teacherId;
-      allow create: if request.auth != null && request.auth.uid == teacherId
-        && request.resource.data.get('isPremium', false) == false
-        && request.resource.data.get('isBetaTester', false) == false
-        && !request.resource.data.keys().hasAny(['premiumExpiresOn']);
+      // CLOSED BETA: self-service teacher signup is disabled. New beta
+      // testers are onboarded manually (create the teachers/{uid} doc with
+      // the Admin SDK / console). Re-enable by restoring the create rule
+      // below — the flags-must-be-false guard is preserved in a comment.
+      //   allow create: if request.auth != null && request.auth.uid == teacherId
+      //     && request.resource.data.get('isPremium', false) == false
+      //     && request.resource.data.get('isBetaTester', false) == false
+      //     && !request.resource.data.keys().hasAny(['premiumExpiresOn']);
+      allow create: if false;
       allow update: if request.auth != null && request.auth.uid == teacherId
         && !request.resource.data.diff(resource.data).affectedKeys()
             .hasAny(['isPremium', 'isBetaTester', 'premiumExpiresOn']);
@@ -125,19 +130,25 @@ service cloud.firestore {
     // test's `collectionId` field, governed by the /tests update rule.
     // Strictly owner-only — no student ever reads these.
     match /collections/{collectionId} {
+      function validColor() {
+        return request.resource.data.get('color', 'blue')
+          in ['blue', 'green', 'purple', 'rose', 'amber', 'teal'];
+      }
       allow read: if request.auth != null && resource.data.teacherId == request.auth.uid;
       allow create: if request.auth != null
         && request.resource.data.teacherId == request.auth.uid
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
-        && request.resource.data.name.size() <= 60;
-      // teacherId is immutable; name stays bounded on rename.
+        && request.resource.data.name.size() <= 60
+        && validColor();
+      // teacherId is immutable; name stays bounded; colour stays in the set.
       allow update: if request.auth != null
         && resource.data.teacherId == request.auth.uid
         && request.resource.data.teacherId == resource.data.teacherId
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0
-        && request.resource.data.name.size() <= 60;
+        && request.resource.data.name.size() <= 60
+        && validColor();
       allow delete: if request.auth != null && resource.data.teacherId == request.auth.uid;
     }
 

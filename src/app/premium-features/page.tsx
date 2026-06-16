@@ -16,36 +16,17 @@ import {
 	CreditCard,
 	Zap,
 	Lock,
-	ArrowLeft,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import PageShell from "@/components/PageShell";
 
 const PremiumFeaturesPage: React.FC = () => {
 	return (
-		<div className="container mx-auto px-4 py-6">
-			<div className="mb-6">
-				<div className="flex items-center gap-2 mb-4">
-					<Link href="/teacher/dashboard">
-						<Button
-							variant="outline"
-							size="sm"
-							className="gap-1 text-muted-foreground"
-						>
-							<ArrowLeft className="h-4 w-4" />
-							<span>Dashboard</span>
-						</Button>
-					</Link>
-				</div>
-
-				<div className="flex items-center gap-2">
-					<h1 className="text-2xl font-semibold text-gray-800 dark:text-gray-100">
-						Premium-Funktionen
-					</h1>
-					<BadgeCheck className="h-6 w-6 text-yellow-500" />
-				</div>
-			</div>
-
+		<PageShell
+			title="Premium-Funktionen"
+			icon={<BadgeCheck className="h-6 w-6 text-yellow-500" />}
+			backHref="/teacher/dashboard"
+			backLabel="Dashboard"
+		>
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 				<div className="md:col-span-2">
 					<Tabs defaultValue="features" className="w-full">
@@ -331,7 +312,7 @@ const PremiumFeaturesPage: React.FC = () => {
 					<PremiumFeatures />
 				</div>
 			</div>
-		</div>
+		</PageShell>
 	);
 };
 

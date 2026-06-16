@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatDistanceToNow } from "date-fns";
 import { de } from "date-fns/locale";
-import { ArrowLeft, Loader2, Plus, Users } from "lucide-react";
+import { Loader2, Plus, Users } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/context/AuthContext";
@@ -13,6 +13,7 @@ import {
 	createClass,
 	getTeacherClasses,
 } from "@/lib/firebase/classes";
+import PageShell from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -91,26 +92,11 @@ const ClassesManagement: React.FC = () => {
 	};
 
 	return (
-		<div className="container mx-auto px-4 py-6">
-			<div className="flex items-center gap-2 mb-4">
-				<Button
-					variant="outline"
-					size="sm"
-					className="gap-1 text-muted-foreground"
-					onClick={() => router.push("/teacher/dashboard")}
-				>
-					<ArrowLeft className="h-4 w-4" />
-					<span>Dashboard</span>
-				</Button>
-			</div>
-
-			<div className="border-b mb-6">
-				<h1 className="text-2xl font-semibold py-2 text-gray-700 dark:text-gray-200">
-					Klassen verwalten
-				</h1>
-			</div>
-
-			<div className="flex justify-end mb-6">
+		<PageShell
+			title="Klassen verwalten"
+			backHref="/teacher/dashboard"
+			backLabel="Dashboard"
+			actions={
 				<Button
 					variant="default"
 					className="gap-2"
@@ -119,8 +105,8 @@ const ClassesManagement: React.FC = () => {
 					<Plus className="h-4 w-4" />
 					Klasse anlegen
 				</Button>
-			</div>
-
+			}
+		>
 			{loading ? (
 				<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
 					{[0, 1, 2].map((i) => (
@@ -221,7 +207,7 @@ const ClassesManagement: React.FC = () => {
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
-		</div>
+		</PageShell>
 	);
 };
 

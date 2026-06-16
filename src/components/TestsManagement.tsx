@@ -6,12 +6,19 @@ import { subscribeToTeacherTests, Test, deleteTest } from "@/lib/firebase/tests"
 import {
 	subscribeToTeacherCollections,
 	createCollection,
-	renameCollection,
+	updateCollection,
 	deleteCollection,
 	setTestCollection,
 	TestCollection,
 	COLLECTION_NAME_MAX,
 } from "@/lib/firebase/collections";
+import {
+	COLLECTION_COLORS,
+	collectionColor,
+	DEFAULT_COLLECTION_COLOR,
+	type CollectionColor,
+} from "@/lib/collectionColors";
+import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +42,7 @@ import {
 	MoreVertical,
 	FolderInput,
 } from "lucide-react";
+import PageShell from "@/components/PageShell";
 import TestResultsDialog from "@/components/TestResultsDialog";
 import CollectionPicker from "@/components/CollectionPicker";
 import { useRouter } from "next/navigation";
@@ -93,7 +101,12 @@ const TestsManagement: React.FC = () => {
 	// Collection management dialogs.
 	const [moveTest, setMoveTest] = useState<Test | null>(null);
 	const [nameDialog, setNameDialog] = useState<
-		{ mode: "create" | "rename"; id?: string; value: string } | null
+		{
+			mode: "create" | "rename";
+			id?: string;
+			value: string;
+			color: CollectionColor;
+		} | null
 	>(null);
 	const [savingName, setSavingName] = useState(false);
 	const [collectionToDelete, setCollectionToDelete] =
@@ -227,11 +240,14 @@ const TestsManagement: React.FC = () => {
 		setSavingName(true);
 		try {
 			if (nameDialog.mode === "create") {
-				await createCollection(currentUser.uid, name);
+				await createCollection(currentUser.uid, name, nameDialog.color);
 				toast.success("Sammlung erstellt");
 			} else if (nameDialog.id) {
-				await renameCollection(nameDialog.id, name);
-				toast.success("Sammlung umbenannt");
+				await updateCollection(nameDialog.id, {
+					name,
+					color: nameDialog.color,
+				});
+				toast.success("Sammlung gespeichert");
 			}
 			setNameDialog(null);
 		} catch (err) {
@@ -380,23 +396,11 @@ const TestsManagement: React.FC = () => {
 	);
 
 	return (
-		<div className="container mx-auto px-4 py-6">
-			<div className="flex items-center gap-2 mb-4">
-				<Button
-					variant="outline"
-					size="sm"
-					className="gap-1 text-muted-foreground"
-					onClick={() => router.push("/teacher/dashboard")}
-				>
-					<ArrowLeft className="h-4 w-4" />
-					<span>Dashboard</span>
-				</Button>
-			</div>
-
-			<div className="border-b mb-6 flex items-center justify-between gap-3">
-				<h1 className="text-2xl font-semibold py-2 text-gray-700 dark:text-gray-200">
-					Tests verwalten
-				</h1>
+		<PageShell
+			title="Tests verwalten"
+			backHref="/teacher/dashboard"
+			backLabel="Dashboard"
+			actions={
 				<Button
 					variant="ghost"
 					size="icon"
@@ -405,8 +409,8 @@ const TestsManagement: React.FC = () => {
 				>
 					<Settings className="h-4 w-4" />
 				</Button>
-			</div>
-
+			}
+		>
 			{loading ? (
 				<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
 					{[0, 1, 2, 3].map((i) => (
@@ -421,7 +425,11 @@ const TestsManagement: React.FC = () => {
 							variant="outline"
 							className="gap-2"
 							onClick={() =>
-								setNameDialog({ mode: "create", value: "" })
+								setNameDialog({
+									mode: "create",
+									value: "",
+									color: DEFAULT_COLLECTION_COLOR,
+								})
 							}
 						>
 							<FolderPlus className="h-4 w-4" />
@@ -454,14 +462,19 @@ const TestsManagement: React.FC = () => {
 						</Card>
 					) : (
 						<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-							{collections.map((c) => (
+							{collections.map((c) => {
+								const color = collectionColor(c.color);
+								return (
 								<div key={c.id} className="relative">
 									<button
 										type="button"
 										onClick={() => setOpenFolder(c.id!)}
-										className="w-full h-32 rounded-lg border bg-card hover:bg-muted/40 transition-colors flex flex-col items-center justify-center gap-2 p-4 text-center"
+										className={cn(
+											"w-full h-32 rounded-lg border transition-colors flex flex-col items-center justify-center gap-2 p-4 text-center",
+											color.tile
+										)}
 									>
-										<Folder className="h-9 w-9 text-accent" />
+										<Folder className={cn("h-9 w-9", color.icon)} />
 										<span className="text-sm font-medium line-clamp-2">
 											{c.name}
 										</span>
@@ -488,11 +501,12 @@ const TestsManagement: React.FC = () => {
 															mode: "rename",
 															id: c.id,
 															value: c.name,
+															color: c.color ?? DEFAULT_COLLECTION_COLOR,
 														})
 													}
 												>
 													<Pencil className="h-4 w-4 mr-2" />
-													Umbenennen
+													Bearbeiten
 												</DropdownMenuItem>
 												<DropdownMenuItem
 													className="text-destructive focus:text-destructive"
@@ -505,7 +519,8 @@ const TestsManagement: React.FC = () => {
 										</DropdownMenu>
 									</div>
 								</div>
-							))}
+								);
+							})}
 
 							{/* Ohne Sammlung — always present so uncategorised tests
 							    have a home; shows even at zero so it's discoverable. */}
@@ -538,7 +553,14 @@ const TestsManagement: React.FC = () => {
 								<span>Sammlungen</span>
 							</Button>
 							<div className="flex items-center gap-2 min-w-0">
-								<FolderOpen className="h-5 w-5 text-accent shrink-0" />
+								<FolderOpen
+									className={cn(
+										"h-5 w-5 shrink-0",
+										openCollection
+											? collectionColor(openCollection.color).icon
+											: "text-muted-foreground"
+									)}
+								/>
 								<h2 className="text-lg font-semibold truncate">
 									{openFolderName}
 								</h2>
@@ -558,11 +580,13 @@ const TestsManagement: React.FC = () => {
 												mode: "rename",
 												id: openCollection.id,
 												value: openCollection.name,
+												color:
+													openCollection.color ?? DEFAULT_COLLECTION_COLOR,
 											})
 										}
 									>
 										<Pencil className="h-4 w-4 mr-2" />
-										Umbenennen
+										Bearbeiten
 									</Button>
 									<Button
 										variant="ghost"
@@ -679,31 +703,63 @@ const TestsManagement: React.FC = () => {
 					<DialogHeader>
 						<DialogTitle>
 							{nameDialog?.mode === "rename"
-								? "Sammlung umbenennen"
+								? "Sammlung bearbeiten"
 								: "Neue Sammlung"}
 						</DialogTitle>
 					</DialogHeader>
-					<div className="py-2 space-y-2">
-						<Label htmlFor="collection-name">Name</Label>
-						<Input
-							id="collection-name"
-							autoFocus
-							value={nameDialog?.value ?? ""}
-							maxLength={COLLECTION_NAME_MAX}
-							placeholder="z. B. Englisch – Headway B1"
-							disabled={savingName}
-							onChange={(e) =>
-								setNameDialog((prev) =>
-									prev ? { ...prev, value: e.target.value } : prev
-								)
-							}
-							onKeyDown={(e) => {
-								if (e.key === "Enter") {
-									e.preventDefault();
-									handleSaveName();
+					<div className="py-2 space-y-4">
+						<div className="space-y-2">
+							<Label htmlFor="collection-name">Name</Label>
+							<Input
+								id="collection-name"
+								autoFocus
+								value={nameDialog?.value ?? ""}
+								maxLength={COLLECTION_NAME_MAX}
+								placeholder="z. B. Englisch – Headway B1"
+								disabled={savingName}
+								onChange={(e) =>
+									setNameDialog((prev) =>
+										prev ? { ...prev, value: e.target.value } : prev
+									)
 								}
-							}}
-						/>
+								onKeyDown={(e) => {
+									if (e.key === "Enter") {
+										e.preventDefault();
+										handleSaveName();
+									}
+								}}
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label>Farbe</Label>
+							<div className="flex flex-wrap gap-2">
+								{COLLECTION_COLORS.map((c) => {
+									const selected = nameDialog?.color === c.key;
+									return (
+										<button
+											key={c.key}
+											type="button"
+											aria-label={c.label}
+											aria-pressed={selected}
+											title={c.label}
+											disabled={savingName}
+											onClick={() =>
+												setNameDialog((prev) =>
+													prev ? { ...prev, color: c.key } : prev
+												)
+											}
+											className={cn(
+												"h-9 w-9 rounded-full transition-transform",
+												c.dot,
+												selected
+													? "ring-2 ring-offset-2 ring-ring ring-offset-background scale-105"
+													: "opacity-70 hover:opacity-100"
+											)}
+										/>
+									);
+								})}
+							</div>
+						</div>
 					</div>
 					<DialogFooter>
 						<Button variant="outline" onClick={() => setNameDialog(null)}>
@@ -783,7 +839,7 @@ const TestsManagement: React.FC = () => {
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>
-		</div>
+		</PageShell>
 	);
 };
 

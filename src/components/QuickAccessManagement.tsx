@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Copy, KeyRound, Loader2, RefreshCw } from "lucide-react";
+import { Copy, KeyRound, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/context/AuthContext";
@@ -12,6 +12,7 @@ import {
 	deleteQuickCode,
 	findUniqueQuickCode,
 } from "@/lib/firebase/quickAccess";
+import PageShell from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -176,31 +177,19 @@ const QuickAccessManagement: React.FC = () => {
 
 	if (!test) {
 		return (
-			<div className="container mx-auto px-4 py-6">
+			<PageShell title="Schnellzugang" backHref="/tests" backLabel="Tests">
 				<p className="text-muted-foreground">Test nicht gefunden.</p>
-			</div>
+			</PageShell>
 		);
 	}
 
 	return (
-		<div className="container mx-auto px-4 py-6 max-w-3xl">
-			<div className="flex items-center gap-2 mb-4">
-				<Button
-					variant="outline"
-					size="sm"
-					className="gap-1 text-muted-foreground"
-					onClick={() => router.push("/tests")}
-				>
-					<ArrowLeft className="h-4 w-4" />
-					<span>Tests</span>
-				</Button>
-			</div>
-
-			<div className="border-b mb-6">
-				<h1 className="text-2xl font-semibold py-2 text-gray-700 dark:text-gray-200">
-					Schnellzugang: {test.title}
-				</h1>
-			</div>
+		<PageShell
+			title={`Schnellzugang: ${test.title}`}
+			backHref="/tests"
+			backLabel="Tests"
+			maxWidth="3xl"
+		>
 
 			<Card className="mb-6">
 				<CardHeader>
@@ -334,7 +323,7 @@ const QuickAccessManagement: React.FC = () => {
 					)}
 				</CardContent>
 			</Card>
-		</div>
+		</PageShell>
 	);
 };
 

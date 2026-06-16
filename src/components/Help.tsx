@@ -1,10 +1,8 @@
 "use client";
 
 import React from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import PageShell from "@/components/PageShell";
 import {
 	Accordion,
 	AccordionContent,
@@ -13,28 +11,13 @@ import {
 } from "@/components/ui/accordion";
 
 const Help: React.FC = () => {
-	const router = useRouter();
-
 	return (
-		<div className="container mx-auto px-4 py-6 max-w-3xl">
-			<div className="flex items-center gap-2 mb-4">
-				<Button
-					variant="outline"
-					size="sm"
-					className="gap-1 text-muted-foreground"
-					onClick={() => router.push("/teacher/dashboard")}
-				>
-					<ArrowLeft className="h-4 w-4" />
-					<span>Dashboard</span>
-				</Button>
-			</div>
-
-			<div className="border-b mb-6">
-				<h1 className="text-2xl font-semibold py-2 text-gray-700 dark:text-gray-200">
-					Hilfe & Anleitungen
-				</h1>
-			</div>
-
+		<PageShell
+			title="Hilfe & Anleitungen"
+			backHref="/teacher/dashboard"
+			backLabel="Dashboard"
+			maxWidth="3xl"
+		>
 			<Accordion type="single" collapsible defaultValue="bulk-import">
 				<AccordionItem value="bulk-import">
 					<AccordionTrigger className="text-left">
@@ -107,7 +90,7 @@ Max von M`}</pre>
 				Weitere Anleitungen folgen. Anregungen oder Fragen? Bitte über das
 				Kontaktformular (in Vorbereitung) melden.
 			</p>
-		</div>
+		</PageShell>
 	);
 };
 
