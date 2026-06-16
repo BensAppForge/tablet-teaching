@@ -131,8 +131,8 @@ service cloud.firestore {
     // Strictly owner-only — no student ever reads these.
     match /collections/{collectionId} {
       function validColor() {
-        return request.resource.data.get('color', 'blue')
-          in ['blue', 'green', 'purple', 'rose', 'amber', 'teal'];
+        return request.resource.data.get('color', 'neutral')
+          in ['neutral', 'blue', 'green', 'purple', 'rose', 'amber', 'teal'];
       }
       allow read: if request.auth != null && resource.data.teacherId == request.auth.uid;
       allow create: if request.auth != null

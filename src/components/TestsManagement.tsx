@@ -469,10 +469,7 @@ const TestsManagement: React.FC = () => {
 									<button
 										type="button"
 										onClick={() => setOpenFolder(c.id!)}
-										className={cn(
-											"w-full h-32 rounded-lg border transition-colors flex flex-col items-center justify-center gap-2 p-4 text-center",
-											color.tile
-										)}
+										className="w-full h-32 rounded-lg border bg-card hover:bg-muted/40 transition-colors flex flex-col items-center justify-center gap-2 p-4 text-center"
 									>
 										<Folder className={cn("h-9 w-9", color.icon)} />
 										<span className="text-sm font-medium line-clamp-2">

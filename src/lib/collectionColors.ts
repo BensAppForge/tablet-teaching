@@ -5,11 +5,17 @@
 // derived here so the picker, the folder tile and any future surface stay
 // in sync.
 //
+// The colour only tints the FOLDER ICON (its stroke + a soft fill) — the
+// tile/card itself stays neutral. "neutral" is the default and lets a
+// teacher return a folder to no colour.
+//
 // IMPORTANT: the class strings below are written out in full (no
 // `bg-${x}-50` interpolation) so Tailwind's content scanner keeps them —
 // dynamically-built class names would be purged from the production CSS.
+// NOTE: src/lib must be in tailwind.config.ts `content` for that to work.
 
 export type CollectionColor =
+	| "neutral"
 	| "blue"
 	| "green"
 	| "purple"
@@ -17,61 +23,59 @@ export type CollectionColor =
 	| "amber"
 	| "teal";
 
-export const DEFAULT_COLLECTION_COLOR: CollectionColor = "blue";
+export const DEFAULT_COLLECTION_COLOR: CollectionColor = "neutral";
 
 export interface CollectionColorDef {
 	key: CollectionColor;
 	label: string;
 	/** Solid swatch for the picker dot. */
 	dot: string;
-	/** Folder icon tint. */
+	/** Folder icon tint: stroke (text-) + soft fill (fill-). */
 	icon: string;
-	/** Subtle tinted tile surface + border (folder grid). */
-	tile: string;
 }
 
 export const COLLECTION_COLORS: CollectionColorDef[] = [
 	{
+		key: "neutral",
+		label: "Neutral",
+		dot: "bg-slate-300 dark:bg-slate-600",
+		icon: "text-muted-foreground fill-muted-foreground/15",
+	},
+	{
 		key: "blue",
 		label: "Blau",
 		dot: "bg-blue-500",
-		icon: "text-blue-500 dark:text-blue-400",
-		tile: "border-blue-200 bg-blue-50 hover:bg-blue-100 dark:border-blue-900 dark:bg-blue-950/40 dark:hover:bg-blue-950/70",
+		icon: "text-blue-500 fill-blue-500/25 dark:text-blue-400 dark:fill-blue-400/25",
 	},
 	{
 		key: "green",
 		label: "Grün",
 		dot: "bg-emerald-500",
-		icon: "text-emerald-500 dark:text-emerald-400",
-		tile: "border-emerald-200 bg-emerald-50 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/40 dark:hover:bg-emerald-950/70",
+		icon: "text-emerald-500 fill-emerald-500/25 dark:text-emerald-400 dark:fill-emerald-400/25",
 	},
 	{
 		key: "purple",
 		label: "Lila",
 		dot: "bg-violet-500",
-		icon: "text-violet-500 dark:text-violet-400",
-		tile: "border-violet-200 bg-violet-50 hover:bg-violet-100 dark:border-violet-900 dark:bg-violet-950/40 dark:hover:bg-violet-950/70",
+		icon: "text-violet-500 fill-violet-500/25 dark:text-violet-400 dark:fill-violet-400/25",
 	},
 	{
 		key: "rose",
 		label: "Rosa",
 		dot: "bg-rose-500",
-		icon: "text-rose-500 dark:text-rose-400",
-		tile: "border-rose-200 bg-rose-50 hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950/40 dark:hover:bg-rose-950/70",
+		icon: "text-rose-500 fill-rose-500/25 dark:text-rose-400 dark:fill-rose-400/25",
 	},
 	{
 		key: "amber",
 		label: "Bernstein",
 		dot: "bg-amber-500",
-		icon: "text-amber-500 dark:text-amber-400",
-		tile: "border-amber-200 bg-amber-50 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/40 dark:hover:bg-amber-950/70",
+		icon: "text-amber-500 fill-amber-500/25 dark:text-amber-400 dark:fill-amber-400/25",
 	},
 	{
 		key: "teal",
 		label: "Türkis",
 		dot: "bg-teal-500",
-		icon: "text-teal-500 dark:text-teal-400",
-		tile: "border-teal-200 bg-teal-50 hover:bg-teal-100 dark:border-teal-900 dark:bg-teal-950/40 dark:hover:bg-teal-950/70",
+		icon: "text-teal-500 fill-teal-500/25 dark:text-teal-400 dark:fill-teal-400/25",
 	},
 ];
 
