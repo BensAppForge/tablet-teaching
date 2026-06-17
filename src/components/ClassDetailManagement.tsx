@@ -536,7 +536,7 @@ const ClassDetailManagement: React.FC = () => {
 											<Button
 												variant="ghost"
 												size="icon"
-												className="h-8 w-8"
+												className="h-11 w-11"
 												onClick={() => openEditStudent(s)}
 												aria-label="Bearbeiten"
 											>
@@ -545,7 +545,7 @@ const ClassDetailManagement: React.FC = () => {
 											<Button
 												variant="ghost"
 												size="icon"
-												className="h-8 w-8"
+												className="h-11 w-11"
 												onClick={() => setResetTarget(s)}
 												aria-label="Passwort zurücksetzen"
 												title="Passwort zurücksetzen"
@@ -555,7 +555,7 @@ const ClassDetailManagement: React.FC = () => {
 											<Button
 												variant="ghost"
 												size="icon"
-												className="h-8 w-8 text-destructive"
+												className="h-11 w-11 text-destructive"
 												onClick={() => setDeleteStudentTarget(s)}
 												aria-label="Löschen"
 											>
@@ -696,7 +696,7 @@ const ClassDetailManagement: React.FC = () => {
 														<Button
 															variant="ghost"
 															size="icon"
-															className="h-8 w-8"
+															className="h-11 w-11"
 															onClick={async () => {
 																const ok = await copyToClipboard(r.password);
 																if (ok) {
@@ -1036,7 +1036,7 @@ const ClassDetailManagement: React.FC = () => {
 								<Button
 									variant="ghost"
 									size="icon"
-									className="h-8 w-8 shrink-0"
+									className="h-11 w-11 shrink-0"
 									aria-label="Passwort kopieren"
 									onClick={async () => {
 										const ok = await copyToClipboard(resetResult.password);

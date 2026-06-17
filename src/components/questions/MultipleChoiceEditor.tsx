@@ -88,7 +88,7 @@ const MultipleChoiceEditor: React.FC<MultipleChoiceEditorProps> = ({
               variant="ghost" 
               size="icon" 
               onClick={onDelete}
-              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+              className="h-11 w-11 text-destructive hover:text-destructive hover:bg-destructive/10"
             >
               <Trash className="h-4 w-4" />
             </Button>

@@ -94,7 +94,7 @@ const SubmissionRow: React.FC<SubmissionRowProps> = ({
 					type="button"
 					onClick={() => setExpanded((e) => !e)}
 					aria-label={expanded ? "Details ausblenden" : "Details einblenden"}
-					className="text-muted-foreground hover:text-foreground shrink-0"
+					className="inline-flex h-11 w-11 shrink-0 items-center justify-center -m-1.5 text-muted-foreground hover:text-foreground"
 				>
 					{expanded ? (
 						<ChevronDown className="h-4 w-4" />
@@ -123,7 +123,7 @@ const SubmissionRow: React.FC<SubmissionRowProps> = ({
 				<Button
 					variant="ghost"
 					size="icon"
-					className="h-8 w-8 text-destructive shrink-0"
+					className="h-11 w-11 text-destructive shrink-0"
 					onClick={onDelete}
 					aria-label="Ergebnis löschen"
 				>

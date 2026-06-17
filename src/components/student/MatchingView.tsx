@@ -234,11 +234,17 @@ const MatchingView: React.FC<Props> = ({
 												className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-transform active:scale-95 disabled:cursor-default"
 											>
 												<span
-													className="h-7 w-7 rounded-full border-2"
+													className={`h-7 w-7 rounded-full border-2 transition-shadow ${
+														isSelected
+															? "ring-2 ring-ring ring-offset-2 ring-offset-background"
+															: ""
+													}`}
 													style={{
 														borderColor: color,
 														backgroundColor:
-															isSelected || isConnected ? color : "white",
+															isSelected || isConnected
+																? color
+																: "hsl(var(--background))",
 													}}
 												/>
 											</button>
@@ -273,11 +279,17 @@ const MatchingView: React.FC<Props> = ({
 												className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-transform active:scale-95 disabled:cursor-default"
 											>
 												<span
-													className="h-7 w-7 rounded-full border-2"
+													className={`h-7 w-7 rounded-full border-2 transition-shadow ${
+														isSelected
+															? "ring-2 ring-ring ring-offset-2 ring-offset-background"
+															: ""
+													}`}
 													style={{
 														borderColor: color,
 														backgroundColor:
-															isSelected || isConnected ? color : "white",
+															isSelected || isConnected
+																? color
+																: "hsl(var(--background))",
 													}}
 												/>
 											</button>

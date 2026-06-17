@@ -110,7 +110,7 @@ const StudentLoginClient: React.FC = () => {
 								/>
 								<button
 									type="button"
-									className="absolute right-2.5 top-3.5 text-muted-foreground hover:text-accent focus:outline-none"
+									className="absolute inset-y-0 right-0 flex w-12 items-center justify-center text-muted-foreground hover:text-accent focus:outline-none"
 									onClick={() => setShowPassword((v) => !v)}
 									tabIndex={-1}
 									aria-label={

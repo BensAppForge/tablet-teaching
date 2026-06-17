@@ -150,7 +150,7 @@ const TeacherLoginForm: React.FC = () => {
 								/>
 								<button
 									type="button"
-									className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-accent focus:outline-none"
+									className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted-foreground hover:text-accent focus:outline-none"
 									onClick={togglePasswordVisibility}
 									tabIndex={-1}
 									aria-label={
