@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"];
 const LANGUAGES = ["Deutsch", "Englisch", "Französisch", "Spanisch", "Italienisch"];
@@ -23,11 +24,19 @@ interface TestGeneralSettingsFormProps {
   initialValues: TestGeneralSettings;
   onChange: (values: TestGeneralSettings) => void;
   mode?: "create" | "edit";
+  // When the parent attempts a save, it flips this on so every error
+  // shows even on fields the teacher never focused.
+  showAllErrors?: boolean;
 }
 
-export const TestGeneralSettingsForm: React.FC<TestGeneralSettingsFormProps> = ({ initialValues, onChange, mode }) => {
+export const TestGeneralSettingsForm: React.FC<TestGeneralSettingsFormProps> = ({ initialValues, onChange, mode, showAllErrors }) => {
   const [values, setValues] = useState<TestGeneralSettings>(initialValues);
   const [touched, setTouched] = useState<{ [K in keyof TestGeneralSettings]?: boolean }>({});
+
+  // Show an error once the field was touched OR the parent forced all
+  // errors visible (on a save attempt).
+  const showErr = (key: keyof TestGeneralSettings): boolean =>
+    !!(touched[key] || showAllErrors) && !!errors[key];
 
   // Mirror prop changes (e.g. when an existing test loads or the
   // AI flow nudges title/description) into local state. Note: we
@@ -72,8 +81,10 @@ export const TestGeneralSettingsForm: React.FC<TestGeneralSettingsFormProps> = (
               onChange={(e) => handleChange("title", e.target.value)}
               onBlur={() => setTouched((t) => ({ ...t, title: true }))}
               required
+              aria-invalid={showErr("title")}
+              className={cn(showErr("title") && "border-destructive focus-visible:ring-destructive")}
             />
-            {touched.title && errors.title && <div className="text-destructive text-sm mt-1">{errors.title}</div>}
+            {showErr("title") && <div className="text-destructive text-sm mt-1">{errors.title}</div>}
           </div>
 
           <div>
@@ -85,8 +96,10 @@ export const TestGeneralSettingsForm: React.FC<TestGeneralSettingsFormProps> = (
               onBlur={() => setTouched((t) => ({ ...t, description: true }))}
               required
               rows={2}
+              aria-invalid={showErr("description")}
+              className={cn(showErr("description") && "border-destructive focus-visible:ring-destructive")}
             />
-            {touched.description && errors.description && <div className="text-destructive text-sm mt-1">{errors.description}</div>}
+            {showErr("description") && <div className="text-destructive text-sm mt-1">{errors.description}</div>}
           </div>
 
           <div className="flex flex-col md:flex-row gap-4">
@@ -96,7 +109,7 @@ export const TestGeneralSettingsForm: React.FC<TestGeneralSettingsFormProps> = (
                 value={values.targetLanguage}
                 onValueChange={(val) => handleChange("targetLanguage", val)}
               >
-                <SelectTrigger id="targetLanguage">
+                <SelectTrigger id="targetLanguage" className={cn(showErr("targetLanguage") && "border-destructive")}>
                   <SelectValue placeholder="Sprache wählen" />
                 </SelectTrigger>
                 <SelectContent>
@@ -105,7 +118,7 @@ export const TestGeneralSettingsForm: React.FC<TestGeneralSettingsFormProps> = (
                   ))}
                 </SelectContent>
               </Select>
-              {touched.targetLanguage && errors.targetLanguage && <div className="text-destructive text-sm mt-1">{errors.targetLanguage}</div>}
+              {showErr("targetLanguage") && <div className="text-destructive text-sm mt-1">{errors.targetLanguage}</div>}
             </div>
             <div className="flex-1">
               <Label htmlFor="cefrLevel">CEFR-Niveau *</Label>
@@ -113,7 +126,7 @@ export const TestGeneralSettingsForm: React.FC<TestGeneralSettingsFormProps> = (
                 value={values.cefrLevel}
                 onValueChange={(val) => handleChange("cefrLevel", val)}
               >
-                <SelectTrigger id="cefrLevel">
+                <SelectTrigger id="cefrLevel" className={cn(showErr("cefrLevel") && "border-destructive")}>
                   <SelectValue placeholder="Niveau wählen" />
                 </SelectTrigger>
                 <SelectContent>
@@ -122,7 +135,7 @@ export const TestGeneralSettingsForm: React.FC<TestGeneralSettingsFormProps> = (
                   ))}
                 </SelectContent>
               </Select>
-              {touched.cefrLevel && errors.cefrLevel && <div className="text-destructive text-sm mt-1">{errors.cefrLevel}</div>}
+              {showErr("cefrLevel") && <div className="text-destructive text-sm mt-1">{errors.cefrLevel}</div>}
             </div>
           </div>
 
@@ -137,7 +150,7 @@ export const TestGeneralSettingsForm: React.FC<TestGeneralSettingsFormProps> = (
               onValueChange={([val]) => handleChange("defaultCreditPoints", val)}
             />
             <div className="text-sm mt-1">{values.defaultCreditPoints} Punkt(e)</div>
-            {touched.defaultCreditPoints && errors.defaultCreditPoints && <div className="text-destructive text-sm mt-1">{errors.defaultCreditPoints}</div>}
+            {showErr("defaultCreditPoints") && <div className="text-destructive text-sm mt-1">{errors.defaultCreditPoints}</div>}
           </div>
       </div>
     </motion.div>

@@ -24,6 +24,7 @@ import {
   X,
   FileText,
   ImageIcon,
+  AlertCircle,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -80,6 +81,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { validateQuestion } from "@/lib/questionValidation";
+import { cn } from "@/lib/utils";
 
 interface TestBuilderProps {
   testId?: string; // Optional - if provided, we're editing an existing test
@@ -153,6 +156,32 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
   // UI state
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // Validation: once the teacher tries to save, surface every problem
+  // (highlight settings fields + incomplete questions) and scroll to the
+  // first one. Kept off until the first save attempt so we don't nag while
+  // they're still filling things in.
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+  const settingsRef = React.useRef<HTMLDivElement | null>(null);
+  const questionRefs = React.useRef<(HTMLDivElement | null)[]>([]);
+  // Per-question problem (or null). Recomputed live so highlights clear as
+  // the teacher fixes each question after a failed save attempt.
+  const questionErrors = React.useMemo(
+    () => questions.map((q) => validateQuestion(q)),
+    [questions]
+  );
+  // Settings problems mirror TestGeneralSettingsForm's own checks so the
+  // save gate and the inline form errors never disagree.
+  const settingsValid = React.useMemo(() => {
+    const s = testSettings;
+    return (
+      !!s.title.trim() &&
+      !!s.description.trim() &&
+      !!s.targetLanguage &&
+      !!s.cefrLevel &&
+      s.defaultCreditPoints >= 1 &&
+      s.defaultCreditPoints <= 5
+    );
+  }, [testSettings]);
   // Unsaved-changes tracking: baseline holds the serialized state as of
   // load / last save; anything diverging from it counts as dirty. JSON
   // comparison is cheap enough here (runs on leave attempts, not renders).
@@ -605,17 +634,42 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
       toast.error("Sie müssen angemeldet sein, um einen Test zu speichern");
       return;
     }
-    
-    if (!testSettings.title) {
-      toast.error("Bitte geben Sie einen Titel für den Test ein");
+
+    // Reveal all field/question highlights from here on.
+    setSubmitAttempted(true);
+
+    const scrollTo = (el: HTMLElement | null) => {
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+
+    // 1. Test settings (title, description, language, level, points).
+    if (!settingsValid) {
+      toast.error("Bitte fülle die rot markierten Test-Einstellungen aus.");
+      scrollTo(settingsRef.current);
       return;
     }
-    
+
+    // 2. At least one question.
     if (questions.length === 0) {
-      toast.error("Bitte fügen Sie mindestens eine Frage hinzu");
+      toast.error("Bitte füge mindestens eine Frage hinzu.");
       return;
     }
-    
+
+    // 3. Every question must be complete — jump to the first incomplete one.
+    const firstBad = questionErrors.findIndex((e) => e !== null);
+    if (firstBad !== -1) {
+      const count = questionErrors.filter((e) => e !== null).length;
+      toast.error(
+        count === 1
+          ? `Frage ${firstBad + 1} ist noch unvollständig.`
+          : `${count} Fragen sind noch unvollständig — beginnend mit Frage ${
+              firstBad + 1
+            }.`
+      );
+      scrollTo(questionRefs.current[firstBad]);
+      return;
+    }
+
     setIsSaving(true);
 
     try {
@@ -810,7 +864,7 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
       </div>
       
       {/* General Settings */}
-      <Card className="mb-8">
+      <Card className="mb-8" ref={settingsRef}>
         <CardHeader>
           <CardTitle>Allgemeine Einstellungen</CardTitle>
           <CardDescription>
@@ -822,6 +876,7 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
             initialValues={testSettings}
             onChange={handleTestSettingsChange}
             mode={testId ? "edit" : "create"}
+            showAllErrors={submitAttempted}
           />
           <div className="mt-6 max-w-sm">
             <Label htmlFor="collection-picker">Sammlung</Label>
@@ -849,17 +904,39 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
         </CardHeader>
         <CardContent>
           <AnimatePresence initial={false}>
-            {questions.map((question, index) => (
+            {questions.map((question, index) => {
+              const qError = submitAttempted ? questionErrors[index] : null;
+              return (
               <motion.div
                 key={question.id ?? questionKeys[index] ?? `question-${index}`}
+                ref={(el) => {
+                  questionRefs.current[index] = el;
+                }}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
               >
-                {renderQuestionEditor(question, index)}
+                <div
+                  className={cn(
+                    "rounded-lg",
+                    qError &&
+                      "ring-2 ring-destructive ring-offset-2 ring-offset-background"
+                  )}
+                >
+                  {qError && (
+                    <div className="mb-1 flex items-center gap-2 px-1 text-sm font-medium text-destructive">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      <span>
+                        Frage {index + 1}: {qError}
+                      </span>
+                    </div>
+                  )}
+                  {renderQuestionEditor(question, index)}
+                </div>
               </motion.div>
-            ))}
+              );
+            })}
           </AnimatePresence>
 
           {/* AI generation panel — lives next to the manual add card so
