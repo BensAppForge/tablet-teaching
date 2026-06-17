@@ -148,34 +148,44 @@ function printCredentials(
 		toast.error("Popup blockiert — bitte erlauben und erneut versuchen");
 		return;
 	}
-	const tableRows = rows
+	const esc = (s: string) =>
+		s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+	// One self-contained slip per student, with a dashed cut guide between
+	// them so the teacher can snip the printout into individual strips.
+	const strips = rows
 		.map(
-			(r) => `<tr>
-				<td>${r.firstName} ${r.lastInitial}</td>
-				<td class="mono">${r.email}</td>
-				<td class="mono">${r.password}</td>
-			</tr>`
+			(r, i) =>
+				`<div class="strip">
+		<div class="name">${esc(r.firstName)} ${esc(r.lastInitial)}</div>
+		<div class="cred"><span class="label">E-Mail</span><span class="mono">${esc(r.email)}</span></div>
+		<div class="cred"><span class="label">Passwort</span><span class="mono">${esc(r.password)}</span></div>
+	</div>${
+		i < rows.length - 1
+			? `<div class="cut"><span>✂ hier abschneiden</span></div>`
+			: ""
+	}`
 		)
 		.join("");
 	w.document.write(`<!doctype html>
 <html lang="de"><head><meta charset="utf-8" />
-<title>Zugangsdaten ${className}</title>
+<title>Zugangsdaten ${esc(className)}</title>
 <style>
 	body { font-family: system-ui, sans-serif; padding: 24px; color: #111; }
 	h1 { font-size: 18px; margin: 0 0 4px 0; }
-	p.note { font-size: 12px; color: #555; margin: 0 0 20px 0; }
-	table { border-collapse: collapse; width: 100%; font-size: 13px; }
-	th, td { border: 1px solid #999; padding: 6px 8px; text-align: left; }
-	th { background: #f0f0f0; }
+	p.note { font-size: 12px; color: #555; margin: 0 0 24px 0; }
+	.strip { padding: 16px 4px; break-inside: avoid; }
+	.name { font-weight: 600; font-size: 15px; margin-bottom: 8px; }
+	.cred { font-size: 13px; margin: 3px 0; }
+	.label { display: inline-block; width: 90px; color: #555; }
 	.mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+	/* Dashed cut guide with a centred scissors label sitting on the line. */
+	.cut { text-align: center; border-top: 1px dashed #999; line-height: 0; margin: 6px 0; }
+	.cut span { background: #fff; padding: 0 10px; font-size: 10px; color: #888; }
 	@media print { body { padding: 0; } }
 </style></head><body>
-<h1>Zugangsdaten — Klasse ${className}</h1>
-<p class="note">Die Passwörter werden nicht gespeichert. Bitte jetzt notieren oder ausdrucken.</p>
-<table>
-	<thead><tr><th>Name</th><th>E-Mail</th><th>Passwort</th></tr></thead>
-	<tbody>${tableRows}</tbody>
-</table>
+<h1>Zugangsdaten — Klasse ${esc(className)}</h1>
+<p class="note">Die Passwörter werden nicht gespeichert. Bitte jetzt ausdrucken. Tipp: an den gestrichelten Linien (✂) ausschneiden — so bekommt jede:r Schüler:in einen eigenen Zettel.</p>
+${strips}
 <script>window.print();</script>
 </body></html>`);
 	w.document.close();
