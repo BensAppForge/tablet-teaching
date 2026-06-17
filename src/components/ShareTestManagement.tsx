@@ -14,6 +14,7 @@ import {
 } from "@/lib/firebase/tests";
 import { Class, getTeacherClasses } from "@/lib/firebase/classes";
 import { getStrings, mapTargetLanguageToLocale } from "@/lib/i18n";
+import { shareOrDownload } from "@/lib/download";
 import PageShell from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -86,9 +87,6 @@ const ShareTestManagement: React.FC = () => {
 					strings={strings}
 				/>
 			).toBlob();
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
 			const slug = (s: string) =>
 				s
 					.normalize("NFKD")
@@ -96,11 +94,7 @@ const ShareTestManagement: React.FC = () => {
 					.replace(/[^a-zA-Z0-9]+/g, "-")
 					.replace(/^-+|-+$/g, "")
 					.toLowerCase() || "arbeitsblatt";
-			a.download = `${slug(test.title)}-leer.pdf`;
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			URL.revokeObjectURL(url);
+			await shareOrDownload(blob, `${slug(test.title)}-leer.pdf`);
 		} catch (err) {
 			console.error(err);
 			toast.error("PDF konnte nicht erstellt werden");

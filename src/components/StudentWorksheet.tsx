@@ -20,6 +20,7 @@ import {
 } from "@/lib/firebase/tests";
 import { getStrings, mapTargetLanguageToLocale } from "@/lib/i18n";
 import type { Strings } from "@/lib/i18n/types";
+import { shareOrDownload } from "@/lib/download";
 import {
 	gradeAll,
 	GapAnswer,
@@ -485,9 +486,6 @@ const StudentWorksheet: React.FC = () => {
 					strings={strings}
 				/>
 			).toBlob();
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
 			const slug = (s: string) =>
 				s
 					.normalize("NFKD")
@@ -498,11 +496,10 @@ const StudentWorksheet: React.FC = () => {
 			const datePart = new Date(submitted.submittedAt)
 				.toISOString()
 				.slice(0, 10);
-			a.download = `${slug(test.title)}-${slug(studentDisplayName.split(" ")[0] || "schueler")}-${datePart}.pdf`;
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
-			URL.revokeObjectURL(url);
+			await shareOrDownload(
+				blob,
+				`${slug(test.title)}-${slug(studentDisplayName.split(" ")[0] || "schueler")}-${datePart}.pdf`
+			);
 		} catch (err) {
 			console.error(err);
 			toast.error(strings.pdf.generationFailed);

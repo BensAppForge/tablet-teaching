@@ -32,6 +32,7 @@ import {
 	Student,
 	updateStudent,
 } from "@/lib/firebase/students";
+import { shareOrDownload } from "@/lib/download";
 import PageShell from "@/components/PageShell";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -135,14 +136,7 @@ async function copyToClipboard(text: string): Promise<boolean> {
 
 function downloadCsv(filename: string, content: string) {
 	const blob = new Blob([content], { type: "text/csv;charset=utf-8" });
-	const url = URL.createObjectURL(blob);
-	const a = document.createElement("a");
-	a.href = url;
-	a.download = filename;
-	document.body.appendChild(a);
-	a.click();
-	document.body.removeChild(a);
-	URL.revokeObjectURL(url);
+	void shareOrDownload(blob, filename);
 }
 
 function printCredentials(

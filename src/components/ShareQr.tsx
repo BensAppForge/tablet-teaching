@@ -7,6 +7,7 @@ import { Download, Maximize2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { shareOrDownload } from "@/lib/download";
 
 interface ShareQrProps {
 	// The URL (or text) the QR encodes.
@@ -120,13 +121,14 @@ const ShareQr: React.FC<ShareQrProps> = ({
 				}
 			}
 
-			const url = out.toDataURL("image/png");
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = `${slug(downloadFileName || caption || "qr-code")}-qr.png`;
-			document.body.appendChild(a);
-			a.click();
-			document.body.removeChild(a);
+			const filename = `${slug(downloadFileName || caption || "qr-code")}-qr.png`;
+			out.toBlob((blob) => {
+				if (!blob) {
+					toast.error("Download fehlgeschlagen");
+					return;
+				}
+				void shareOrDownload(blob, filename);
+			}, "image/png");
 		} catch (err) {
 			console.error(err);
 			toast.error("Download fehlgeschlagen");
