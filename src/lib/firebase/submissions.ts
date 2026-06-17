@@ -1,20 +1,19 @@
 import {
 	collection,
 	doc,
-	addDoc,
 	deleteDoc,
 	getDocs,
 	limit,
 	onSnapshot,
 	orderBy,
 	query,
-	serverTimestamp,
 	Timestamp,
 	Unsubscribe,
 	where,
 	writeBatch,
 } from "firebase/firestore";
-import { firestore } from "./config";
+import { httpsCallable } from "firebase/functions";
+import { firestore, functions } from "./config";
 
 export interface PerQuestionResult {
 	correct: boolean;
@@ -34,31 +33,32 @@ export interface Submission {
 	perQuestion: Record<string, PerQuestionResult>;
 }
 
-export interface SubmissionInput {
-	studentId: string;
-	studentName: string;
-	classId: string;
+export interface GradeSubmissionResult {
+	submissionId: string;
 	totalEarned: number;
 	totalPossible: number;
 	perQuestion: Record<string, PerQuestionResult>;
 }
 
+const gradeSubmissionFn = httpsCallable<
+	{ testId: string; answers: Record<string, unknown> },
+	GradeSubmissionResult
+>(functions, "gradeSubmission");
+
 /**
- * Create a new submission under tests/{testId}/submissions. Managed
- * students only — the security rule blocks anonymous Schnellzugang
- * uids. Each retake is a new doc (history is preserved).
+ * Submit a managed student's raw answers for AUTHORITATIVE server-side
+ * grading. The Cloud Function grades against the server-held questions and
+ * writes the submission (the create rule blocks client writes), so the score
+ * can't be forged. Returns the graded result for the review UI. Each call
+ * creates a new submission doc (retakes preserved). Anonymous Schnellzugang
+ * results don't use this — they stay client-graded + client-written.
  */
-export async function createSubmission(
+export async function gradeSubmission(
 	testId: string,
-	input: SubmissionInput
-): Promise<string> {
-	const ref = collection(firestore, `tests/${testId}/submissions`);
-	const docRef = await addDoc(ref, {
-		...input,
-		testId,
-		submittedAt: serverTimestamp(),
-	});
-	return docRef.id;
+	answers: Record<string, unknown>
+): Promise<GradeSubmissionResult> {
+	const res = await gradeSubmissionFn({ testId, answers });
+	return res.data;
 }
 
 /**

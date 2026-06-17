@@ -36,7 +36,7 @@ import {
 	SubmissionResult,
 } from "@/lib/student/storage";
 import {
-	createSubmission,
+	gradeSubmission,
 	getLatestStudentSubmission,
 } from "@/lib/firebase/submissions";
 import { createQuickSubmission } from "@/lib/firebase/quickSubmissions";
@@ -282,18 +282,13 @@ const StudentWorksheet: React.FC = () => {
 							setSubmitted(stored.submitted);
 							setSynced(false);
 							if (studentData) {
-								createSubmission(testId, {
-									studentId: currentUser.uid,
-									studentName: `${studentData.firstName} ${studentData.lastInitial}`,
-									classId: studentData.classId,
-									totalEarned: stored.submitted.totalEarned,
-									totalPossible: stored.submitted.totalPossible,
-									perQuestion: stored.submitted.perQuestion,
-								})
-									.then((id) => {
+								// Re-submit the raw answers for authoritative server
+								// grading (the score is written by the Cloud Function).
+								gradeSubmission(testId, stored.answers || {})
+									.then((res) => {
 										if (!cancelled) {
 											setSynced(true);
-											setRemoteSubmissionId(id);
+											setRemoteSubmissionId(res.submissionId);
 										}
 									})
 									.catch((err) =>
@@ -404,17 +399,20 @@ const StudentWorksheet: React.FC = () => {
 		if (role === "student" && studentData && currentUser) {
 			setSynced(false);
 			setIgnoreSubmissionId(null);
-			createSubmission(testId, {
-				studentId: currentUser.uid,
-				studentName: `${studentData.firstName} ${studentData.lastInitial}`,
-				classId: studentData.classId,
-				totalEarned: submission.totalEarned,
-				totalPossible: submission.totalPossible,
-				perQuestion: submission.perQuestion,
-			})
-				.then((id) => {
+			// The score shown above is the optimistic local grade (same rules
+			// as the server); the AUTHORITATIVE score is graded + written by
+			// the gradeSubmission Cloud Function. We reconcile the display with
+			// the server's result so the kid sees exactly what the teacher will.
+			gradeSubmission(testId, answers)
+				.then((res) => {
 					setSynced(true);
-					setRemoteSubmissionId(id);
+					setRemoteSubmissionId(res.submissionId);
+					setSubmitted({
+						submittedAt: submission.submittedAt,
+						totalEarned: res.totalEarned,
+						totalPossible: res.totalPossible,
+						perQuestion: res.perQuestion,
+					});
 				})
 				.catch((err) => {
 					console.error("Failed to persist submission to Firestore:", err);

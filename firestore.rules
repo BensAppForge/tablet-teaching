@@ -104,18 +104,11 @@ service cloud.firestore {
     //     the rule to allow listing.
     //   - Submissions are write-once: no updates.
     match /tests/{testId}/submissions/{submissionId} {
-      allow create: if request.auth != null
-        && request.auth.token.role == 'student'
-        && request.resource.data.studentId == request.auth.uid
-        && request.resource.data.classId == request.auth.token.classId
-        && get(/databases/$(database)/documents/tests/$(testId)).data.assignedClassIds.hasAny([request.auth.token.classId])
-        && request.resource.data.studentName is string
-        && request.resource.data.studentName.size() <= 80
-        && request.resource.data.totalEarned is number
-        && request.resource.data.totalPossible is number
-        && request.resource.data.totalEarned >= 0
-        && request.resource.data.totalEarned <= request.resource.data.totalPossible
-        && request.resource.data.perQuestion is map;
+      // Submissions are written ONLY by the gradeSubmission Cloud Function
+      // (Admin SDK), which grades from the server-held questions — so a
+      // student can't forge a score by writing the doc directly. Client
+      // creates are blocked entirely.
+      allow create: if false;
       allow read: if request.auth != null && (
         get(/databases/$(database)/documents/tests/$(testId)).data.teacherId == request.auth.uid
         || resource.data.studentId == request.auth.uid

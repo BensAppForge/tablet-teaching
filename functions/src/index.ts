@@ -17,6 +17,7 @@ export {
 export { deleteClass } from "./classes";
 export { cleanupQuickAttempts, cleanupQuickSubmissions } from "./quickAccess";
 export { generateTestQuestions } from "./aiTestGen";
+export { gradeSubmission } from "./grading";
 
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 
