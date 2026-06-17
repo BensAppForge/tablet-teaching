@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { z } from "zod";
 import { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { auth, db } from "./admin";
+import { deleteSubmissionsForClass } from "./submissionCleanup";
 
 const DeleteClassSchema = z.object({
 	classId: z.string().min(1),
@@ -40,6 +41,10 @@ export const deleteClass = onCall(
 				"You do not own this class."
 			);
 		}
+
+		// Remove the class's submissions first. On failure nothing else is
+		// touched, so the teacher can retry cleanly.
+		await deleteSubmissionsForClass(teacherId, classId);
 
 		const studentsSnap = await db
 			.collection("students")

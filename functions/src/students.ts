@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { z } from "zod";
 import { auth, db, FieldValue } from "./admin";
 import { buildEmailLocalBase, generatePassword } from "./passwords";
+import { deleteSubmissionsForStudent } from "./submissionCleanup";
 
 const STUDENT_EMAIL_DOMAIN = "tablet-teaching.app";
 const MAX_STUDENTS_PER_BATCH = 50;
@@ -84,9 +85,18 @@ async function createOneStudent(
 		const email = `${local}@${STUDENT_EMAIL_DOMAIN}`;
 		const password = generatePassword();
 
+		let user;
 		try {
-			const user = await auth.createUser({ email, password, displayName });
+			user = await auth.createUser({ email, password, displayName });
+		} catch (err: any) {
+			if (err?.code === "auth/email-already-exists") continue;
+			throw err;
+		}
 
+		// The Auth user now exists. If claims or the Firestore doc fail, roll
+		// it back so we never leave an orphaned Auth user with no student doc
+		// (which would also burn the email local-part on retry).
+		try {
 			await auth.setCustomUserClaims(user.uid, {
 				role: "student",
 				classId,
@@ -104,9 +114,17 @@ async function createOneStudent(
 			});
 
 			return { uid: user.uid, firstName, lastInitial, email, password };
-		} catch (err: any) {
-			if (err?.code === "auth/email-already-exists") continue;
-			throw err;
+		} catch (postErr) {
+			try {
+				await auth.deleteUser(user.uid);
+			} catch (cleanupErr) {
+				console.error(
+					"Failed to roll back orphaned auth user",
+					user.uid,
+					cleanupErr
+				);
+			}
+			throw postErr;
 		}
 	}
 
@@ -257,9 +275,18 @@ export const deleteStudent = onCall(
 		}
 		const { studentUid } = parsed.data;
 
-		await ensureTeacherOwnsStudent(studentUid, teacherId);
+		const student = await ensureTeacherOwnsStudent(studentUid, teacherId);
 
-		// Auth user first; if that fails we don't want to leave the Firestore
+		// Clear the student's submissions FIRST. If this throws, nothing else
+		// is deleted yet, so a retry re-runs cleanly (the deletes are
+		// idempotent and the student is still intact).
+		await deleteSubmissionsForStudent(
+			teacherId,
+			student.classId,
+			studentUid
+		);
+
+		// Auth user next; if that fails we don't want to leave the Firestore
 		// doc orphaned without a way for the teacher to retry.
 		await auth.deleteUser(studentUid);
 		await db.collection("students").doc(studentUid).delete();
