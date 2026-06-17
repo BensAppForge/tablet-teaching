@@ -161,7 +161,7 @@ function printCredentials(
 		<div class="cred"><span class="label">Passwort</span><span class="mono">${esc(r.password)}</span></div>
 	</div>${
 		i < rows.length - 1
-			? `<div class="cut"><span>✂ hier abschneiden</span></div>`
+			? `<div class="cut"><span><span class="sc">✂</span> hier abschneiden</span></div>`
 			: ""
 	}`
 		)
@@ -181,6 +181,8 @@ function printCredentials(
 	/* Dashed cut guide with a centred scissors label sitting on the line. */
 	.cut { text-align: center; border-top: 1px dashed #999; line-height: 0; margin: 6px 0; }
 	.cut span { background: #fff; padding: 0 10px; font-size: 10px; color: #888; }
+	/* Rotate just the scissors so it points right, not down. */
+	.cut .sc { display: inline-block; transform: rotate(-90deg); background: none; padding: 0; }
 	@media print { body { padding: 0; } }
 </style></head><body>
 <h1>Zugangsdaten — Klasse ${esc(className)}</h1>
