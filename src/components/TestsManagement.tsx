@@ -41,6 +41,7 @@ import {
 	FolderPlus,
 	MoreVertical,
 	FolderInput,
+	Presentation,
 } from "lucide-react";
 import PageShell from "@/components/PageShell";
 import TestResultsDialog from "@/components/TestResultsDialog";
@@ -233,6 +234,10 @@ const TestsManagement: React.FC = () => {
 		router.push(`/quick-access?id=${testId}`);
 	};
 
+	const handleBesprechung = (testId: string) => {
+		router.push(`/teacher/besprechung?id=${testId}`);
+	};
+
 	const handleSaveName = async () => {
 		if (!nameDialog || !currentUser) return;
 		const name = nameDialog.value.trim();
@@ -353,6 +358,15 @@ const TestsManagement: React.FC = () => {
 					>
 						<BarChart3 className="mr-2 h-4 w-4" />
 						Ergebnisse
+					</Button>
+
+					<Button
+						variant="outline"
+						className="w-full justify-start"
+						onClick={() => handleBesprechung(test.id!)}
+					>
+						<Presentation className="mr-2 h-4 w-4" />
+						Besprechen
 					</Button>
 
 					<Button
