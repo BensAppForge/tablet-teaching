@@ -8,7 +8,6 @@ import {
 	ChevronLeft,
 	ChevronRight,
 	Loader2,
-	RotateCcw,
 	XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -101,15 +100,6 @@ const BesprechungView: React.FC = () => {
 	);
 
 	const handleCheck = () => setCorrected((prev) => ({ ...prev, [qId]: true }));
-
-	const handleRedo = () => {
-		setCorrected((prev) => ({ ...prev, [qId]: false }));
-		setAnswers((prev) => {
-			const next = { ...prev };
-			delete next[qId];
-			return next;
-		});
-	};
 
 	const goPrev = () => setIndex((i) => Math.max(0, i - 1));
 	const goNext = () => setIndex((i) => Math.min(total - 1, i + 1));
@@ -230,12 +220,7 @@ const BesprechungView: React.FC = () => {
 							Zurück
 						</Button>
 
-						{isCorrected ? (
-							<Button variant="outline" size="lg" onClick={handleRedo}>
-								<RotateCcw className="mr-2 h-5 w-5" />
-								Nochmal
-							</Button>
-						) : (
+						{!isCorrected && (
 							<Button size="lg" onClick={handleCheck}>
 								<CheckCircle2 className="mr-2 h-5 w-5" />
 								Korrigieren
