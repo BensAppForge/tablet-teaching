@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo } from "react";
+import React, { useMemo } from "react";
 import {
 	DndContext,
 	DragEndEvent,
@@ -68,21 +68,22 @@ const HorizontalReorderingView: React.FC<Props> = ({
 			? question.correctOrder
 			: identityOrder(question.items.length);
 
-	// Initialise a shuffled order once per question if none exists.
-	useEffect(() => {
-		if (!answer?.order || answer.order.length !== question.items.length) {
-			onAnswer({
-				order: shuffleIndicesAvoiding(question.items.length, avoid),
-				gapTexts: answer?.gapTexts ?? {},
-			});
-		}
+	// A stable shuffled starting order, computed once per question. We do NOT
+	// write it back as the answer on mount: an untouched reordering question
+	// must count as UNanswered — otherwise the worksheet shows "alle Aufgaben
+	// bearbeitet" and the submit-confirmation safety net is defeated. The
+	// answer is written only on the first real drag or gap keystroke
+	// (updateOrder / updateGap below).
+	const initialOrder = useMemo(
+		() => shuffleIndicesAvoiding(question.items.length, avoid),
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [question.id, question.items.length]);
+		[question.id, question.items.length]
+	);
 
 	const order =
 		answer?.order && answer.order.length === question.items.length
 			? answer.order
-			: shuffleIndicesAvoiding(question.items.length, avoid);
+			: initialOrder;
 	const gapTexts = answer?.gapTexts ?? {};
 
 	// Sensors: PointerSensor with a small distance constraint allows

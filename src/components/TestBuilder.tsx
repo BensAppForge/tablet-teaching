@@ -250,11 +250,51 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
   // const [showQuestionSelector, setShowQuestionSelector] = useState(false);
   const [selectedQuestionType, setSelectedQuestionType] = useState<QuestionType>("multiple-choice");
   
-  // Load existing test if testId is provided
+  // Load existing test if testId is provided. Guarded by a `cancelled` flag:
+  // this page does NOT remount when only the ?id= query param changes (A→B
+  // via back/forward), so two loads can overlap — without the guard a late
+  // response for test A could land its title+questions into the form while
+  // the component is now editing B, and the next save would write A's content
+  // into B's Firestore doc.
   useEffect(() => {
-    if (testId && currentUser) {
-      loadTest();
-    }
+    if (!testId || !currentUser) return;
+    let cancelled = false;
+    (async () => {
+      setIsLoading(true);
+      try {
+        const { test, questions: loadedQuestions } = await getTest(testId);
+        if (cancelled) return;
+        setTestSettings({
+          title: test.title,
+          description: test.description || "",
+          targetLanguage: test.targetLanguage,
+          cefrLevel: test.cefrLevel,
+          defaultCreditPoints: test.defaultCreditPoints,
+        });
+        setCollectionId(test.collectionId ?? null);
+        setQuestions(loadedQuestions);
+        setQuestionKeys(loadedQuestions.map((q) => q.id ?? makeQuestionKey()));
+        baselineRef.current = snapshotState(
+          {
+            title: test.title,
+            description: test.description || "",
+            targetLanguage: test.targetLanguage,
+            cefrLevel: test.cefrLevel,
+            defaultCreditPoints: test.defaultCreditPoints,
+          },
+          loadedQuestions
+        );
+      } catch (error) {
+        if (cancelled) return;
+        console.error("Error loading test:", error);
+        toast.error("Fehler beim Laden des Tests");
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [testId, currentUser]);
 
   // Keep the teacher's collection list in sync for the picker.
@@ -267,46 +307,6 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
     );
     return () => unsub();
   }, [currentUser]);
-  
-  const loadTest = async () => {
-    if (!testId) return;
-    
-    setIsLoading(true);
-    try {
-      const { test, questions: loadedQuestions } = await getTest(testId);
-      
-      // Set test settings
-      setTestSettings({
-        title: test.title,
-        description: test.description || "",
-        targetLanguage: test.targetLanguage,
-        cefrLevel: test.cefrLevel,
-        defaultCreditPoints: test.defaultCreditPoints,
-      });
-      
-      // Collection membership (edit mode reflects the stored value).
-      setCollectionId(test.collectionId ?? null);
-
-      // Set questions
-      setQuestions(loadedQuestions);
-      setQuestionKeys(loadedQuestions.map((q) => q.id ?? makeQuestionKey()));
-      baselineRef.current = snapshotState(
-        {
-          title: test.title,
-          description: test.description || "",
-          targetLanguage: test.targetLanguage,
-          cefrLevel: test.cefrLevel,
-          defaultCreditPoints: test.defaultCreditPoints,
-        },
-        loadedQuestions
-      );
-    } catch (error) {
-      console.error("Error loading test:", error);
-      toast.error("Fehler beim Laden des Tests");
-    } finally {
-      setIsLoading(false);
-    }
-  };
   
   const handleTestSettingsChange = (settings: TestGeneralSettings) => {
     setTestSettings(settings);
@@ -693,12 +693,23 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
         );
         // Apply the Firestore ids to local state — without this, a second
         // save in the same session re-inserts every new question as a
-        // duplicate (the local copies would still be id-less).
-        const savedQuestions = questions.map((q, i) =>
+        // duplicate (the local copies would still be id-less). Use a
+        // FUNCTIONAL update grafting ids only onto still-id-less questions,
+        // so any edits the teacher made while the save was in flight (the
+        // editors stay enabled) are preserved instead of being reverted to
+        // the pre-save snapshot.
+        setQuestions((cur) =>
+          cur.map((q, i) => (!q.id && savedIds[i] ? { ...q, id: savedIds[i] } : q))
+        );
+        // Baseline reflects the questions we actually sent (with their new
+        // ids). If nothing changed during the save this equals current state
+        // → pristine; if the teacher edited mid-save, current now differs
+        // from baseline → the unsaved-changes guard correctly warns rather
+        // than silently dropping the edit.
+        const sentWithIds = questions.map((q, i) =>
           savedIds[i] ? { ...q, id: savedIds[i] } : q
         );
-        setQuestions(savedQuestions);
-        baselineRef.current = snapshotState(testSettings, savedQuestions);
+        baselineRef.current = snapshotState(testSettings, sentWithIds);
         toast.success("Test erfolgreich aktualisiert");
       } else {
         // Only attach collectionId when set — createTest doesn't strip

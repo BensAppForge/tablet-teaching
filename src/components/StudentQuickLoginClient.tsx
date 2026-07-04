@@ -85,17 +85,22 @@ const StudentQuickLoginClient: React.FC = () => {
 		}
 
 		setIsLoading(true);
-		let signedIn = false;
+		// If a kid is already in an anonymous session (mid-test), signInAnonymously
+		// returns that SAME user — so we must never sign it out on a failed lookup
+		// or error, which would silently destroy their in-progress test over one
+		// mistyped code. Only a freshly-minted throwaway user may be discarded.
+		const hadAnonSession = !!auth.currentUser?.isAnonymous;
+		let createdThrowawayAnon = false;
 		try {
 			// Need to be authenticated to read quickCodes (rules require it),
 			// so sign in as anonymous first and check the code afterwards.
 			const cred = await signInAnonymously(auth);
-			signedIn = true;
+			createdThrowawayAnon = !hadAnonSession;
 			const lookup = await lookupQuickCode(codeInput);
 			if (!lookup) {
-				// Throw away the just-created anon user so we don't accumulate
-				// orphaned anonymous identities on every typo.
-				await signOut(auth);
+				// Discard only a just-created throwaway user; keep an existing
+				// in-progress session intact.
+				if (createdThrowawayAnon) await signOut(auth);
 				setError("Code nicht gefunden. Bitte beim Lehrer:in nachfragen.");
 				return;
 			}
@@ -113,7 +118,7 @@ const StudentQuickLoginClient: React.FC = () => {
 			router.push(`/student/worksheet?id=${lookup.testId}`);
 		} catch (err: any) {
 			console.error("Quick login error:", err);
-			if (signedIn) {
+			if (createdThrowawayAnon) {
 				try {
 					await signOut(auth);
 				} catch {

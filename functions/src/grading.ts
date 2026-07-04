@@ -2,6 +2,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { z } from "zod";
 import { db, FieldValue } from "./admin";
 import { gradeAll, GradableQuestion } from "./scoring";
+import { enforceRateLimit } from "./rateLimit";
 
 // Authoritative submission grading for managed students. The student sends
 // only their raw answers; the server fetches the test's questions (with the
@@ -16,9 +17,13 @@ import { gradeAll, GradableQuestion } from "./scoring";
 const GradeSubmissionSchema = z.object({
 	testId: z.string().min(1),
 	// Raw per-question answers keyed by question id. Shapes are validated by
-	// the grader (unknown values simply grade as wrong), so we only bound the
-	// payload size here.
-	answers: z.record(z.string(), z.unknown()),
+	// the grader (unknown values simply grade as wrong); we bound the key
+	// count so a client can't push an oversized payload.
+	answers: z
+		.record(z.string(), z.unknown())
+		.refine((o) => Object.keys(o).length <= 300, {
+			message: "Too many answers.",
+		}),
 });
 
 export const gradeSubmission = onCall(
@@ -45,6 +50,17 @@ export const gradeSubmission = onCall(
 			throw new HttpsError("invalid-argument", parsed.error.message);
 		}
 		const { testId, answers } = parsed.data;
+
+		// Cap submit frequency per (student, test). Retakes are legitimate, so
+		// the limit is generous — it only stops a client looping the callable
+		// to flood the teacher's results dialog and burn read/write cost.
+		await enforceRateLimit({
+			key: `gradeSubmission:${uid}:${testId}`,
+			limit: 20,
+			windowSeconds: 3600,
+			message:
+				"Zu viele Abgaben in kurzer Zeit. Bitte einen Moment warten und erneut versuchen.",
+		});
 
 		// The test must be assigned to the student's class.
 		const testSnap = await db.collection("tests").doc(testId).get();

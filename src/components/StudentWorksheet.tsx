@@ -77,6 +77,18 @@ const StudentWorksheet: React.FC = () => {
 	// same commit as the testId change, before `loading` flips true).
 	const loadedKeyRef = useRef<string | null>(null);
 
+	// Bumped whenever the answer-state identity changes (a test load or a
+	// "Neu starten"). A gradeSubmission continuation captures the key+gen at
+	// call time and bails if either changed by the time it resolves — so a
+	// late server response can't stamp its result onto a retaken attempt
+	// (same test, no remount) or onto a different test (query-param nav).
+	const attemptGenRef = useRef(0);
+	const isCurrentAttempt = useCallback(
+		(key: string | null, gen: number) =>
+			loadedKeyRef.current === key && attemptGenRef.current === gen,
+		[]
+	);
+
 	// Load test + restore any saved attempt for this (user, test). Two
 	// identity paths: managed students fetch their class; Schnellzugang
 	// (anonymous) kids skip the class lookup and rely on anonAttempt
@@ -87,6 +99,9 @@ const StudentWorksheet: React.FC = () => {
 		if (!isAnon && !studentData) return;
 		if (isAnon && !anonAttempt) return;
 		let cancelled = false;
+		// New load = new answer-state identity: invalidate any in-flight
+		// grade continuation from a previous attempt/test.
+		attemptGenRef.current += 1;
 		(async () => {
 			setLoading(true);
 			try {
@@ -175,12 +190,13 @@ const StudentWorksheet: React.FC = () => {
 							if (studentData) {
 								// Re-submit the raw answers for authoritative server
 								// grading (the score is written by the Cloud Function).
+								const key = `${currentUser.uid}:${testId}`;
+								const gen = attemptGenRef.current;
 								gradeSubmission(testId, stored.answers || {})
 									.then((res) => {
-										if (!cancelled) {
-											setSynced(true);
-											setRemoteSubmissionId(res.submissionId);
-										}
+										if (cancelled || !isCurrentAttempt(key, gen)) return;
+										setSynced(true);
+										setRemoteSubmissionId(res.submissionId);
 									})
 									.catch((err) =>
 										console.error("Submission retry failed:", err)
@@ -290,12 +306,19 @@ const StudentWorksheet: React.FC = () => {
 		if (role === "student" && studentData && currentUser) {
 			setSynced(false);
 			setIgnoreSubmissionId(null);
+			// Capture the attempt identity so a slow server response can't
+			// revive this result after a "Neu starten" or a switch to another
+			// test (both change key/gen) — that was the retake-resurrection /
+			// cross-test-bleed bug.
+			const key = loadedKeyRef.current;
+			const gen = attemptGenRef.current;
 			// The score shown above is the optimistic local grade (same rules
 			// as the server); the AUTHORITATIVE score is graded + written by
 			// the gradeSubmission Cloud Function. We reconcile the display with
 			// the server's result so the kid sees exactly what the teacher will.
 			gradeSubmission(testId, answers)
 				.then((res) => {
+					if (!isCurrentAttempt(key, gen)) return;
 					setSynced(true);
 					setRemoteSubmissionId(res.submissionId);
 					setSubmitted({
@@ -306,6 +329,7 @@ const StudentWorksheet: React.FC = () => {
 					});
 				})
 				.catch((err) => {
+					if (!isCurrentAttempt(key, gen)) return;
 					console.error("Failed to persist submission to Firestore:", err);
 					toast.info(
 						"Dein Ergebnis ist gespeichert und wird beim nächsten Öffnen automatisch übertragen."
@@ -336,6 +360,9 @@ const StudentWorksheet: React.FC = () => {
 
 	const handleRetake = () => {
 		if (!currentUser || !testId) return;
+		// New attempt identity: any grade continuation still in flight from the
+		// submission we're discarding must not revive this result.
+		attemptGenRef.current += 1;
 		clearAttempt(currentUser.uid, testId);
 		setAnswers({});
 		setSubmitted(null);
