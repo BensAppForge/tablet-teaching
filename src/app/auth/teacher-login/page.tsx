@@ -107,15 +107,15 @@ const TeacherLoginForm: React.FC = () => {
 		<div className="container mx-auto p-4 flex items-center justify-center min-h-screen">
 			<Card className="w-full max-w-md">
 				<CardHeader>
-					<CardTitle>Lehrer Anmeldung</CardTitle>
+					<CardTitle>Lehrkraft-Anmeldung</CardTitle>
 					<CardDescription>
-						Melden Sie sich mit Ihrem Lehrer-Konto an.
+						Melden Sie sich mit Ihrem Lehrkraft-Konto an.
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
 					<form onSubmit={handleLogin} className="grid gap-4">
 						<div className="grid gap-2">
-							<Label htmlFor="email">Email</Label>
+							<Label htmlFor="email">E-Mail</Label>
 							<div className="relative">
 								<Mail
 									className={`absolute left-2.5 top-2.5 h-5 w-5 text-muted-foreground peer-focus:text-accent`}
@@ -202,8 +202,8 @@ const TeacherLoginForm: React.FC = () => {
 					<DialogHeader>
 						<DialogTitle>Passwort zurücksetzen</DialogTitle>
 						<DialogDescription>
-							Gib deine E-Mail-Adresse ein. Wir senden dir einen Link zum
-							Zurücksetzen deines Passworts.
+							Geben Sie Ihre E-Mail-Adresse ein. Wir senden Ihnen einen Link
+							zum Zurücksetzen Ihres Passworts.
 						</DialogDescription>
 					</DialogHeader>
 					<div className="grid gap-2 py-1">

@@ -76,8 +76,8 @@ Max von M`}</pre>
 									Identifikatoren — sie empfangen keine Nachrichten.
 								</li>
 								<li>
-									Passwörter werden nicht gespeichert. Falls eine Schüler:in
-									das Passwort vergisst, kannst du in der Klassenansicht über
+									Passwörter werden nicht gespeichert. Falls ein:e Schüler:in
+									das Passwort vergisst, können Sie in der Klassenansicht über
 									das Schlüssel-Symbol{" "}
 									<span className="whitespace-nowrap">(🔑)</span> neben der
 									Schüler:in ein neues Passwort erzeugen. Es wird einmalig

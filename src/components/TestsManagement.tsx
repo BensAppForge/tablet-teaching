@@ -323,7 +323,7 @@ const TestsManagement: React.FC = () => {
 								</p>
 							)}
 						</div>
-						<Badge className={cefrColors[test.cefrLevel] || "bg-gray-100"}>
+						<Badge className={cefrColors[test.cefrLevel] || "bg-muted text-muted-foreground"}>
 							{test.cefrLevel}
 						</Badge>
 					</div>

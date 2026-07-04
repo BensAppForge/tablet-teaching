@@ -904,7 +904,7 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
               />
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Optionaler Ordner zur Organisation deiner Tests.
+              Optionaler Ordner zur Organisation Ihrer Tests.
             </p>
           </div>
         </CardContent>

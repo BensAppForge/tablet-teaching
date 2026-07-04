@@ -315,8 +315,8 @@ const TestResultsDialog: React.FC<Props> = ({ open, onOpenChange, test }) => {
 								Noch keine Ergebnisse für diesen Test.
 							</p>
 							<p className="text-xs text-muted-foreground mt-2 max-w-xs">
-								Schnellzugang-Ergebnisse erscheinen hier nur, wenn du im
-								Schnellzugang das Speichern aktivierst.
+								Schnellzugang-Ergebnisse erscheinen hier nur, wenn Sie im
+								Schnellzugang das Speichern aktivieren.
 							</p>
 						</div>
 					) : (

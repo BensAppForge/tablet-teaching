@@ -58,7 +58,7 @@ const BesprechungView: React.FC = () => {
 				const { test, questions } = await getTest(testId);
 				if (cancelled) return;
 				if (test.teacherId !== currentUser.uid) {
-					toast.error("Dieser Test gehört nicht zu deinem Konto.");
+					toast.error("Dieser Test gehört nicht zu Ihrem Konto.");
 					router.push("/tests");
 					return;
 				}

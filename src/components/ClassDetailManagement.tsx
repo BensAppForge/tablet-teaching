@@ -587,7 +587,7 @@ const ClassDetailManagement: React.FC = () => {
 					<DialogHeader>
 						<DialogTitle>Schüler:innen importieren</DialogTitle>
 						<DialogDescription>
-							Eine Schüler:in pro Zeile: <strong>Vorname</strong>, dann
+							Ein:e Schüler:in pro Zeile: <strong>Vorname</strong>, dann
 							Leerzeichen, dann <strong>Initial des Nachnamens</strong>.
 							Mehrteilige Vornamen sind erlaubt — das letzte Wort gilt
 							immer als Initial. Komma, Semikolon oder Tab funktionieren

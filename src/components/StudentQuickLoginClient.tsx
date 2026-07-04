@@ -101,7 +101,7 @@ const StudentQuickLoginClient: React.FC = () => {
 				// Discard only a just-created throwaway user; keep an existing
 				// in-progress session intact.
 				if (createdThrowawayAnon) await signOut(auth);
-				setError("Code nicht gefunden. Bitte beim Lehrer:in nachfragen.");
+				setError("Code nicht gefunden. Bitte bei der Lehrkraft nachfragen.");
 				return;
 			}
 			await createQuickAttempt(cred.user.uid, {
