@@ -13,6 +13,7 @@ import {
 	findUniqueQuickCode,
 } from "@/lib/firebase/quickAccess";
 import PageShell from "@/components/PageShell";
+import ErrorState from "@/components/ErrorState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -37,6 +38,8 @@ const QuickAccessManagement: React.FC = () => {
 
 	const [test, setTest] = useState<Test | null>(null);
 	const [loading, setLoading] = useState(true);
+	const [loadError, setLoadError] = useState(false);
+	const [reloadKey, setReloadKey] = useState(0);
 	const [busy, setBusy] = useState(false);
 
 	useEffect(() => {
@@ -44,6 +47,7 @@ const QuickAccessManagement: React.FC = () => {
 		let cancelled = false;
 		(async () => {
 			setLoading(true);
+			setLoadError(false);
 			try {
 				const { test } = await getTest(testId);
 				if (cancelled) return;
@@ -54,8 +58,9 @@ const QuickAccessManagement: React.FC = () => {
 				}
 				setTest(test);
 			} catch (err) {
+				if (cancelled) return;
 				console.error(err);
-				toast.error("Fehler beim Laden des Tests");
+				setLoadError(true);
 			} finally {
 				if (!cancelled) setLoading(false);
 			}
@@ -63,7 +68,7 @@ const QuickAccessManagement: React.FC = () => {
 		return () => {
 			cancelled = true;
 		};
-	}, [testId, currentUser, router]);
+	}, [testId, currentUser, router, reloadKey]);
 
 	const quickCode = test?.quickCode ?? null;
 
@@ -169,9 +174,19 @@ const QuickAccessManagement: React.FC = () => {
 
 	if (loading) {
 		return (
-			<div className="flex justify-center items-center py-12">
-				<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-			</div>
+			<PageShell title="Schnellzugang" backHref="/tests" backLabel="Tests">
+				<div className="flex justify-center items-center py-12">
+					<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+				</div>
+			</PageShell>
+		);
+	}
+
+	if (loadError) {
+		return (
+			<PageShell title="Schnellzugang" backHref="/tests" backLabel="Tests">
+				<ErrorState onRetry={() => setReloadKey((k) => k + 1)} />
+			</PageShell>
 		);
 	}
 

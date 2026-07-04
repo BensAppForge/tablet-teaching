@@ -80,6 +80,7 @@ export const TestGeneralSettingsForm: React.FC<TestGeneralSettingsFormProps> = (
               value={values.title}
               onChange={(e) => handleChange("title", e.target.value)}
               onBlur={() => setTouched((t) => ({ ...t, title: true }))}
+              placeholder="z. B. Simple Past – Übung 1"
               required
               aria-invalid={showErr("title")}
               className={cn(showErr("title") && "border-destructive focus-visible:ring-destructive")}
@@ -94,6 +95,7 @@ export const TestGeneralSettingsForm: React.FC<TestGeneralSettingsFormProps> = (
               value={values.description}
               onChange={(e) => handleChange("description", e.target.value)}
               onBlur={() => setTouched((t) => ({ ...t, description: true }))}
+              placeholder="Kurze Beschreibung – erscheint über dem Arbeitsblatt"
               required
               rows={2}
               aria-invalid={showErr("description")}

@@ -38,6 +38,7 @@ import {
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { renderQuestion } from "@/components/student/renderQuestion";
+import ErrorState from "@/components/ErrorState";
 
 type Answers = Record<string, unknown>;
 
@@ -50,6 +51,8 @@ const StudentWorksheet: React.FC = () => {
 	const [cls, setCls] = useState<Class | null>(null);
 	const [questions, setQuestions] = useState<Question[]>([]);
 	const [loading, setLoading] = useState(true);
+	const [loadError, setLoadError] = useState(false);
+	const [reloadKey, setReloadKey] = useState(0);
 
 	const [answers, setAnswers] = useState<Answers>({});
 	const [submitted, setSubmitted] = useState<SubmissionResult | null>(null);
@@ -104,6 +107,7 @@ const StudentWorksheet: React.FC = () => {
 		attemptGenRef.current += 1;
 		(async () => {
 			setLoading(true);
+			setLoadError(false);
 			try {
 				const expectedTeacherId = isAnon
 					? anonAttempt!.teacherId
@@ -235,8 +239,9 @@ const StudentWorksheet: React.FC = () => {
 				// State now reflects THIS test — enable autosave for it.
 				loadedKeyRef.current = `${currentUser.uid}:${testId}`;
 			} catch (err) {
+				if (cancelled) return;
 				console.error(err);
-				toast.error("Fehler beim Laden des Arbeitsblatts");
+				setLoadError(true);
 			} finally {
 				if (!cancelled) setLoading(false);
 			}
@@ -244,7 +249,7 @@ const StudentWorksheet: React.FC = () => {
 		return () => {
 			cancelled = true;
 		};
-	}, [testId, currentUser, role, studentData, anonAttempt, router]);
+	}, [testId, currentUser, role, studentData, anonAttempt, router, reloadKey]);
 
 	// Auto-save on every answer or submission change.
 	useEffect(() => {
@@ -483,6 +488,8 @@ const StudentWorksheet: React.FC = () => {
 				<div className="flex justify-center items-center py-12">
 					<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
 				</div>
+			) : loadError ? (
+				<ErrorState onRetry={() => setReloadKey((k) => k + 1)} />
 			) : questions.length === 0 ? (
 				<Card>
 					<CardContent className="py-8 text-center text-muted-foreground">

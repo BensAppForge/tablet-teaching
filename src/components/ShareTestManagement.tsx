@@ -16,6 +16,7 @@ import { Class, getTeacherClasses } from "@/lib/firebase/classes";
 import { getStrings, mapTargetLanguageToLocale } from "@/lib/i18n";
 import { shareOrDownload } from "@/lib/download";
 import PageShell from "@/components/PageShell";
+import ErrorState from "@/components/ErrorState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -34,6 +35,8 @@ const ShareTestManagement: React.FC = () => {
 	const [questions, setQuestions] = useState<Question[]>([]);
 	const [classes, setClasses] = useState<Class[]>([]);
 	const [loading, setLoading] = useState(true);
+	const [loadError, setLoadError] = useState(false);
+	const [reloadKey, setReloadKey] = useState(0);
 	const [assigningClass, setAssigningClass] = useState<string | null>(null);
 	const [generatingEmptyPdf, setGeneratingEmptyPdf] = useState(false);
 
@@ -42,6 +45,7 @@ const ShareTestManagement: React.FC = () => {
 		let cancelled = false;
 		(async () => {
 			setLoading(true);
+			setLoadError(false);
 			try {
 				const [{ test, questions }, klasses] = await Promise.all([
 					getTest(testId),
@@ -57,8 +61,9 @@ const ShareTestManagement: React.FC = () => {
 				setQuestions(questions);
 				setClasses(klasses);
 			} catch (err) {
+				if (cancelled) return;
 				console.error(err);
-				toast.error("Fehler beim Laden des Tests");
+				setLoadError(true);
 			} finally {
 				if (!cancelled) setLoading(false);
 			}
@@ -66,7 +71,7 @@ const ShareTestManagement: React.FC = () => {
 		return () => {
 			cancelled = true;
 		};
-	}, [testId, currentUser, router]);
+	}, [testId, currentUser, router, reloadKey]);
 
 	const handleDownloadEmptyPdf = async () => {
 		if (!test) return;
@@ -105,9 +110,19 @@ const ShareTestManagement: React.FC = () => {
 
 	if (loading) {
 		return (
-			<div className="flex justify-center items-center py-12">
-				<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-			</div>
+			<PageShell title="Klasse zuweisen" backHref="/tests" backLabel="Tests">
+				<div className="flex justify-center items-center py-12">
+					<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+				</div>
+			</PageShell>
+		);
+	}
+
+	if (loadError) {
+		return (
+			<PageShell title="Klasse zuweisen" backHref="/tests" backLabel="Tests">
+				<ErrorState onRetry={() => setReloadKey((k) => k + 1)} />
+			</PageShell>
 		);
 	}
 

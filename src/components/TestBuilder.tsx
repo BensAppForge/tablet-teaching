@@ -125,10 +125,12 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
   const searchParams = useSearchParams();
   const { currentUser } = useAuth();
 
-  // State for general test settings with safe default values
+  // State for general test settings. Title/description start EMPTY (shown as
+  // placeholders) so the required-field validation actually fires — otherwise
+  // a test literally named "Neuer Test" could be saved and reach students.
   const [testSettings, setTestSettings] = useState<TestGeneralSettings>({
-    title: "Neuer Test",
-    description: "Beschreibung des Tests",
+    title: "",
+    description: "",
     targetLanguage: "Englisch",
     cefrLevel: "B1",
     defaultCreditPoints: 1,
@@ -529,14 +531,13 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
         ...prev,
         ...res.questions.map((q) => q.id ?? makeQuestionKey()),
       ]);
-      // If the test still has the default title/description, accept the
-      // AI's suggestions; otherwise keep what the teacher typed.
+      // If the teacher hasn't typed a title/description yet, accept the AI's
+      // suggestions; otherwise keep what they entered.
       setTestSettings((prev) => ({
         ...prev,
-        title:
-          prev.title === "Neuer Test" && res.title ? res.title : prev.title,
+        title: !prev.title.trim() && res.title ? res.title : prev.title,
         description:
-          prev.description === "Beschreibung des Tests" && res.description
+          !prev.description.trim() && res.description
             ? res.description
             : prev.description,
       }));
