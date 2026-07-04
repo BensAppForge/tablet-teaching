@@ -11,9 +11,9 @@ import { defineSecret } from "firebase-functions/params";
 import { logger } from "firebase-functions";
 import { z } from "zod";
 import mammoth from "mammoth";
-import { QueryDocumentSnapshot } from "firebase-admin/firestore";
 import { buildAi } from "./ai";
-import { db } from "./admin";
+import { enforceRateLimit } from "./rateLimit";
+import { assertAiQuota, consumeAiQuota } from "./aiQuota";
 
 const GEMINI_API_KEY = defineSecret("GEMINI_API_KEY");
 
@@ -123,29 +123,6 @@ const OutputSchema = z.object({
 	description: z.string().optional(),
 	questions: z.array(GeneratedQuestionSchema).min(1),
 });
-
-// Mirrors src/lib/firebase/teachers.ts's canCreateAITest but reads
-// directly from Firestore via the Admin SDK. Re-implemented here so the
-// Function doesn't depend on client-only code.
-const AI_TESTS_PER_MONTH_BASIC = 1;
-async function canCreateAITest(teacherId: string): Promise<boolean> {
-	const teacherSnap = await db.collection("teachers").doc(teacherId).get();
-	if (!teacherSnap.exists) return false;
-	const data = teacherSnap.data() ?? {};
-	if (data.isPremium || data.isBetaTester) return true;
-	const cutoff = new Date();
-	cutoff.setDate(cutoff.getDate() - 30);
-	const q = await db
-		.collection("tests")
-		.where("teacherId", "==", teacherId)
-		.where("createdAt", ">=", cutoff)
-		.get();
-	const aiCount = q.docs.filter(
-		(d: QueryDocumentSnapshot) =>
-			d.data().isAIGenerated === true
-	).length;
-	return aiCount < AI_TESTS_PER_MONTH_BASIC;
-}
 
 function escapeRegExp(s: string): string {
 	return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -384,13 +361,22 @@ export const generateTestQuestions = onCall(
 		}
 		const input = parsed.data;
 
-		const allowed = await canCreateAITest(teacherId);
-		if (!allowed) {
-			throw new HttpsError(
-				"resource-exhausted",
-				"Das monatliche Limit für KI-Tests ist erreicht. Mit Premium sind unbegrenzte KI-Tests möglich."
-			);
-		}
+		// Flat per-teacher throttle — applies to ALL tiers (including
+		// premium/beta) purely as cost/abuse protection on the most
+		// expensive callable in the system. Independent of the monthly
+		// plan quota below.
+		await enforceRateLimit({
+			key: `generateTestQuestions:${teacherId}`,
+			limit: 20,
+			windowSeconds: 3600,
+			message:
+				"Zu viele KI-Anfragen in kurzer Zeit. Bitte einen Moment warten und erneut versuchen.",
+		});
+
+		// Plan quota (basic teachers). Read-only pre-check here; consumed
+		// only after a successful generation (below) so a failed Gemini
+		// call never burns the allowance.
+		const { premium } = await assertAiQuota(teacherId);
 
 		// Guard the combined binary payload (PDF/DOCX + all images) so a
 		// teacher attaching several large screenshots can't blow past
@@ -568,6 +554,18 @@ export const generateTestQuestions = onCall(
 				"internal",
 				"Die KI-Antwort enthielt keine gültigen Aufgaben."
 			);
+		}
+
+		// Generation succeeded — record consumption against the monthly
+		// quota (no-op for premium/beta). Best-effort: a counter write
+		// failure must not fail an otherwise-successful generation.
+		try {
+			await consumeAiQuota(teacherId, premium);
+		} catch (err) {
+			logger.error("generateTestQuestions:quota-consume-failed", {
+				teacherId,
+				err: String(err),
+			});
 		}
 
 		return {

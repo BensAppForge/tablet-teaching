@@ -227,8 +227,40 @@ service cloud.firestore {
     // uid, so a student can only ever read or write their own attempt.
     // The scheduled Cloud Function uses the Admin SDK (bypasses rules)
     // to delete expired attempts together with their auth users.
+    //
+    // CRITICAL: the anonymous `get` rules on /tests and /questions trust
+    // quickAttempts.testId to decide what a Schnellzugang user may read.
+    // So a write MUST be validated here — otherwise any signInAnonymously()
+    // caller could self-write an attempt with an arbitrary testId and read
+    // that test's full answer key without ever redeeming a code. A write is
+    // therefore allowed only when the asserted (testId, teacherId) match the
+    // real quickCode named in `code`, and expiresAt is bounded (future,
+    // ≤25h) so the cleanup job always reaps it — no immortal self-attempts.
     match /quickAttempts/{attemptId} {
-      allow read, write: if request.auth != null && request.auth.uid == attemptId;
+      function boundQuickCode() {
+        return request.resource.data.code is string
+          && exists(/databases/$(database)/documents/quickCodes/$(request.resource.data.code))
+          && get(/databases/$(database)/documents/quickCodes/$(request.resource.data.code)).data.testId
+              == request.resource.data.testId
+          && get(/databases/$(database)/documents/quickCodes/$(request.resource.data.code)).data.teacherId
+              == request.resource.data.teacherId;
+      }
+      function validAttempt() {
+        return request.auth.token.firebase.sign_in_provider == 'anonymous'
+          && boundQuickCode()
+          && request.resource.data.displayName is string
+          && request.resource.data.displayName.size() > 0
+          && request.resource.data.displayName.size() <= 80
+          && request.resource.data.expiresAt is timestamp
+          && request.resource.data.expiresAt > request.time
+          && request.resource.data.expiresAt < request.time + duration.value(25, 'h');
+      }
+      allow read: if request.auth != null && request.auth.uid == attemptId;
+      allow create, update: if request.auth != null
+        && request.auth.uid == attemptId
+        && validAttempt();
+      // Cleanup is Admin-SDK only; no client delete path exists.
+      allow delete: if false;
     }
   }
 }

@@ -118,7 +118,9 @@ export async function createQuickAttempt(
 		testId: args.testId,
 		teacherId: args.teacherId,
 		displayName: args.displayName,
-		code: args.code,
+		// Normalised so it matches the quickCodes/{code} doc id — the
+		// security rule resolves this code to verify the testId binding.
+		code: normaliseQuickCode(args.code),
 		createdAt: serverTimestamp(),
 		expiresAt: Timestamp.fromDate(expires),
 	});
