@@ -57,7 +57,13 @@ export const deleteClass = onCall(
 		// Auth deletes in parallel.
 		const authResults = await Promise.allSettled(
 			studentsSnap.docs.map((d: QueryDocumentSnapshot) =>
-				auth.deleteUser(d.id)
+				auth.deleteUser(d.id).catch((err: { code?: string }) => {
+						// Already gone (console cleanup / prior partial run) →
+						// treat as success so the doc is still cleaned up and the
+						// class isn't left permanently undeletable.
+						if (err?.code === "auth/user-not-found") return;
+						throw err;
+					})
 			)
 		);
 		authResults.forEach((r: PromiseSettledResult<void>, i: number) => {

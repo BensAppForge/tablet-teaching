@@ -287,8 +287,15 @@ export const deleteStudent = onCall(
 		);
 
 		// Auth user next; if that fails we don't want to leave the Firestore
-		// doc orphaned without a way for the teacher to retry.
-		await auth.deleteUser(studentUid);
+		// doc orphaned without a way for the teacher to retry. The user may
+		// already be gone (console cleanup, prior partial run) — treat
+		// "user-not-found" as success (the desired end state is "no auth
+		// user") so the student never becomes permanently undeletable.
+		try {
+			await auth.deleteUser(studentUid);
+		} catch (err: any) {
+			if (err?.code !== "auth/user-not-found") throw err;
+		}
 		await db.collection("students").doc(studentUid).delete();
 
 		return { ok: true };
