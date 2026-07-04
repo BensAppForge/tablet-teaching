@@ -516,7 +516,8 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 							variant="ghost"
 							size="icon"
 							onClick={onDelete}
-							className="h-8 w-8 text-destructive hover:bg-destructive/10 ml-auto"
+							aria-label="Frage löschen"
+							className="h-11 w-11 text-destructive hover:bg-destructive/10 ml-auto"
 						>
 							<Trash className="h-4 w-4" />
 						</Button>
@@ -618,6 +619,7 @@ const MatchingEditor: React.FC<MatchingEditorProps> = ({
 														variant="ghost"
 														size="icon"
 														onClick={() => removePair(item.originalIndex)}
+														aria-label="Paar entfernen"
 														className="text-destructive hover:bg-destructive/10"
 													>
 														<Trash className="h-4 w-4" />

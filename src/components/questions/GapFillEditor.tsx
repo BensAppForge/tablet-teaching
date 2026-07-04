@@ -281,6 +281,7 @@ const GapFillEditor: React.FC<GapFillEditorProps> = ({
               variant="ghost"
               size="icon"
               onClick={onDelete}
+              aria-label="Frage löschen"
               className="h-11 w-11 text-destructive hover:text-destructive hover:bg-destructive/10"
             >
               <Trash className="h-4 w-4" />

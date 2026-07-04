@@ -35,6 +35,7 @@ const TrueFalseView: React.FC<Props> = ({
 				type="button"
 				onClick={() => !review && onAnswer({ selected: value })}
 				disabled={review}
+				aria-pressed={isSelected}
 				className={[
 					"flex-1 flex min-h-12 items-center justify-center gap-2 rounded-md border p-3 text-base transition-colors",
 					isCorrect

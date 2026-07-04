@@ -54,7 +54,10 @@ export const SortableWord: React.FC<SortableWordProps> = ({
 		opacity: isDragging ? 0.85 : 1,
 		// Prevent the browser from claiming touch gestures (scroll/pan) on
 		// the sortable item — without this, iPad scroll wins over drag.
-		touchAction: "none",
+		// In take mode, stop the browser from claiming touch gestures so a drag
+		// isn't hijacked by iPad scrolling. In review mode nothing is draggable,
+		// so "none" would just trap page scrolling under every item — release it.
+		touchAction: disabled ? "auto" : "none",
 	};
 
 	return (

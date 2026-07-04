@@ -44,6 +44,8 @@ const MultipleChoiceView: React.FC<Props> = ({
 								type="button"
 								onClick={() => !review && onAnswer({ selectedOption: i })}
 								disabled={review}
+								aria-pressed={isSelected}
+								aria-label={`${LETTERS[i] ?? i + 1}: ${opt || "leer"}`}
 								className={[
 										"w-full min-h-12 flex items-start gap-3 rounded-md border p-3 text-left transition-colors",
 									isCorrect
