@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { de } from "date-fns/locale";
 import {
@@ -63,6 +63,8 @@ interface SubmissionRowProps {
 	// Quick results carry an expiry; shown so the teacher knows it's
 	// temporary.
 	expiresAt?: Timestamp | null;
+	// >1 when the student retook the test; the row shows their latest attempt.
+	attempts?: number;
 }
 
 const SubmissionRow: React.FC<SubmissionRowProps> = ({
@@ -74,6 +76,7 @@ const SubmissionRow: React.FC<SubmissionRowProps> = ({
 	questions,
 	onDelete,
 	expiresAt,
+	attempts,
 }) => {
 	const [expanded, setExpanded] = useState(false);
 
@@ -106,6 +109,11 @@ const SubmissionRow: React.FC<SubmissionRowProps> = ({
 					<div className="font-medium truncate">{name}</div>
 					<div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
 						<span>{submittedLabel}</span>
+							{attempts && attempts > 1 && (
+								<span className="inline-flex items-center rounded bg-muted px-1.5 py-0.5">
+									{attempts} Versuche · neuester
+								</span>
+							)}
 						{expiresLabel && (
 							<span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-500">
 								<Clock className="h-3 w-3" />
@@ -260,7 +268,32 @@ const TestResultsDialog: React.FC<Props> = ({ open, onOpenChange, test }) => {
 		}
 	};
 
-	const total = submissions.length + quickSubs.length;
+	// Group managed submissions by student so a retake doesn't show up as
+	// several rows. Each student gets one row for their LATEST attempt, with
+	// an "N Versuche" marker; the count reflects distinct students.
+	const managedRows = useMemo(() => {
+		const byStudent = new Map<
+			string,
+			{ latest: Submission; attempts: number }
+		>();
+		for (const s of submissions) {
+			const key = s.studentId ?? s.id ?? "";
+			const existing = byStudent.get(key);
+			if (!existing) {
+				byStudent.set(key, { latest: s, attempts: 1 });
+			} else {
+				existing.attempts += 1;
+				const ms = s.submittedAt?.toMillis?.() ?? 0;
+				const exMs = existing.latest.submittedAt?.toMillis?.() ?? 0;
+				if (ms > exMs) existing.latest = s;
+			}
+		}
+		return Array.from(byStudent.values()).sort((a, b) =>
+			a.latest.studentName.localeCompare(b.latest.studentName, "de")
+		);
+	}, [submissions]);
+
+	const total = managedRows.length + quickSubs.length;
 
 	return (
 		<>
@@ -288,12 +321,12 @@ const TestResultsDialog: React.FC<Props> = ({ open, onOpenChange, test }) => {
 						</div>
 					) : (
 						<div className="space-y-5 max-h-[60vh] overflow-y-auto">
-							{submissions.length > 0 && (
+							{managedRows.length > 0 && (
 								<div className="space-y-2">
 									<p className="text-xs font-medium text-muted-foreground px-1">
-										Mit Zugang (Klasse) · {submissions.length}
+										Mit Zugang (Klasse) · {managedRows.length}
 									</p>
-									{submissions.map((s) => (
+									{managedRows.map(({ latest: s, attempts }) => (
 										<SubmissionRow
 											key={s.id}
 											name={s.studentName}
@@ -302,6 +335,7 @@ const TestResultsDialog: React.FC<Props> = ({ open, onOpenChange, test }) => {
 											totalPossible={s.totalPossible}
 											perQuestion={s.perQuestion}
 											questions={questions}
+											attempts={attempts}
 											onDelete={() =>
 												setDeleteTarget({
 													kind: "managed",

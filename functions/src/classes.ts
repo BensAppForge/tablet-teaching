@@ -1,7 +1,7 @@
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { z } from "zod";
 import { QueryDocumentSnapshot } from "firebase-admin/firestore";
-import { auth, db } from "./admin";
+import { auth, db, FieldValue } from "./admin";
 import { deleteSubmissionsForClass } from "./submissionCleanup";
 
 const DeleteClassSchema = z.object({
@@ -45,6 +45,24 @@ export const deleteClass = onCall(
 		// Remove the class's submissions first. On failure nothing else is
 		// touched, so the teacher can retry cleanly.
 		await deleteSubmissionsForClass(teacherId, classId);
+
+		// Detach this class from any tests that reference it, so no dangling
+		// classId lingers in a test's assignedClassIds (which would otherwise
+		// leave the test "assigned" to a class that no longer exists).
+		const assignedTestsSnap = await db
+			.collection("tests")
+			.where("teacherId", "==", teacherId)
+			.where("assignedClassIds", "array-contains", classId)
+			.get();
+		if (!assignedTestsSnap.empty) {
+			const detachBatch = db.batch();
+			assignedTestsSnap.docs.forEach((d: QueryDocumentSnapshot) =>
+				detachBatch.update(d.ref, {
+					assignedClassIds: FieldValue.arrayRemove(classId),
+				})
+			);
+			await detachBatch.commit();
+		}
 
 		const studentsSnap = await db
 			.collection("students")

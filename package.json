@@ -1,6 +1,6 @@
 {
 	"name": "tablet-teaching",
-	"version": "0.7.6-beta",
+	"version": "0.7.7-beta",
 	"private": true,
 	"scripts": {
 		"predev": "node scripts/sync-version.mjs",

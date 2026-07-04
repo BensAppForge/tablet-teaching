@@ -105,10 +105,13 @@ const QuickAccessManagement: React.FC = () => {
 		if (!test || !quickCode) return;
 		setBusy(true);
 		try {
-			// Test doc first, code doc second: if the second step fails the
-			// UI still reads "deactivated" and a retry cleans up the code doc.
-			await updateTest(test.id!, { quickCode: undefined });
+			// Delete the CODE doc first: if the second step (clearing the test
+			// field) fails, the code is already gone so it can't keep granting
+			// access — a stale test.quickCode just points at nothing until a
+			// retry clears it. The reverse order could orphan a code doc that
+			// still resolves at login even though the UI reads "deactivated".
 			await deleteQuickCode(quickCode);
+			await updateTest(test.id!, { quickCode: undefined });
 			setTest({ ...test, quickCode: undefined });
 			toast.success("Schnellzugang deaktiviert");
 		} catch (err) {
