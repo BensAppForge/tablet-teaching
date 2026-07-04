@@ -803,7 +803,11 @@ const TestBuilder: React.FC<TestBuilderProps> = ({ testId }) => {
   }
   
   return (
-    <div className="container mx-auto px-4 py-6">
+    // No container here: the create-test / edit-test client wrappers already
+    // provide `container mx-auto px-4`. Nesting a second container doubled the
+    // horizontal padding and made the builder column narrower than every other
+    // screen.
+    <div>
       {/* Confirmation Dialog for Question Deletion */}
       <ConfirmationDialog
         open={deleteDialogOpen}

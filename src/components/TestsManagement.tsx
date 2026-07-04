@@ -44,6 +44,7 @@ import {
 	Presentation,
 } from "lucide-react";
 import PageShell from "@/components/PageShell";
+import ErrorState from "@/components/ErrorState";
 import TestResultsDialog from "@/components/TestResultsDialog";
 import CollectionPicker from "@/components/CollectionPicker";
 import { useRouter } from "next/navigation";
@@ -89,6 +90,8 @@ const TestsManagement: React.FC = () => {
 	const [tests, setTests] = useState<Test[]>([]);
 	const [collections, setCollections] = useState<TestCollection[]>([]);
 	const [loading, setLoading] = useState(true);
+	const [loadError, setLoadError] = useState(false);
+	const [reloadKey, setReloadKey] = useState(0);
 	const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 	const [testToDelete, setTestToDelete] = useState<string | null>(null);
 	const [dontShowAgain, setDontShowAgain] = useState(false);
@@ -127,6 +130,7 @@ const TestsManagement: React.FC = () => {
 	useEffect(() => {
 		if (!currentUser) return;
 		setLoading(true);
+		setLoadError(false);
 		const unsubTests = subscribeToTeacherTests(
 			currentUser.uid,
 			(list) => {
@@ -135,7 +139,7 @@ const TestsManagement: React.FC = () => {
 			},
 			(error) => {
 				console.error("Error loading tests:", error);
-				toast.error("Fehler beim Laden der Tests");
+				setLoadError(true);
 				setLoading(false);
 			}
 		);
@@ -148,7 +152,7 @@ const TestsManagement: React.FC = () => {
 			unsubTests();
 			unsubCollections();
 		};
-	}, [currentUser]);
+	}, [currentUser, reloadKey]);
 
 	// Resolve a test to its folder id, mapping unknown/missing collectionId
 	// (e.g. a deleted collection) to the "Ohne Sammlung" bucket.
@@ -431,6 +435,11 @@ const TestsManagement: React.FC = () => {
 						<Skeleton key={i} className="h-32 w-full rounded-lg" />
 					))}
 				</div>
+			) : loadError ? (
+				<ErrorState
+					message="Die Tests konnten nicht geladen werden. Bitte die Internetverbindung prüfen und erneut versuchen."
+					onRetry={() => setReloadKey((k) => k + 1)}
+				/>
 			) : openFolder === null ? (
 				/* ---------- FOLDER GRID (root) ---------- */
 				<>
