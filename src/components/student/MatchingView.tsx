@@ -192,7 +192,10 @@ const MatchingView: React.FC<Props> = ({
 
 	const reviewColor = (leftIndex: number, code: number): string => {
 		const expected = question.correctMatches[leftIndex];
-		return code === expected ? "#16a34a" /* green */ : "#dc2626" /* red */;
+		// Correct = solid green; wrong = grey and (with the DASHED line below) so
+		// correctness never depends on colour alone — green/red is the worst
+		// pairing for colour-blindness.
+		return code === expected ? "#16a34a" /* green */ : "#6b7280" /* grey */;
 	};
 
 	return (
@@ -215,7 +218,7 @@ const MatchingView: React.FC<Props> = ({
 								const color = review
 									? isConnected
 										? reviewColor(i, connections[i])
-										: "#dc2626"
+										: "#6b7280"
 									: isSelected || isConnected
 										? colorFor(i)
 										: "#9ca3af";
@@ -309,6 +312,10 @@ const MatchingView: React.FC<Props> = ({
 							const color = review
 								? reviewColor(leftIndex, code)
 								: colorFor(leftIndex);
+							// Wrong connections get a dashed line so correctness
+							// reads without relying on colour (see reviewColor).
+							const isWrong =
+								review && code !== question.correctMatches[leftIndex];
 							return (
 								<Xarrow
 									key={`${leftIndex}-${code}`}
@@ -316,6 +323,9 @@ const MatchingView: React.FC<Props> = ({
 									end={`${uid}-right-${row.id}`}
 									color={color}
 									strokeWidth={3}
+									dashness={
+										isWrong ? { strokeLen: 8, nonStrokeLen: 6 } : false
+									}
 									curveness={0.6}
 									startAnchor={"right" as anchorType}
 									endAnchor={"left" as anchorType}
