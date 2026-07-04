@@ -4,6 +4,8 @@ import {
 	Firestore,
 	getFirestore,
 	initializeFirestore,
+	persistentLocalCache,
+	persistentMultipleTabManager,
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
@@ -42,8 +44,18 @@ if (typeof window !== "undefined") {
 		// never triggers and queries stall until manual refresh. Long polling
 		// is marginally slower steady-state but reliable across school
 		// networks, captive portals, and bfcache returns.
+		//
+		// persistentLocalCache: keep Firestore data in IndexedDB so onSnapshot
+		// screens hydrate instantly from cache (and keep working) when the
+		// classroom network drops — without it, an offline snapshot listener
+		// against an empty in-memory cache never fires and the UI is stuck on
+		// skeletons forever. Multi-tab manager avoids the single-tab
+		// failed-precondition error when the app is open in more than one tab.
 		firestore = initializeFirestore(app, {
 			experimentalForceLongPolling: true,
+			localCache: persistentLocalCache({
+				tabManager: persistentMultipleTabManager(),
+			}),
 		});
 	} catch {
 		// In dev/HMR the Firestore instance may already exist.

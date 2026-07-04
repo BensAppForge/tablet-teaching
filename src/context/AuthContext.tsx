@@ -160,11 +160,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 	};
 
 	useEffect(() => {
+		// Guards against auth-transition races: onAuthStateChanged can fire
+		// again (e.g. logout) while an earlier invocation is still awaiting a
+		// doc read. Each invocation stamps its ordinal and only commits state
+		// if it's still the latest — so a late-resolving read can't revive a
+		// signed-out user's role/data.
+		let invocation = 0;
 		// onAuthStateChanged fires immediately with the current state and
 		// again whenever auth changes. We branch on the `role` custom claim
 		// (set by bulkImportStudents for students) to fetch the right doc.
 		// Existing teacher accounts have no role claim — default to teacher.
 		const unsubscribe = onAuthStateChanged(auth, async (user) => {
+			const current = ++invocation;
+			const isCurrent = () => current === invocation;
 			setCurrentUser(user);
 
 			if (!user) {
@@ -176,45 +184,65 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 				return;
 			}
 
-			try {
-				// Anonymous Firebase users are Schnellzugang kids. They have
-				// no role claim and no teachers/students doc — their identity
-				// lives in quickAttempts/{uid}.
-				if (user.isAnonymous) {
-					setRole("anonymous");
-					setTeacherData(null);
-					setStudentData(null);
-					applyAnonAttempt(await getQuickAttempt(user.uid));
-				} else {
-					setAnonAttempt(null);
-					const tokenResult = await user.getIdTokenResult();
-					const detectedRole: Role =
-						tokenResult.claims.role === "student" ? "student" : "teacher";
-					setRole(detectedRole);
-
-					if (detectedRole === "student") {
-						const snap = await getDoc(doc(firestore, "students", user.uid));
-						setStudentData(
-							snap.exists() ? (snap.data() as StudentData) : null
-						);
-						setTeacherData(null);
-					} else {
-						const snap = await getDoc(doc(firestore, "teachers", user.uid));
-						setTeacherData(
-							snap.exists() ? (snap.data() as TeacherData) : null
-						);
-						setStudentData(null);
-					}
-				}
-			} catch (err) {
-				console.error("Error resolving auth role / data:", err);
-				setRole(null);
+			// Anonymous Firebase users are Schnellzugang kids. They have no
+			// role claim and no teachers/students doc — their identity lives
+			// in quickAttempts/{uid}.
+			if (user.isAnonymous) {
+				setRole("anonymous");
 				setTeacherData(null);
 				setStudentData(null);
-				setAnonAttempt(null);
+				try {
+					const attempt = await getQuickAttempt(user.uid);
+					if (isCurrent()) applyAnonAttempt(attempt);
+				} catch (err) {
+					// Offline/transient: stay anonymous, attempt stays null —
+					// the worksheet handles a missing attempt gracefully.
+					console.error("Error loading quick attempt:", err);
+				}
+				if (isCurrent()) setLoading(false);
+				return;
 			}
 
-			setLoading(false);
+			setAnonAttempt(null);
+
+			// Role comes from the ID token's custom claims, which are cached
+			// locally and resolve OFFLINE — so we can always route the user to
+			// the right area even when the network is down. Existing teacher
+			// accounts have no role claim, so a read failure falls back to
+			// teacher rather than blanking the role (which would drop the user
+			// into a guard dead-end / blank screen).
+			let detectedRole: Role = "teacher";
+			try {
+				const tokenResult = await user.getIdTokenResult();
+				detectedRole =
+					tokenResult.claims.role === "student" ? "student" : "teacher";
+			} catch (err) {
+				console.error("Error reading auth token claims:", err);
+			}
+			if (!isCurrent()) return;
+			setRole(detectedRole);
+
+			// Profile doc is a best-effort enrichment. If it fails (offline,
+			// transient), KEEP the detected role so the app still renders —
+			// the persistent cache serves a previously-loaded profile, and
+			// screens tolerate null profile data.
+			try {
+				if (detectedRole === "student") {
+					const snap = await getDoc(doc(firestore, "students", user.uid));
+					if (!isCurrent()) return;
+					setStudentData(snap.exists() ? (snap.data() as StudentData) : null);
+					setTeacherData(null);
+				} else {
+					const snap = await getDoc(doc(firestore, "teachers", user.uid));
+					if (!isCurrent()) return;
+					setTeacherData(snap.exists() ? (snap.data() as TeacherData) : null);
+					setStudentData(null);
+				}
+			} catch (err) {
+				console.error("Error loading profile doc (keeping role):", err);
+			}
+
+			if (isCurrent()) setLoading(false);
 		});
 
 		return () => unsubscribe();
