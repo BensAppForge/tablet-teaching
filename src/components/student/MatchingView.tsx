@@ -264,10 +264,15 @@ const MatchingView: React.FC<Props> = ({
 								const isConnected = ownerLeft !== -1;
 								const isSelected =
 									sel?.side === "right" && sel.rightCode === row.code;
+								// In review every CORRECT right partner is green (part of
+								// the solution) so the green solution lines land on green
+								// dots regardless of what the class connected.
+								const isCorrectPartner =
+									question.correctMatches.includes(row.code);
 								const color = review
-									? isConnected
-										? reviewColor(ownerLeft, row.code)
-										: "#9ca3af"
+									? isCorrectPartner
+										? "#16a34a"
+										: "#6b7280"
 									: isSelected || isConnected
 										? colorFor(isConnected ? ownerLeft : 0)
 										: "#9ca3af";
@@ -305,36 +310,74 @@ const MatchingView: React.FC<Props> = ({
 						</ul>
 					</div>
 					<div className="absolute inset-0 pointer-events-none">
-						{connections.map((code, leftIndex) => {
-							if (code === -1) return null;
-							const row = codeToRow.get(code);
-							if (!row) return null;
-							const color = review
-								? reviewColor(leftIndex, code)
-								: colorFor(leftIndex);
-							// Wrong connections get a dashed line so correctness
-							// reads without relying on colour (see reviewColor).
-							const isWrong =
-								review && code !== question.correctMatches[leftIndex];
-							return (
-								<Xarrow
-									key={`${leftIndex}-${code}`}
-									start={`${uid}-left-${leftIndex}`}
-									end={`${uid}-right-${row.id}`}
-									color={color}
-									strokeWidth={3}
-									dashness={
-										isWrong ? { strokeLen: 8, nonStrokeLen: 6 } : false
-									}
-									curveness={0.6}
-									startAnchor={"right" as anchorType}
-									endAnchor={"left" as anchorType}
-									path="smooth"
-									showHead={false}
-									zIndex={5}
-								/>
-							);
-						})}
+						{review
+							? // Review: for every left item show the CORRECT pairing as a
+							  // solid green line (the solution). If the class connected it to
+							  // a different right item, also show their pick as a dashed grey
+							  // line — so "what you said" and "the answer" are both visible.
+							  question.leftItems.map((_, leftIndex) => {
+									const entered = connections[leftIndex] ?? -1;
+									const correct = question.correctMatches[leftIndex];
+									const correctRow = codeToRow.get(correct);
+									const gotItRight = entered !== -1 && entered === correct;
+									const enteredRow =
+										!gotItRight && entered !== -1
+											? codeToRow.get(entered)
+											: undefined;
+									return (
+										<React.Fragment key={`rev-${leftIndex}`}>
+											{enteredRow && (
+												<Xarrow
+													start={`${uid}-left-${leftIndex}`}
+													end={`${uid}-right-${enteredRow.id}`}
+													color="#6b7280"
+													strokeWidth={3}
+													dashness={{ strokeLen: 8, nonStrokeLen: 6 }}
+													curveness={0.6}
+													startAnchor={"right" as anchorType}
+													endAnchor={"left" as anchorType}
+													path="smooth"
+													showHead={false}
+													zIndex={5}
+												/>
+											)}
+											{correctRow && (
+												<Xarrow
+													start={`${uid}-left-${leftIndex}`}
+													end={`${uid}-right-${correctRow.id}`}
+													color="#16a34a"
+													strokeWidth={3}
+													curveness={0.6}
+													startAnchor={"right" as anchorType}
+													endAnchor={"left" as anchorType}
+													path="smooth"
+													showHead={false}
+													zIndex={6}
+												/>
+											)}
+										</React.Fragment>
+									);
+							  })
+							: connections.map((code, leftIndex) => {
+									if (code === -1) return null;
+									const row = codeToRow.get(code);
+									if (!row) return null;
+									return (
+										<Xarrow
+											key={`${leftIndex}-${code}`}
+											start={`${uid}-left-${leftIndex}`}
+											end={`${uid}-right-${row.id}`}
+											color={colorFor(leftIndex)}
+											strokeWidth={3}
+											curveness={0.6}
+											startAnchor={"right" as anchorType}
+											endAnchor={"left" as anchorType}
+											path="smooth"
+											showHead={false}
+											zIndex={5}
+										/>
+									);
+							  })}
 					</div>
 				</div>
 				{!review && (

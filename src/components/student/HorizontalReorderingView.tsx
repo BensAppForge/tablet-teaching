@@ -86,6 +86,15 @@ const HorizontalReorderingView: React.FC<Props> = ({
 			: initialOrder;
 	const gapTexts = answer?.gapTexts ?? {};
 
+	// The items in their correct sequence — revealed in review so the class
+	// always sees the right order, not just which slots were wrong.
+	const correctSequence = (
+		question.correctOrder &&
+		question.correctOrder.length === question.items.length
+			? question.correctOrder
+			: question.items.map((_, i) => i)
+	).map((oi) => question.items[oi] ?? "");
+
 	// Sensors: PointerSensor with a small distance constraint allows
 	// click-then-drag without consuming taps; TouchSensor with a short
 	// delay distinguishes "tap to scroll the page" from "press to drag"
@@ -252,6 +261,26 @@ const HorizontalReorderingView: React.FC<Props> = ({
 					</div>
 				</SortableContext>
 			</DndContext>
+			{review && (
+				<div className="pl-6">
+					<p className="mb-1 text-xs font-medium text-green-700 dark:text-green-400">
+						Richtige Reihenfolge
+					</p>
+					<div className="flex flex-wrap items-center gap-1.5">
+						{correctSequence.map((text, i) => (
+							<span
+								key={i}
+								className="inline-flex items-center gap-1.5 rounded-md border border-green-500 bg-green-50 px-2 py-1 text-sm dark:bg-green-950/30"
+							>
+								<span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-600 text-xs font-medium text-white">
+									{i + 1}
+								</span>
+								{text || "leer"}
+							</span>
+						))}
+					</div>
+				</div>
+			)}
 			{!review && (
 				<p className="pl-6 text-xs text-muted-foreground">
 					{strings.hint.horizontalReordering}

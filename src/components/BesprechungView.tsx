@@ -108,7 +108,6 @@ const BesprechungView: React.FC = () => {
 		() => (q && isCorrected ? gradeQuestion(q, answers[qId]) : null),
 		[q, isCorrected, answers, qId]
 	);
-	const round = (n: number) => Math.round(n * 100) / 100;
 
 	if (!testId) {
 		return (
@@ -174,9 +173,7 @@ const BesprechungView: React.FC = () => {
 								"mb-4 flex items-center gap-3 rounded-lg border p-4 text-base font-medium " +
 								(grade.correct
 									? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200"
-									: grade.earned > 0
-										? "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
-										: "border-rose-300 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200")
+									: "border-rose-300 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-200")
 							}
 							aria-live="polite"
 						>
@@ -188,9 +185,7 @@ const BesprechungView: React.FC = () => {
 							<span>
 								{grade.correct
 									? "Richtig"
-									: grade.earned > 0
-										? `Teilweise richtig — ${round(grade.earned)} / ${grade.max} Punkte`
-										: "Noch nicht richtig"}
+									: "Nicht richtig — die richtige Lösung ist markiert"}
 							</span>
 						</div>
 					)}
