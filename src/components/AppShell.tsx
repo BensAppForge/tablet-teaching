@@ -141,6 +141,13 @@ function DefaultFooter() {
 						>
 							Datenschutz
 						</Link>
+						<span className="mx-1.5 opacity-50">·</span>
+						<Link
+							href="/agb"
+							className="hover:text-foreground underline-offset-4 hover:underline"
+						>
+							AGB
+						</Link>
 					</span>
 				</div>
 				<div className="hidden min-w-0 flex-1 justify-center md:flex">

@@ -14,12 +14,12 @@ export default function ImpressumPage() {
 					<h2 className="text-base font-semibold mb-2">
 						Angaben gemäß § 5 DDG
 					</h2>
-					<p>Antonio Bentivoglio (Bensappforge)</p>
-					<p className="mt-2 text-muted-foreground">
-						Tablet Teaching befindet sich derzeit in einer geschlossenen
-						Beta-Phase und ist nicht öffentlich verfügbar. Die
-						vollständigen Anbieterangaben werden vor der Veröffentlichung
-						ergänzt.
+					<p>Antonio Bentivoglio</p>
+					<p>Bensappforge</p>
+					<p className="mt-1">
+						[Straße und Hausnummer]
+						<br />
+						[PLZ und Ort]
 					</p>
 				</div>
 
@@ -28,19 +28,19 @@ export default function ImpressumPage() {
 					<p>
 						E-Mail:{" "}
 						<a
-							href="mailto:bensappforge@gmail.com"
+							href="mailto:info@bensappforge.cloud"
 							className="text-accent underline-offset-4 hover:underline"
 						>
-							bensappforge@gmail.com
+							info@bensappforge.cloud
 						</a>
 					</p>
 				</div>
 
 				<div>
 					<h2 className="text-base font-semibold mb-2">
-						Verantwortlich für den Inhalt
+						Verantwortlich für den Inhalt gemäß § 18 Abs. 2 MStV
 					</h2>
-					<p>Antonio Bentivoglio</p>
+					<p>Antonio Bentivoglio (Anschrift wie oben)</p>
 				</div>
 
 				<div>

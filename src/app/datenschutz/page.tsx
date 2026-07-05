@@ -100,11 +100,26 @@ export default function DatenschutzPage() {
 						4. KI-gestützte Aufgabenerstellung
 					</h2>
 					<p>
-						Lehrkräfte können Aufgaben mit Unterstützung eines KI-Modells
-						(Google Gemini) erstellen. Dabei werden ausschließlich die von
-						der Lehrkraft eingegebenen Themen- und Aufgabenbeschreibungen
-						an das Modell übermittelt — niemals Daten von Schüler:innen
-						oder deren Ergebnisse.
+						Lehrkräfte können Aufgaben optional mit Unterstützung eines
+						KI-Modells (Google Gemini, bereitgestellt von Google) erstellen.
+						Nutzt eine Lehrkraft diese Funktion, werden die von ihr
+						bereitgestellten Ausgangsmaterialien an das KI-Modell
+						übermittelt: eingegebene Themen- und Aufgabenbeschreibungen
+						sowie — sofern die Lehrkraft solche hochlädt — Textauszüge,
+						PDF- oder Word-Dokumente und Bilder (z. B. Screenshots aus
+						Lehrwerken).
+					</p>
+					<p className="mt-2">
+						Antworten oder Ergebnisse von Schüler:innen werden im Rahmen
+						der Aufgabenerstellung nicht an das KI-Modell übermittelt.
+						Lehrkräfte sind gehalten, keine personenbezogenen Daten von
+						Schüler:innen in die Ausgangsmaterialien aufzunehmen.
+					</p>
+					<p className="mt-2">
+						Die Aufrufe erfolgen über eine serverseitige Funktion in der EU
+						(Region europe-west1). Die Verarbeitung durch das KI-Modell
+						selbst erfolgt nach den Bedingungen von Google und kann auch
+						außerhalb dieser Region stattfinden.
 					</p>
 				</div>
 
@@ -135,7 +150,7 @@ export default function DatenschutzPage() {
 
 				<div>
 					<h2 className="text-base font-semibold mb-2">7. Stand</h2>
-					<p>Juni 2026</p>
+					<p>Juli 2026</p>
 				</div>
 			</section>
 		</PageShell>
