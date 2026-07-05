@@ -89,7 +89,7 @@ const BesprechungView: React.FC = () => {
 
 	const setAnswerFor = useCallback(
 		(id: string) => (a: unknown) => {
-			// Once corrected, the question is locked until "Nochmal".
+			// Once corrected, the entered answer is locked (no re-correcting).
 			setCorrected((prev) => {
 				if (prev[id]) return prev;
 				setAnswers((cur) => ({ ...cur, [id]: a }));
@@ -215,11 +215,19 @@ const BesprechungView: React.FC = () => {
 							Zurück
 						</Button>
 
-						{!isCorrected && (
+						{!isCorrected ? (
 							<Button size="lg" onClick={handleCheck}>
 								<CheckCircle2 className="mr-2 h-5 w-5" />
 								Korrigieren
 							</Button>
+						) : (
+							// Keeps the bar's shape consistent and shows at a glance
+							// which questions have been discussed (no re-correcting,
+							// by design — see the removed "Nochmal").
+							<span className="inline-flex items-center gap-2 px-4 py-2 text-base font-medium text-emerald-700 dark:text-emerald-300">
+								<CheckCircle2 className="h-5 w-5" />
+								Korrigiert
+							</span>
 						)}
 
 						<Button
