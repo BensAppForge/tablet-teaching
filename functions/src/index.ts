@@ -15,6 +15,7 @@ export {
 	resetStudentPassword,
 } from "./students";
 export { deleteClass } from "./classes";
+export { deleteAccount } from "./deleteAccount";
 export { cleanupQuickAttempts, cleanupQuickSubmissions } from "./quickAccess";
 export { generateTestQuestions } from "./aiTestGen";
 export { gradeSubmission } from "./grading";

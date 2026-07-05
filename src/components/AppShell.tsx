@@ -3,7 +3,13 @@
 import React from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { BookOpen, GraduationCap, LogOut, Loader2 } from "lucide-react";
+import {
+	BookOpen,
+	GraduationCap,
+	LogOut,
+	Loader2,
+	Settings,
+} from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
 import { useFooterInfo } from "@/context/FooterInfoContext";
@@ -72,6 +78,21 @@ function FocusHeader() {
 	);
 }
 
+function SettingsLink() {
+	const { role } = useAuth();
+	// Settings today are teacher-only (profile, password, account deletion).
+	if (role !== "teacher") return null;
+	return (
+		<Link
+			href="/settings"
+			aria-label="Einstellungen"
+			className="inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+		>
+			<Settings className="h-5 w-5" />
+		</Link>
+	);
+}
+
 function DefaultHeader() {
 	return (
 		<header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
@@ -88,6 +109,7 @@ function DefaultHeader() {
 					<div className="hidden min-w-0 sm:block">
 						<UserProfile />
 					</div>
+					<SettingsLink />
 					<ModeToggle />
 				</div>
 			</div>

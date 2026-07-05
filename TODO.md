@@ -1,35 +1,105 @@
-# Open work
+# Tablet Teaching — Path out of Beta (v1 checklist)
 
-A rolling list of pending work, scoped by priority. Each item lives here until it's either shipped or moved into a dedicated plan file under `docs/plans/`.
+_Last updated: 2026-07-05. Current version: see `package.json`._
 
-## Near-term
+The honest list of what still needs doing before a public (non-beta) launch,
+ordered by how much it blocks going live.
 
-- **Student login UI** — students now have credentials (via the `bulkImportStudents` callable) but no way to sign in. Needs a kid-friendly login screen that accepts the synthetic email + password.
-- **Worksheet PDF export** — the original goal: student works through a worksheet on iPad, downloads a well-formatted PDF for GoodNotes import. `src/services/pdf-generator.ts` is currently a 3-line stub returning the literal string `"Sample PDF data"`. Needs a real renderer (probably `@react-pdf/renderer`).
-- **`/impressum` and `/datenschutz`** — both linked from the dashboard but don't exist. Need at least minimal content. Blocking dependency for the consent form (see plans below).
-- **Student password reset** — promised in the Hilfe text ("folgt in Kürze"). Small admin-SDK callable + UI affordance on the class detail page.
-- **Polish PDF layouts** — both `WorksheetResultsPDF` (post-submit results) and `EmptyWorksheetPDF` (printable empty) work but the typography, spacing, page-break handling, and per-type layouts need a design pass. Worth registering a real Unicode font (so ✓/✗ glyphs render) and tuning the margins, line-heights, and word-bank presentation. Also surface the school name / teacher name in the header — both are not yet collected on the teacher profile.
-- **Set `NEXT_PUBLIC_APP_URL` before the first production deploy** so Schnellzugang QR codes encode the production domain rather than whichever origin the teacher happens to open the share page from. e.g. `.env.production` with `NEXT_PUBLIC_APP_URL=https://tablet-teaching.web.app`.
-- **Optional test-level duration (exam time)** — the de-scoped competitive flow had per-question time limits, which were dropped. A single optional "Bearbeitungszeit (Minuten)" field on the test (shown on the test card, displayed to students during the worksheet) maps better to actual exam prep. Schema: add `durationMinutes?: number` to `Test`. UI: optional input in `TestGeneralSettingsForm`, chip on the tests list card, surfaced to students once the student-side renderer exists.
+---
 
-## Planned features (have plan files)
+## 🔴 Must do before a public launch (real blockers)
 
-- **[Parent consent form (Einverständniserklärung)](docs/plans/parent-consent-form.md)** — printable per-class PDF template for parental consent. Lower priority; depends on the PDF renderer and the basic privacy pages.
-- **[Custom-token student login](docs/plans/custom-token-login.md)** — short login code instead of synth email + password. Should ship right after the basic student login screen exists.
+### Legal / DSGVO
+- [ ] **Impressum: enter a real postal address.** Currently a visible
+      placeholder (`[Straße und Hausnummer]` / `[PLZ und Ort]`) in
+      `src/app/impressum/page.tsx`. A German Impressum legally requires a
+      ladungsfähige Anschrift.
+- [ ] **Have a lawyer / DPO review** the Impressum, Datenschutz and AGB. The
+      current texts are sensible boilerplate, not legal advice. The AGB shows a
+      "vorläufige Fassung" notice until then.
+- [ ] **AVV (Auftragsverarbeitungsvertrag) for schools** — each school is the
+      controller; you're the processor and must offer an Art. 28 DSGVO
+      agreement. Doesn't exist yet.
+- [ ] **Parental consent form** for minors (planned in
+      `docs/plans/parent-consent-form.md`). Gate before the first school pilot.
+- [ ] **Records of processing** (Verzeichnis von Verarbeitungstätigkeiten).
 
-## Hardening for v2
+### Account / data rights
+- [ ] **Self-service account deletion** (Art. 17). — _built this session_
+- [ ] **Data export** (Art. 20) — teacher self-export of their tests, classes,
+      students and results (JSON/CSV).
 
-- **Move grading server-side** (Cloud Function). Today `correctOption`, `isTrue`, `correctMatches`, `correctOrder`, and `gaps` ship to the client in the question doc — a curious student with DevTools can see the answers before submitting. For classroom worksheets that's acceptable; for any high-stakes use we'd move grading into a callable that returns `{ correct, points }` per question without ever exposing the correct answers.
-- **Server-side PDF rendering** (Cloud Function with Puppeteer or @react-pdf/renderer running on Node). The v1 client-side PDF will get us to the first pilot but server-side rendering gives better fonts, smaller bundle, and lets us watermark / sign / archive on the backend.
+### Onboarding / access
+- [ ] **Decide the sign-up story.** Teacher self-registration is disabled today
+      (rules `allow create: if false` on `/teachers` + signup page hidden).
+      Either re-enable it or define a manual onboarding process.
 
-## Ops gotchas
+### Monetisation prerequisite
+- [ ] **Enforce the test-count cap server-side.** The 3-test limit is currently
+      client-only and tamperable. Fix in rules or a Function before anything is
+      gated behind payment.
 
-- **New callable Functions need `allUsers/run.invoker`.** When deploying a *new* Firebase v2 onCall function for the first time, the Cloud Run service it creates sometimes doesn't get the `allUsers` invoker role automatically. Without it, the browser sees a "CORS error" (actually a 403 with no CORS headers). Fix is a single `gcloud run services add-iam-policy-binding <name> --region=europe-west1 --project=tablet-teaching --member="allUsers" --role="roles/run.invoker"` — or via Cloud Run console → Permissions → Add principal. Worth checking after every new callable deploy.
-- **If Tests/Klassen/worksheet loading still feels slow after the Firestore transport fix, instrument the shared load path.** `experimentalAutoDetectLongPolling` is now enabled in `src/lib/firebase/config.ts` to avoid WebChannel stalls on Safari/WebKit and filtered school networks. If delays remain, add temporary timing logs around `onAuthStateChanged`, `user.getIdTokenResult()`, the `teachers/{uid}` profile read, `getTeacherTests()`, `getTeacherClasses()`, quick-code lookup, and worksheet `getTest()`. If Firestore collection reads are still the bottleneck, evaluate `experimentalForceLongPolling`. Also verify the production Firestore indexes for `(teacherId ASC, createdAt DESC)` on both `tests` and `classes` are deployed.
+---
 
-## Tech debt to revisit (when the app stabilises)
+## 🟠 Important for a solid v1
 
-- `getTest()` in `src/lib/firebase/tests.ts` is ~270 lines with cascading fallback queries and dozens of debug `console.log` calls. Simplify to a single `orderBy("order")` query and strip the logs.
-- Two toast systems coexist: `sonner` (mounted in `layout.tsx`) and the radix-based `use-toast.ts` + `toaster.tsx`. Pick one, remove the other.
-- Empty `src/app/api/tests/[testId]/` directory exists but is incompatible with `output: "export"` and isn't referenced. Delete it.
-- `src/scripts/fetch-test-ids.ts` exists with a dedicated `fetch-test-ids` npm script; verify it's still relevant or remove.
+- [ ] **Settings / profile page** — _built this session_
+- [ ] **Change password in-app** — _built this session_
+- [ ] **Change email + email verification** (teacher emails are unverified today).
+- [ ] **Show AI quota to the teacher** ("X von Y KI-Tests übrig"). Only a
+      reactive error toast exists now.
+- [ ] **Error monitoring** (e.g. Sentry) — no observability today.
+- [ ] **Firestore backup strategy** — only scheduled deleters exist, no backups.
+
+---
+
+## 🟢 Nice to have / later
+
+- [ ] Duplicate a test; archive vs. hard delete (classes have a dead `archived`
+      field to wire up).
+- [ ] Plain teacher test preview (separate from Besprechen).
+- [ ] Results export (CSV/PDF of scores); cross-student per-question analytics.
+- [ ] Student attempt history (only the latest attempt is shown today).
+- [ ] **Matching editor accessibility** — the teacher's dot-connecting is
+      mouse-only; make it keyboard-operable. Plus a screen-reader announcement
+      of matching pairings for blind students. (Needs iPad testing.)
+- [ ] Full offline test-taking (persistent cache is on; still need to cache
+      opened worksheets so a student can complete an assigned test offline).
+- [ ] **Stripe monetisation** — buildable in test mode now, parallel to beta.
+      Needs the server-side cap (above) first. Decide B2C (teacher pays by card)
+      vs. B2B (school pays by invoice) — German schools rarely use cards.
+- [ ] Remove the advertised-but-unimplemented watermark feature (or build it).
+- [ ] Optional per-test duration (`durationMinutes`) shown to students.
+
+---
+
+## Ops notes (don't forget)
+
+- **New callable Functions may need the `allUsers`/`run.invoker` role.** A
+  brand-new v2 `onCall` sometimes doesn't get it automatically, causing a
+  browser "CORS error" (really a 403). Fix:
+  `gcloud run services add-iam-policy-binding <name> --region=europe-west1 --project=tablet-teaching --member="allUsers" --role="roles/run.invoker"`.
+  Check after deploying any new callable (e.g. `deleteAccount`).
+- **Set `NEXT_PUBLIC_APP_URL` before the first production deploy** so
+  Schnellzugang QR codes encode the production domain, not whichever origin the
+  teacher opened the share page from. e.g. `.env.production` with
+  `NEXT_PUBLIC_APP_URL=https://tablet-teaching.web.app`.
+- **Deploy commands:** `npm run deploy` = hosting only (runs version-sync);
+  `npm run deploy:full` = hosting + functions + firestore rules. Backend changes
+  need the full one.
+
+---
+
+## ✅ Already done in this beta (high-level)
+
+- **Security:** answer-key leak closed, AI/Gemini spend metered + rate-limited,
+  server-authoritative grading, submission/grading rate limits, cascade-delete
+  orphan fixes.
+- **Robustness:** offline resilience (persistent cache, no blank-screen), deploy
+  version-sync fix, TestBuilder/worksheet async-race fixes, consistent
+  error/retry states.
+- **UX/a11y:** touch-target + aria pass, matching review colour-blind-safe
+  (dashed grey), reordering "answered" fix.
+- **Besprechung** teacher-led review with consistent, always-reveal feedback.
+- **Legal groundwork:** Impressum / Datenschutz (Gemini disclosure corrected) /
+  AGB pages (all still need professional review — see above).
