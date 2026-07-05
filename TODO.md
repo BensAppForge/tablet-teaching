@@ -7,6 +7,34 @@ ordered by how much it blocks going live.
 
 ---
 
+## ⏸️ Paused here — next actions (2026-07-05, v0.7.14-beta)
+
+### 👤 You (Ben) — needs a human
+- [ ] **Test account deletion with a throwaway account.** Create a disposable
+      teacher, give it a test + class + student, delete it via Settings, and
+      confirm in the Firebase console that all tests/classes/students/
+      submissions AND the Auth users are gone. (Only irreversible action; I
+      can't safely test it end-to-end.)
+- [ ] **Fill the real Impressum postal address** (`src/app/impressum/page.tsx`,
+      currently a `[Straße…]` placeholder).
+- [ ] **Get the legal texts reviewed** (Impressum / Datenschutz / AGB) by a
+      lawyer or DPO.
+- [ ] **Decide:** re-enable teacher self-signup vs. manual onboarding; and
+      Stripe B2C (card) vs. B2B (school invoice).
+
+### 🤖 Claude — pick up next session
+- [ ] **GDPR data export** (Art. 20) — teacher self-export of tests + classes +
+      students + results (JSON/CSV). Next in the legal/account block.
+- [ ] **Email change + verification** flow (Settings page already has the slot,
+      email shown read-only for now).
+- [ ] Then continue down the 🔴 / 🟠 lists below (server-side test cap is the
+      key one before Stripe).
+
+_Full context lives in Claude's memory files; this section is the quick
+handoff._
+
+---
+
 ## 🔴 Must do before a public launch (real blockers)
 
 ### Legal / DSGVO
