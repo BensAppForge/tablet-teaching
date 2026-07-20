@@ -186,15 +186,18 @@ const VerticalReorderingView: React.FC<Props> = ({
 						{order.map((origIndex, displayIndex) => {
 							const itemText = question.items[origIndex] ?? "";
 							const gap = isGap(origIndex);
-							const correctOrigAtPosition =
-								question.correctOrder?.[displayIndex];
-							const positionRight =
-								review && correctOrigAtPosition === origIndex;
-							const positionWrong = review && !positionRight;
 							const gapTyped = gapTexts[origIndex] ?? "";
-							const gapRight =
-								review && gap && norm(gapTyped) === norm(itemText);
-							const gapWrong = review && gap && !gapRight;
+							// Judge each slot by the text VISIBLE there (typed
+							// text for gaps) — gap boxes look identical, so
+							// which underlying item sits where must not matter.
+							// Keep in lockstep with the reordering case in
+							// scoring.ts (client + functions).
+							const shownText = gap ? gapTyped : itemText;
+							const slotRight =
+								review &&
+								norm(shownText) ===
+									norm(correctSequence[displayIndex] ?? "");
+							const slotWrong = review && !slotRight;
 							return (
 								<SortableWord
 									key={origIndex}
@@ -208,7 +211,7 @@ const VerticalReorderingView: React.FC<Props> = ({
 											className={[
 												"flex min-h-12 items-center gap-3 rounded-md border bg-background px-3 py-2",
 												review
-													? positionRight
+													? slotRight
 														? "border-green-500 bg-green-50 dark:bg-green-950/30"
 														: "border-destructive bg-destructive/10"
 													: "border-input",
@@ -236,8 +239,8 @@ const VerticalReorderingView: React.FC<Props> = ({
 													aria-label={`Lückentext an Position ${displayIndex + 1}`}
 													className={[
 														"h-11 px-2 text-sm flex-1",
-														gapRight ? "border-green-500" : "",
-														gapWrong ? "border-destructive" : "",
+														gap && slotRight ? "border-green-500" : "",
+														gap && slotWrong ? "border-destructive" : "",
 													].join(" ")}
 												/>
 											) : (
@@ -245,13 +248,13 @@ const VerticalReorderingView: React.FC<Props> = ({
 													{itemText || "leer"}
 												</span>
 											)}
-											{review && positionRight && !gapWrong && (
+											{slotRight && (
 												<>
 													<Check className="h-4 w-4 text-green-600" aria-hidden="true" />
 													<span className="sr-only">richtig</span>
 												</>
 											)}
-											{review && (positionWrong || gapWrong) && (
+											{slotWrong && (
 												<>
 													<X className="h-4 w-4 text-destructive" aria-hidden="true" />
 													<span className="sr-only">falsch</span>

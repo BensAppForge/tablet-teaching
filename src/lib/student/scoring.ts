@@ -66,9 +66,6 @@ export const norm = (s: unknown): string => {
 		.toLocaleLowerCase("de-DE");
 };
 
-const arrayEq = (a: number[], b: number[]): boolean =>
-	a.length === b.length && a.every((v, i) => v === b[i]);
-
 function maxPoints(q: Question): number {
 	return typeof q.points === "number" && q.points > 0 ? q.points : 1;
 }
@@ -133,14 +130,27 @@ export function gradeQuestion(q: Question, answer: unknown): QuestionGrade {
 				order: [],
 				gapTexts: {},
 			};
-			const orderOk = arrayEq(a.order ?? [], r.correctOrder ?? []);
-			let gapsOk = true;
-			(r.isGap || []).forEach((isGap, i) => {
-				if (isGap && norm(a.gapTexts?.[i]) !== norm(r.items[i])) {
-					gapsOk = false;
-				}
-			});
-			const correct = orderOk && gapsOk;
+			// Grade the VISIBLE word sequence, not the hidden item indices:
+			// gap slots render as identical empty boxes, so which underlying
+			// item a student dragged where is invisible to them (and random
+			// from the initial shuffle). Two students with the same words in
+			// the same positions must get the same grade — compare the text
+			// shown/typed at each position against the text expected there.
+			const items = r.items ?? [];
+			const order = a.order ?? [];
+			const correctOrder =
+				r.correctOrder && r.correctOrder.length === items.length
+					? r.correctOrder
+					: items.map((_, i) => i);
+			const isGapArr = r.isGap ?? [];
+			const correct =
+				order.length === items.length &&
+				order.every((origIndex, pos) => {
+					const shown = isGapArr[origIndex]
+						? a.gapTexts?.[origIndex]
+						: items[origIndex];
+					return norm(shown) === norm(items[correctOrder[pos]] ?? "");
+				});
 			return { correct, earned: correct ? max : 0, max };
 		}
 	}

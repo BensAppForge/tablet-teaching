@@ -36,6 +36,7 @@ import {
 	TFAnswer,
 } from "@/lib/student/scoring";
 import { SubmissionResult } from "@/lib/student/storage";
+import { norm } from "@/lib/student/scoring";
 import type { Strings } from "@/lib/i18n/types";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
@@ -175,14 +176,6 @@ function renderGapFill(
 	t: Strings
 ) {
 	const answers = ans?.answers ?? [];
-	const norm = (s: string) =>
-		(s ?? "")
-			.normalize("NFC")
-			.replace(/[​-‍﻿]/g, "")
-			.replace(/[  ]/g, " ")
-			.trim()
-			.replace(/\s+/g, " ")
-			.toLocaleLowerCase("de-DE");
 	return (
 		<View>
 			<Text style={styles.label}>{t.pdf.yourAnswer}:</Text>
@@ -266,6 +259,13 @@ function renderReordering(
 		}
 		return q.items[origIndex] ?? "";
 	};
+	// Correctness compares the text VISIBLE at each slot (typed text for
+	// gaps), not the hidden item index — keep in lockstep with the
+	// reordering case in scoring.ts (client + functions).
+	const shownText = (origIndex: number): string => {
+		const isGap = !!(q.isGap || [])[origIndex];
+		return isGap ? gapTexts[origIndex] ?? "" : q.items[origIndex] ?? "";
+	};
 	return (
 		<View>
 			<Text style={styles.label}>{t.pdf.yourOrder}:</Text>
@@ -273,7 +273,9 @@ function renderReordering(
 				<Text style={styles.wrongLine}>{t.pdf.notAnswered}</Text>
 			) : (
 				order.map((origIndex, i) => {
-					const ok = correct[i] === origIndex;
+					const ok =
+						norm(shownText(origIndex)) ===
+						norm(q.items[correct[i]] ?? "");
 					return (
 						<Text
 							key={i}
